@@ -1,0 +1,31 @@
+{
+    "Name": "NewPlayer_1140",
+    "Race": "Human",
+    "Type": "War Mage",
+    "Aspect1": "fire_level_1",
+    "Aspect2": "",
+    "Aspect3": "",
+    "Aspect1_Mana": 149,
+    "Aspect2_Mana": 10,
+    "Aspect3_Mana": 10,
+    "Weapon1": "Spell Pistol",
+    "Weapon2": "Hands",
+    "Weapon3": "Spell_Blade",
+    "Armor_Slot_1": "Spell_Armor",
+    "Armor_Slot_2": "Mystic Armor",
+    "Level": 50,
+    "Hit_Points": 500,
+    "Experience_Points": 18352,
+    "Credits": 23430,
+    "Inventory": {
+        "Greater Health Potion": 16,
+        "Warrior's Sword": 1,
+        "Mana Potion": 3
+    },
+    "strength": 12,
+    "dexterity": 12,
+    "constitution": 14,
+    "intelligence": 13,
+    "wisdom": 11,
+    "charisma": 10
+}

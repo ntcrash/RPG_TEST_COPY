@@ -1,0 +1,20 @@
+{
+    "Name": "Vozy",
+    "Race": "Drifter",
+    "Type": "War Mage",
+    "Aspect1": "void_level_1",
+    "Aspect2": "fire_level_1",
+    "Aspect3": "Melee",
+    "Aspect1_Mana": 10,
+    "Aspect2_Mana": 10,
+    "Aspect3_Mana": 20,
+    "Weapon1": "Spell_Pistol",
+    "Weapon2": "Hands",
+    "Weapon3": "Spell_Blade",
+    "Armor_Slot_1": "Spell_Armor",
+    "Armor_Slot_2": "",
+    "Level": 6,
+    "Hit_Points": 100,
+    "Experience_Points": 5700,
+    "Credits": 0
+}

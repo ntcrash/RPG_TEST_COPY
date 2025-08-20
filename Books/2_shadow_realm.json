@@ -1,0 +1,12 @@
+{
+    "Title": "The Shadow Realm Mysteries",
+    "Chapter1": "The Dark Forest",
+    "Chapter1_Level": 4,
+    "Chapter1_Enemy_Type": "shadow_beast",
+    "Chapter2": "The Void Citadel",
+    "Chapter2_Level": 6,
+    "Chapter2_Enemy_Type": "void_wraith",
+    "Chapter3": "The Nightmare's End",
+    "Chapter3_Level": 8,
+    "Chapter3_Enemy_Type": "nightmare_lord"
+}

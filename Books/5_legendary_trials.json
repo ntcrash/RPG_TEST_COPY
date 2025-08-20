@@ -1,0 +1,21 @@
+{
+    "Title": "The Legendary Trials",
+    "Chapter1": "Trial of Elements",
+    "Chapter1_Level": 18,
+    "Chapter1_Enemy_Type": "elemental_master",
+    "Chapter2": "Trial of Champions",
+    "Chapter2_Level": 22,
+    "Chapter2_Enemy_Type": "legendary_warrior",
+    "Chapter3": "The Final Ascension",
+    "Chapter3_Level": 25,
+    "Chapter3_Enemy_Type": "cosmic_entity",
+    "Chapter4": "The Fall from Ascension",
+    "Chapter4_Level": 28,
+    "Chapter4_Enemy_Type": "cosmic_entity",
+    "Chapter5": "The Ascension",
+    "Chapter5_Level": 31,
+    "Chapter5_Enemy_Type": "cosmic_entity",
+    "Chapter6": "The False Ascension",
+    "Chapter6_Level": 34,
+    "Chapter6_Enemy_Type": "cosmic_entity"
+}

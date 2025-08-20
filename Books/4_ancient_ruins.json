@@ -1,0 +1,12 @@
+{
+    "Title": "The Ancient Ruins Expedition",
+    "Chapter1": "The Forgotten Temple",
+    "Chapter1_Level": 8,
+    "Chapter1_Enemy_Type": "ancient_guardian",
+    "Chapter2": "The Cursed Catacombs",
+    "Chapter2_Level": 12,
+    "Chapter2_Enemy_Type": "undead_champion",
+    "Chapter3": "The Elder God's Chamber",
+    "Chapter3_Level": 15,
+    "Chapter3_Enemy_Type": "elder_god"
+}

@@ -1,0 +1,12 @@
+{
+    "Title": "The Fire Realm Chronicles",
+    "Chapter1": "The Burning Wastelands",
+    "Chapter1_Level": 1,
+    "Chapter1_Enemy_Type": "demon",
+    "Chapter2": "The Molten Caverns",
+    "Chapter2_Level": 2,
+    "Chapter2_Enemy_Type": "fire_elemental",
+    "Chapter3": "The Dragon's Lair",
+    "Chapter3_Level": 3,
+    "Chapter3_Enemy_Type": "dragon"
+}

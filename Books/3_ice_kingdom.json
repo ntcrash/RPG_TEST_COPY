@@ -1,0 +1,12 @@
+{
+    "Title": "The Ice Kingdom Saga",
+    "Chapter1": "The Frozen Tundra",
+    "Chapter1_Level": 7,
+    "Chapter1_Enemy_Type": "ice_troll",
+    "Chapter2": "The Crystal Caves",
+    "Chapter2_Level": 10,
+    "Chapter2_Enemy_Type": "ice_golem",
+    "Chapter3": "The Frost Giant's Fortress",
+    "Chapter3_Level": 13,
+    "Chapter3_Enemy_Type": "frost_giant"
+}

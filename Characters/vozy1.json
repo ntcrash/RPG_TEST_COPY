@@ -1,0 +1,30 @@
+{
+    "Name": "Vozy",
+    "Race": "Dwarf",
+    "Type": "War Mage",
+    "Aspect1": "void_level_1",
+    "Aspect2": "fire_level_1",
+    "Aspect3": "Melee",
+    "Aspect1_Mana": 297,
+    "Aspect2_Mana": 10,
+    "Aspect3_Mana": 20,
+    "Weapon1": "Warrior's Sword",
+    "Weapon2": "",
+    "Weapon3": "Enhanced Spell Blade",
+    "Armor_Slot_1": "Plate Mail",
+    "Armor_Slot_2": "Belt of Constitution",
+    "Level": 50,
+    "Hit_Points": 605,
+    "Experience_Points": 207685,
+    "Credits": 120972,
+    "Inventory": {
+        "Greater Mana Potion": 11,
+        "Greater Health Potion": 2
+    },
+    "strength": 12,
+    "dexterity": 12,
+    "constitution": 14,
+    "intelligence": 13,
+    "wisdom": 11,
+    "charisma": 10
+}
