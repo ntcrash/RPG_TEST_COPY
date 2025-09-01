@@ -5,7 +5,7 @@
     "Aspect1": "void_level_1",
     "Aspect2": "fire_level_1",
     "Aspect3": "Melee",
-    "Aspect1_Mana": 297,
+    "Aspect1_Mana": 222,
     "Aspect2_Mana": 10,
     "Aspect3_Mana": 20,
     "Weapon1": "Warrior's Sword",
@@ -15,8 +15,8 @@
     "Armor_Slot_2": "Belt of Constitution",
     "Level": 50,
     "Hit_Points": 605,
-    "Experience_Points": 207685,
-    "Credits": 120972,
+    "Experience_Points": 208963,
+    "Credits": 127222,
     "Inventory": {
         "Greater Mana Potion": 11,
         "Greater Health Potion": 2

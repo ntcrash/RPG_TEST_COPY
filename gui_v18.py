@@ -1,7 +1,10 @@
 import math
+import sys
+
 from fight import *
 from loot import *
 from new_character_form import *
+import os
 
 
 def roll_dice(num, sides):

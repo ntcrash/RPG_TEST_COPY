@@ -1,0 +1,9 @@
+{
+    "Title": "The Ice Kingdom Saga",
+    "Chapter1": "The Frozen Tundra",
+    "Chapter1_Level": 2,
+    "Chapter1_Enemy_Type": "ice_troll",
+    "Chapter2": "The Crystal Caves",
+    "Chapter2_Level": 4,
+    "Chapter2_Enemy_Type": "ice_golem"
+}
