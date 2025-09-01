@@ -9,18 +9,22 @@ from animated_player import AnimatedPlayer
 from tile_map import EnhancedTileMap
 from ui_components import *
 from game_data import CharacterManager, EnemyManager, Store, create_sample_files
+from character_creation import CharacterCreation
 
 
 class GameState:
     """Game state constants"""
     OPENING = 0
     MAIN_MENU = 1
-    GAME_BOARD = 2
-    FIGHT = 3
-    STORE = 4
-    INVENTORY = 5
-    CHARACTER_SHEET = 6
-    HELP = 7
+    CHARACTER_SELECT = 2
+    CREATE_CHARACTER = 3
+    GAME_BOARD = 4
+    FIGHT = 5
+    STORE = 6
+    INVENTORY = 7
+    CHARACTER_SHEET = 8
+    HELP = 9
+
 
 def is_too_close(x, y, positions, min_distance=20):
     """Check if (x,y) is too close to any position in positions."""
@@ -47,6 +51,9 @@ class EnhancedGameManager:
         self.selected_option = 0
         self.animation_timer = 0
 
+        # UI settings
+        self.show_instructions = False  # New setting to toggle instructions
+
         # Initialize subsystems
         self.character_manager = CharacterManager()
         self.enemy_manager = EnemyManager()
@@ -56,6 +63,13 @@ class EnhancedGameManager:
         self.ui_renderer = UIRenderer(self.WIDTH, self.HEIGHT)
         self.particles = ParticleSystem()
         self.damage_texts = []
+
+        # Character selection variables
+        self.available_characters = []
+        self.selected_character = 0
+
+        # Character creation system
+        self.character_creator = None
 
         # Initialize player and world
         self.animated_player = AnimatedPlayer('Images/80SpriteSheetNEW.png')
@@ -92,9 +106,14 @@ class EnhancedGameManager:
         static_shop = Shop(world_width - 80, 20)  # Top-right corner
         self.shops.append(static_shop)
 
-        # Add static shop in top-right corner
-        static_rest = RestArea(world_width - 80, 750)  # Top-right corner
+        # Add static rest area in bottom-right corner
+        static_rest = RestArea(world_width - 80, 750)  # Bottom-right corner
         self.rests.append(static_rest)
+
+    def load_character_list(self):
+        """Load list of available characters"""
+        self.available_characters = self.character_manager.get_character_list()
+        self.selected_character = 0
 
     def load_map_data(self):
         """Load map data and create tiles"""
@@ -105,7 +124,6 @@ class EnhancedGameManager:
         # Clear existing objects
         self.enemies.clear()
         self.treasures.clear()
-        # self.treasure_positions.clear()
         self.shops.clear()
         self.rests.clear()
 
@@ -117,21 +135,21 @@ class EnhancedGameManager:
         if not treasure_positions:
             # Add some manual treasure positions
             treasure_positions = [
-                (random.randint(50, 750), random.randint(50, 550))  # adjust to map size
-                for _ in range(8)  # same number of treasures as your original list
+                (random.randint(50, 750), random.randint(50, 550))
+                for _ in range(8)
             ]
 
-            for x, y in treasure_positions:
-                treasure = Treasure(x, y)
-                self.treasures.append(treasure)
+        for x, y in treasure_positions:
+            treasure = Treasure(x, y)
+            self.treasures.append(treasure)
 
         # Create enemies - ensure they spawn
         enemy_positions = object_positions.get('enemies', [])
         if not enemy_positions:
             # Generate enemy positions with spacing rules
             enemy_positions = []
-            num_enemies = 18  # adjust as needed
-            max_attempts = 1000  # safety cap to avoid infinite loops
+            num_enemies = 18
+            max_attempts = 1000
 
             attempts = 0
             while len(enemy_positions) < num_enemies and attempts < max_attempts:
@@ -148,7 +166,6 @@ class EnhancedGameManager:
             for x, y in enemy_positions:
                 enemy = Enemy(x, y, self.enemy_manager.create_scaled_enemy())
                 self.enemies.append(enemy)
-
 
     def check_collisions(self):
         """Check for collisions between player and world objects"""
@@ -178,6 +195,18 @@ class EnhancedGameManager:
 
         return None, None
 
+    def handle_event(self, event):
+        """Handle pygame events based on current state"""
+        if event.type == pygame.KEYDOWN:
+            return self.handle_keypress(event.key)
+        elif self.current_state == GameState.CREATE_CHARACTER and self.character_creator:
+            # Pass text input events to character creator
+            if event.type == pygame.TEXTINPUT:
+                result = self.character_creator.handle_event(event)
+                if result:
+                    return True
+        return None
+
     def handle_keypress(self, key):
         """Handle keyboard input based on current state"""
         if self.current_state == GameState.OPENING:
@@ -185,36 +214,76 @@ class EnhancedGameManager:
 
         elif self.current_state == GameState.MAIN_MENU:
             if key == pygame.K_UP:
-                self.selected_option = (self.selected_option - 1) % 4
+                self.selected_option = (self.selected_option - 1) % 3
             elif key == pygame.K_DOWN:
-                self.selected_option = (self.selected_option + 1) % 4
+                self.selected_option = (self.selected_option + 1) % 3
             elif key == pygame.K_RETURN:
                 if self.selected_option == 0:  # Start Game
-                    if not self.character_manager.load_character("Characters/test_hero.json"):
-                        self.character_manager.create_sample_character()
-                    self.current_state = GameState.GAME_BOARD
+                    self.load_character_list()
+                    self.current_state = GameState.CHARACTER_SELECT
 
-                elif self.selected_option == 1:  # Load Character
-                    self.load_character_menu()
-
-                elif self.selected_option == 2:  # Help
+                elif self.selected_option == 1:  # Help
                     self.current_state = GameState.HELP
 
-                elif self.selected_option == 3:  # Quit
+                elif self.selected_option == 2:  # Quit
                     return False
 
             elif key == pygame.K_ESCAPE:
                 return False
 
+        elif self.current_state == GameState.CHARACTER_SELECT:
+            if key == pygame.K_UP:
+                self.selected_character = (self.selected_character - 1) % len(self.available_characters)
+            elif key == pygame.K_DOWN:
+                self.selected_character = (self.selected_character + 1) % len(self.available_characters)
+            elif key == pygame.K_RETURN:
+                selected_char = self.available_characters[self.selected_character]
+
+                if selected_char == "New Character":
+                    # Initialize character creator
+                    self.character_creator = CharacterCreation(self.WIDTH, self.HEIGHT)
+                    self.current_state = GameState.CREATE_CHARACTER
+                else:
+                    char_path = os.path.join("Characters", selected_char)
+                    if self.character_manager.load_character(char_path):
+                        self.current_state = GameState.GAME_BOARD
+                    else:
+                        print(f"Failed to load character: {selected_char}")
+
+            elif key == pygame.K_ESCAPE:
+                self.current_state = GameState.MAIN_MENU
+
+        elif self.current_state == GameState.CREATE_CHARACTER:
+            if self.character_creator:
+                result = self.character_creator.handle_keypress(key)
+
+                if result == "create":
+                    # Save character and start game
+                    char_file = self.character_creator.save_character()
+                    if char_file and self.character_manager.load_character(char_file):
+                        self.current_state = GameState.GAME_BOARD
+                    else:
+                        print("Failed to create character")
+
+                elif result == "cancel":
+                    self.character_creator = None
+                    self.current_state = GameState.CHARACTER_SELECT
+
+                elif result == "need_name":
+                    # Could add a message here about needing a name
+                    pass
+
         elif self.current_state == GameState.GAME_BOARD:
             if key == pygame.K_ESCAPE:
-                return False
+                self.current_state = GameState.MAIN_MENU
             elif key == pygame.K_i:
                 self.current_state = GameState.INVENTORY
             elif key == pygame.K_c:
                 self.current_state = GameState.CHARACTER_SHEET
             elif key == pygame.K_h:
                 self.current_state = GameState.HELP
+            elif key == pygame.K_F1:  # New key to toggle instructions
+                self.show_instructions = not self.show_instructions
 
         elif self.current_state == GameState.INVENTORY:
             if key == pygame.K_ESCAPE or key == pygame.K_i:
@@ -230,7 +299,10 @@ class EnhancedGameManager:
 
         elif self.current_state == GameState.HELP:
             if key == pygame.K_ESCAPE or key == pygame.K_h:
-                self.current_state = GameState.GAME_BOARD
+                if hasattr(self, 'previous_state') and self.previous_state:
+                    self.current_state = self.previous_state
+                else:
+                    self.current_state = GameState.MAIN_MENU
 
         elif self.current_state == GameState.FIGHT:
             if key == pygame.K_SPACE:
@@ -239,16 +311,6 @@ class EnhancedGameManager:
                 self.current_state = GameState.GAME_BOARD
 
         return True
-
-    def load_character_menu(self):
-        """Simple character loading - loads first available character"""
-        chars_dir = "Characters"
-        if os.path.exists(chars_dir):
-            char_files = [f for f in os.listdir(chars_dir) if f.endswith('.json')]
-            if char_files:
-                char_path = os.path.join(chars_dir, char_files[0])
-                if self.character_manager.load_character(char_path):
-                    self.current_state = GameState.GAME_BOARD
 
     def handle_combat_action(self):
         """Handle combat action"""
@@ -313,6 +375,10 @@ class EnhancedGameManager:
         """Update game logic"""
         self.animation_timer += 1
         self.particles.update()
+
+        # Update character creator if active
+        if self.current_state == GameState.CREATE_CHARACTER and self.character_creator:
+            self.character_creator.update()
 
         # Update floating damage texts
         for damage_text in self.damage_texts[:]:
@@ -386,6 +452,40 @@ class EnhancedGameManager:
         prompt_rect = prompt_surface.get_rect(center=(self.WIDTH // 2, self.HEIGHT - 150))
         self.screen.blit(prompt_surface, prompt_rect)
 
+    def draw_character_select_screen(self):
+        """Draw the character selection screen"""
+        menu_options = []
+        for char in self.available_characters:
+            if char == "New Character":
+                menu_options.append("🆕 Create New Character")
+            else:
+                # Format character filename nicely
+                char_name = char.replace(".json", "").replace("_", " ").title()
+                menu_options.append(f"👤 {char_name}")
+
+        self.ui_renderer.draw_enhanced_menu(self.screen, "SELECT CHARACTER", menu_options,
+                                            self.selected_character, "Choose your hero!",
+                                            self.animation_timer)
+
+        # Instructions
+        instructions = [
+            "↑↓ Navigate characters",
+            "ENTER: Select character",
+            "ESC: Back to main menu"
+        ]
+        self.ui_renderer.draw_instructions_panel(self.screen, instructions)
+
+    def draw_create_character_screen(self):
+        """Draw the create character screen"""
+        if self.character_creator:
+            self.character_creator.draw(self.screen)
+        else:
+            # Fallback if character creator isn't initialized
+            self.screen.fill(MENU_BG)
+            error_text = self.ui_renderer.font.render("Character creator not initialized!", True, RED)
+            error_rect = error_text.get_rect(center=(self.WIDTH // 2, self.HEIGHT // 2))
+            self.screen.blit(error_text, error_rect)
+
     def draw_game_board(self):
         """Draw the main game board"""
         # Draw tile map background
@@ -411,14 +511,21 @@ class EnhancedGameManager:
         # Draw UI overlay
         self.ui_renderer.draw_ui_overlay(self.screen, self.character_manager.character_data)
 
-        # Draw instructions
-        instructions = [
-            "Arrow Keys: Move character",
-            "Walk into objects to interact",
-            "I: Inventory  C: Character Sheet  H: Help",
-            "ESC: Quit"
-        ]
-        self.ui_renderer.draw_instructions_panel(self.screen, instructions)
+        # Draw instructions only if enabled
+        if self.show_instructions:
+            instructions = [
+                "Arrow Keys: Move character",
+                "Walk into objects to interact",
+                "I: Inventory  C: Character Sheet  H: Help",
+                "F1: Toggle this panel  ESC: Main Menu"
+            ]
+            self.ui_renderer.draw_instructions_panel(self.screen, instructions)
+        else:
+            # Draw a small toggle hint in the corner
+            hint_text = self.ui_renderer.small_font.render("F1: Show Help", True, WHITE)
+            hint_bg = pygame.Rect(10, self.HEIGHT - 25, hint_text.get_width() + 10, 20)
+            pygame.draw.rect(self.screen, (0, 0, 0, 128), hint_bg)
+            self.screen.blit(hint_text, (15, self.HEIGHT - 22))
 
         # Draw floating damage texts with proper world-to-screen conversion
         for damage_text in self.damage_texts:
@@ -469,7 +576,7 @@ class EnhancedGameManager:
         """Draw the store screen"""
         self.screen.fill(MENU_BG)
 
-        title = self.ui_renderer.large_font.render("🪙 MAGIC SHOP", True, WHITE)
+        title = self.ui_renderer.large_font.render("🏪 MAGIC SHOP", True, WHITE)
         title_rect = title.get_rect(center=(self.WIDTH // 2, 50))
         self.screen.blit(title, title_rect)
 
@@ -597,6 +704,7 @@ class EnhancedGameManager:
             "I - Open inventory",
             "C - Open character sheet",
             "H - Open help screen",
+            "F1 - Toggle instructions panel",
             "Walk into enemies (red circles) to fight",
             "Walk into treasure (gold circles) to collect",
             "Walk into shops (purple squares) to buy items",
@@ -607,6 +715,7 @@ class EnhancedGameManager:
             "- Camera follows player",
             "- Enhanced visual effects",
             "- Character progression system",
+            "- Toggle instructions panel for cleaner view",
             "",
             "Press ESC or H to return"
         ]
@@ -635,10 +744,16 @@ class EnhancedGameManager:
             self.draw_opening_screen()
 
         elif self.current_state == GameState.MAIN_MENU:
-            menu_options = ["🎮 Start Game", "📁 Load Character", "❓ Help", "🚪 Quit"]
+            menu_options = ["🎮 Start Game", "❓ Help", "🚪 Quit"]
             self.ui_renderer.draw_enhanced_menu(self.screen, "MAGITECH RPG", menu_options,
                                                 self.selected_option, "Choose your destiny!",
                                                 self.animation_timer)
+
+        elif self.current_state == GameState.CHARACTER_SELECT:
+            self.draw_character_select_screen()
+
+        elif self.current_state == GameState.CREATE_CHARACTER:
+            self.draw_create_character_screen()
 
         elif self.current_state == GameState.GAME_BOARD:
             self.draw_game_board()
@@ -671,6 +786,8 @@ class EnhancedGameManager:
         print("• 📷 Smooth camera following")
         print("• ✨ Modular code architecture")
         print("• 🎯 Enhanced collision detection")
+        print("• 👤 Character selection system")
+        print("• 🎛️ Toggleable instructions panel (F1)")
         print("=" * 50)
 
         while running:
@@ -678,9 +795,10 @@ class EnhancedGameManager:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-                elif event.type == pygame.KEYDOWN:
-                    result = self.handle_keypress(event.key)
-                    if not result:
+                else:
+                    # Use new event handler
+                    result = self.handle_event(event)
+                    if result is False:
                         running = False
 
             # Update game logic
