@@ -1,526 +1,739 @@
-"""
-Enhanced Combat System for Magitech RPG
-Handles turn-based combat mechanics
-"""
-
-import random
-import time
 import pygame
-from typing import Dict, List, Optional, Tuple, Any
+import random
+import math
+from ui_components import *
 
 
-class CombatSystem:
-    def __init__(self, network_manager):
-        self.network_manager = network_manager
-        self.current_combat = None
-        self.combat_ui_visible = False
-        self.selected_action = None
-        self.action_target = None
-
-        # Combat state
-        self.player_stats = {}
-        self.enemy_stats = {}
-        self.turn_timer = 0
-        self.turn_timeout = 30  # 30 seconds per turn
-
-        # UI elements
-        self.action_buttons = []
-        self.combat_log = []
-        self.max_log_entries = 10
-
-        # Animation system
-        self.animations = []
-        self.damage_numbers = []
-
-    def start_combat(self, enemy_data: Dict) -> bool:
-        """Start a new combat encounter"""
-        if not self.network_manager.is_in_session():
-            return False
-
-        # Prepare enemy data
-        prepared_enemy = self.prepare_enemy_data(enemy_data)
-
-        success, data = self.network_manager.start_combat(prepared_enemy)
-        if success:
-            self.current_combat = data.get('combat_data', {})
-            self.combat_ui_visible = True
-            self.turn_timer = time.time()
-
-            self.add_combat_log(f"Combat started against {prepared_enemy.get('name', 'Enemy')}!")
-            return True
-
-        return False
-
-    def prepare_enemy_data(self, enemy_data: Dict) -> Dict:
-        """Prepare enemy data for combat"""
-        # Ensure enemy has all necessary stats
-        default_enemy = {
-            'name': 'Goblin',
-            'level': 1,
-            'hit_points': 25,
-            'max_hit_points': 25,
-            'armor_class': 12,
-            'attack_bonus': 2,
-            'damage_dice': '1d6',
-            'damage_bonus': 1,
-            'abilities': {
-                'strength': 10,
-                'dexterity': 12,
-                'constitution': 10,
-                'intelligence': 8,
-                'wisdom': 10,
-                'charisma': 8
-            }
+class CombatText:
+    """Enhanced floating combat text with different types"""
+    
+    def __init__(self, x, y, text, text_type="damage", world_pos=None):
+        self.x = x
+        self.y = y
+        self.text = str(text)
+        self.text_type = text_type
+        self.timer = 90  # Longer duration
+        self.max_timer = 90
+        self.font = pygame.font.Font(None, 32)
+        self.world_pos = world_pos
+        
+        # Set color and movement based on text type
+        self.colors = {
+            "damage": (255, 100, 100),      # Red for damage dealt
+            "player_damage": (255, 255, 100), # Yellow for player taking damage
+            "heal": (100, 255, 100),        # Green for healing
+            "mana": (100, 150, 255),        # Blue for mana
+            "miss": (200, 200, 200),        # Gray for misses
+            "critical": (255, 255, 255),     # White for crits
+            "spell": (255, 100, 255),       # Purple for spells
+            "status": (255, 200, 100)       # Orange for status effects
         }
-
-        # Merge provided data with defaults
-        for key, value in default_enemy.items():
-            if key not in enemy_data:
-                enemy_data[key] = value
-
-        return enemy_data
-
-    def process_turn(self, action: str, action_data: Dict = None) -> bool:
-        """Process player's turn action"""
-        if not self.network_manager.is_in_combat():
-            return False
-
-        if not self.network_manager.get_my_turn():
-            self.add_combat_log("It's not your turn!")
-            return False
-
-        # Send action to server
-        success, data = self.network_manager.combat_action(action, action_data)
-        if success:
-            self.add_combat_log(f"You used {action}!")
-            self.selected_action = None
-            self.action_target = None
-            self.turn_timer = time.time()
-            return True
-
-        return False
-
-    def process_attack(self, target_data: Dict = None) -> bool:
-        """Process attack action"""
-        # Get player's character data
-        character = self.network_manager.character_data
-        if not character:
-            return False
-
-        # Calculate attack damage
-        damage_data = self.calculate_attack_damage(character)
-
-        action_data = {
-            'target': 'enemy',
-            'damage': damage_data['total_damage'],
-            'damage_type': damage_data['damage_type'],
-            'hit_roll': damage_data['hit_roll'],
-            'damage_breakdown': damage_data['breakdown']
-        }
-
-        return self.process_turn('attack', action_data)
-
-    def calculate_attack_damage(self, character: Dict) -> Dict:
-        """Calculate attack damage based on character stats"""
-        # Get character stats
-        stats = character.get('stats', {})
-        strength = stats.get('strength', 10)
-        weapon_level = character.get('weapon_level', 1)
-        player_level = character.get('level', 1)
-
-        # Calculate modifiers
-        str_mod = (strength - 10) // 2
-
-        # Roll for hit
-        hit_roll = random.randint(1, 20)
-
-        # Calculate damage
-        base_damage = random.randint(1, 8)  # 1d8
-        weapon_bonus = weapon_level * 2
-        strength_bonus = max(0, str_mod)
-        level_bonus = player_level
-
-        total_damage = base_damage + weapon_bonus + strength_bonus + level_bonus
-
-        return {
-            'hit_roll': hit_roll,
-            'total_damage': total_damage,
-            'damage_type': 'physical',
-            'breakdown': {
-                'base': base_damage,
-                'weapon': weapon_bonus,
-                'strength': strength_bonus,
-                'level': level_bonus
-            }
-        }
-
-    def process_spell(self, spell_name: str) -> bool:
-        """Process spell casting"""
-        character = self.network_manager.character_data
-        if not character:
-            return False
-
-        # Check mana
-        current_mana = character.get('mana_level', 0)
-        spell_cost = self.get_spell_cost(spell_name)
-
-        if current_mana < spell_cost:
-            self.add_combat_log("Not enough mana!")
-            return False
-
-        # Calculate spell effects
-        spell_data = self.calculate_spell_effects(character, spell_name)
-
-        action_data = {
-            'spell_name': spell_name,
-            'mana_cost': spell_cost,
-            'effects': spell_data
-        }
-
-        return self.process_turn('spell', action_data)
-
-    def get_spell_cost(self, spell_name: str) -> int:
-        """Get mana cost for spell"""
-        spell_costs = {
-            'fireball': 8,
-            'healing_light': 6,
-            'magic_missile': 4,
-            'shield': 3,
-            'heal': 5
-        }
-        return spell_costs.get(spell_name, 3)
-
-    def calculate_spell_effects(self, character: Dict, spell_name: str) -> Dict:
-        """Calculate spell effects"""
-        stats = character.get('stats', {})
-        intelligence = stats.get('intelligence', 10)
-        player_level = character.get('level', 1)
-
-        int_mod = (intelligence - 10) // 2
-
-        effects = {}
-
-        if spell_name == 'fireball':
-            damage = random.randint(6, 18) + int_mod + player_level  # 3d6 + mods
-            effects = {'damage': damage, 'damage_type': 'fire', 'target': 'enemy'}
-        elif spell_name == 'healing_light':
-            healing = random.randint(8, 24) + int_mod  # 3d8 + int mod
-            effects = {'healing': healing, 'target': 'self'}
-        elif spell_name == 'magic_missile':
-            missiles = min(3, (player_level // 2) + 1)
-            damage_per_missile = random.randint(1, 4) + 1  # 1d4+1
-            total_damage = missiles * damage_per_missile
-            effects = {'damage': total_damage, 'damage_type': 'force', 'target': 'enemy', 'missiles': missiles}
-
-        return effects
-
-    def process_item_use(self, item_name: str) -> bool:
-        """Process item usage"""
-        character = self.network_manager.character_data
-        if not character:
-            return False
-
-        # Check if item is available in inventory
-        inventory = character.get('inventory', [])
-        if not any(item['name'] == item_name for item in inventory):
-            self.add_combat_log(f"You don't have {item_name}!")
-            return False
-
-        # Calculate item effects
-        item_effects = self.calculate_item_effects(item_name)
-
-        action_data = {
-            'item_name': item_name,
-            'effects': item_effects
-        }
-
-        return self.process_turn('item', action_data)
-
-    def calculate_item_effects(self, item_name: str) -> Dict:
-        """Calculate item effects"""
-        item_effects = {
-            'health_potion': {'healing': random.randint(15, 25), 'target': 'self'},
-            'mana_potion': {'mana_restore': random.randint(10, 20), 'target': 'self'},
-            'bomb': {'damage': random.randint(12, 20), 'damage_type': 'explosive', 'target': 'enemy'},
-            'smoke_bomb': {'effect': 'blind', 'duration': 2, 'target': 'enemy'}
-        }
-        return item_effects.get(item_name, {})
-
-    def end_combat(self, result: str = 'victory') -> bool:
-        """End the current combat"""
-        if not self.network_manager.is_in_combat():
-            return False
-
-        success, data = self.network_manager.end_combat(result)
-        if success:
-            self.current_combat = None
-            self.combat_ui_visible = False
-            self.selected_action = None
-            self.action_target = None
-            self.combat_log.clear()
-            self.animations.clear()
-            self.damage_numbers.clear()
-
-            self.add_combat_log(f"Combat ended: {result}")
-            return True
-
-        return False
-
-    def update(self, dt: float):
-        """Update combat system"""
-        if not self.combat_ui_visible:
-            return
-
-        # Update animations
-        self.update_animations(dt)
-
-        # Update damage numbers
-        self.update_damage_numbers(dt)
-
-        # Check for new activities
-        self.process_combat_activities()
-
-        # Check turn timeout
-        if self.network_manager.get_my_turn():
-            time_left = self.turn_timeout - (time.time() - self.turn_timer)
-            if time_left <= 0:
-                # Auto-skip turn or take default action
-                self.process_turn('defend')
-
-    def process_combat_activities(self):
-        """Process recent combat activities"""
-        activities = self.network_manager.get_recent_activities('combat_action', 5)
-        activities.extend(self.network_manager.get_recent_activities('combat_started', 5))
-        activities.extend(self.network_manager.get_recent_activities('combat_ended', 5))
-        activities.extend(self.network_manager.get_recent_activities('enemy_action', 5))
-        activities.extend(self.network_manager.get_recent_activities('turn_changed', 5))
-
-        for activity in activities:
-            self.process_activity(activity)
-
-    def process_activity(self, activity: Dict):
-        """Process a single combat activity"""
-        activity_type = activity.get('type')
-        data = activity.get('data', {})
-        username = activity.get('username', 'Unknown')
-
-        if activity_type == 'combat_action':
-            action = data.get('action', 'unknown')
-            self.add_combat_log(f"{username} used {action}")
-
-            if 'damage' in data:
-                self.add_damage_number(data['damage'], 'damage')
-            if 'healing' in data:
-                self.add_damage_number(data['healing'], 'healing')
-
-        elif activity_type == 'enemy_action':
-            enemy_name = data.get('enemy_name', 'Enemy')
-            target_name = data.get('target_player_name', 'Someone')
-            damage = data.get('damage_dealt', 0)
-
-            self.add_combat_log(f"{enemy_name} attacks {target_name} for {damage} damage!")
-            if target_name == self.network_manager.username:
-                self.add_damage_number(damage, 'damage_taken')
-
-        elif activity_type == 'turn_changed':
-            new_turn_name = data.get('new_turn_name', 'Unknown')
-            if data.get('new_turn_player') == self.network_manager.user_id:
-                self.add_combat_log("It's your turn!")
-                self.turn_timer = time.time()
-            else:
-                self.add_combat_log(f"It's {new_turn_name}'s turn")
-
-        elif activity_type == 'combat_ended':
-            result = data.get('result', 'unknown')
-            self.add_combat_log(f"Combat ended: {result}")
-
-    def add_combat_log(self, message: str):
-        """Add message to combat log"""
-        self.combat_log.append({
-            'message': message,
-            'timestamp': time.time()
-        })
-
-        # Keep only recent entries
-        if len(self.combat_log) > self.max_log_entries:
-            self.combat_log.pop(0)
-
-    def add_damage_number(self, amount: int, damage_type: str):
-        """Add floating damage number"""
-        self.damage_numbers.append({
-            'amount': amount,
-            'type': damage_type,
-            'x': 400,  # Center of screen
-            'y': 200,
-            'life': 2.0,
-            'max_life': 2.0
-        })
-
-    def update_animations(self, dt: float):
-        """Update combat animations"""
-        # Update existing animations
-        for animation in self.animations[:]:
-            animation['life'] -= dt
-            if animation['life'] <= 0:
-                self.animations.remove(animation)
-
-    def update_damage_numbers(self, dt: float):
-        """Update floating damage numbers"""
-        for number in self.damage_numbers[:]:
-            number['life'] -= dt
-            number['y'] -= 50 * dt  # Float upward
-
-            if number['life'] <= 0:
-                self.damage_numbers.remove(number)
-
-    def render_combat_ui(self, screen: pygame.Surface, font: pygame.font.Font):
-        """Render combat UI"""
-        if not self.combat_ui_visible:
-            return
-
-        # Combat panel background
-        combat_rect = pygame.Rect(50, 400, 700, 150)
-        pygame.draw.rect(screen, (30, 30, 30), combat_rect)
-        pygame.draw.rect(screen, (100, 100, 100), combat_rect, 2)
-
-        # Turn indicator
-        turn_info = self.network_manager.get_combat_turn_info()
-        if turn_info.get('is_my_turn', False):
-            turn_text = "YOUR TURN"
-            turn_color = (0, 255, 0)
+        
+        self.color = self.colors.get(text_type, (255, 255, 255))
+        self.alpha = 255
+        
+        # Different movement patterns
+        if text_type == "critical":
+            self.velocity_y = -4
+            self.velocity_x = random.uniform(-2, 2)
+            self.scale = 1.5
+        elif text_type == "heal":
+            self.velocity_y = -2
+            self.velocity_x = 0
+            self.scale = 1.2
+        elif text_type == "miss":
+            self.velocity_y = -1
+            self.velocity_x = random.uniform(-3, 3)
+            self.scale = 0.8
         else:
-            current_turn = turn_info.get('current_turn', 'Unknown')
-            if current_turn == 'ENEMY':
-                turn_text = "ENEMY TURN"
-                turn_color = (255, 0, 0)
-            else:
-                # Find username for current turn
-                other_players = self.network_manager.other_players
-                turn_player = other_players.get(current_turn, {})
-                turn_username = turn_player.get('username', 'Player')
-                turn_text = f"{turn_username.upper()}'S TURN"
-                turn_color = (255, 255, 0)
+            self.velocity_y = -3
+            self.velocity_x = random.uniform(-1, 1)
+            self.scale = 1.0
+    
+    def update(self):
+        """Update combat text animation"""
+        self.timer -= 1
+        self.y += self.velocity_y
+        self.x += self.velocity_x
+        
+        # Fade out over time
+        fade_ratio = self.timer / self.max_timer
+        self.alpha = max(0, int(255 * fade_ratio))
+        
+        # Slow down vertical movement over time
+        self.velocity_y *= 0.98
+        self.velocity_x *= 0.95
+        
+        return self.timer > 0
+    
+    def draw(self, screen, camera=None):
+        """Draw the combat text"""
+        if camera and self.world_pos:
+            screen_x, screen_y = camera.world_to_screen(self.world_pos[0], self.world_pos[1])
+            draw_x = screen_x + (self.x - self.world_pos[0])
+            draw_y = screen_y + (self.y - self.world_pos[1])
+        else:
+            draw_x = self.x
+            draw_y = self.y
+        
+        # Scale font based on text type
+        font_size = int(32 * self.scale)
+        if font_size != 32:
+            font = pygame.font.Font(None, font_size)
+        else:
+            font = self.font
+        
+        # Create text surface with outline for critical hits
+        if self.text_type == "critical":
+            # Draw outline
+            for dx in [-1, 0, 1]:
+                for dy in [-1, 0, 1]:
+                    if dx != 0 or dy != 0:
+                        outline_surface = font.render(self.text, True, BLACK)
+                        outline_surface.set_alpha(self.alpha)
+                        screen.blit(outline_surface, (draw_x + dx, draw_y + dy))
+        
+        # Draw main text
+        text_surface = font.render(self.text, True, self.color)
+        text_surface.set_alpha(self.alpha)
+        screen.blit(text_surface, (draw_x, draw_y))
 
-        turn_surface = font.render(turn_text, True, turn_color)
-        screen.blit(turn_surface, (60, 410))
 
-        # Action buttons (only show on player's turn)
-        if turn_info.get('is_my_turn', False):
-            self.render_action_buttons(screen, font)
+class Spell:
+    """Spell data structure"""
+    
+    def __init__(self, name, mana_cost, damage_min, damage_max, spell_type="damage", 
+                 description="", effect_chance=0, effect_type="", effect_value=0):
+        self.name = name
+        self.mana_cost = mana_cost
+        self.damage_min = damage_min
+        self.damage_max = damage_max
+        self.spell_type = spell_type
+        self.description = description
+        self.effect_chance = effect_chance
+        self.effect_type = effect_type
+        self.effect_value = effect_value
 
-        # Combat log
-        self.render_combat_log(screen, font)
 
-        # Damage numbers
-        self.render_damage_numbers(screen, font)
-
-    def render_action_buttons(self, screen: pygame.Surface, font: pygame.font.Font):
-        """Render combat action buttons"""
-        buttons = [
-            {'name': 'Attack', 'action': 'attack', 'color': (255, 100, 100)},
-            {'name': 'Magic', 'action': 'magic', 'color': (100, 100, 255)},
-            {'name': 'Item', 'action': 'item', 'color': (100, 255, 100)},
-            {'name': 'Defend', 'action': 'defend', 'color': (200, 200, 200)}
-        ]
-
-        button_width = 120
-        button_height = 30
-        start_x = 60
-        start_y = 450
-
-        self.action_buttons.clear()
-
-        for i, button in enumerate(buttons):
-            x = start_x + i * (button_width + 10)
-            y = start_y
-
-            button_rect = pygame.Rect(x, y, button_width, button_height)
-            self.action_buttons.append({
-                'rect': button_rect,
-                'action': button['action'],
-                'name': button['name']
-            })
-
-            # Highlight selected action
-            color = button['color']
-            if self.selected_action == button['action']:
-                color = tuple(min(255, c + 50) for c in color)
-
-            pygame.draw.rect(screen, color, button_rect)
-            pygame.draw.rect(screen, (255, 255, 255), button_rect, 2)
-
-            text_surface = font.render(button['name'], True, (255, 255, 255))
-            text_rect = text_surface.get_rect(center=button_rect.center)
-            screen.blit(text_surface, text_rect)
-
-    def render_combat_log(self, screen: pygame.Surface, font: pygame.font.Font):
-        """Render combat log"""
-        log_start_y = 500
-        for i, log_entry in enumerate(self.combat_log[-5:]):  # Show last 5 entries
-            y = log_start_y + i * 20
-            text_surface = font.render(log_entry['message'], True, (200, 200, 200))
-            screen.blit(text_surface, (60, y))
-
-    def render_damage_numbers(self, screen: pygame.Surface, font: pygame.font.Font):
-        """Render floating damage numbers"""
-        for number in self.damage_numbers:
-            alpha = int(255 * (number['life'] / number['max_life']))
-
-            if number['type'] == 'damage':
-                color = (255, 100, 100)
-                text = f"-{number['amount']}"
-            elif number['type'] == 'damage_taken':
-                color = (255, 50, 50)
-                text = f"-{number['amount']}"
-            elif number['type'] == 'healing':
-                color = (100, 255, 100)
-                text = f"+{number['amount']}"
-            else:
-                color = (255, 255, 255)
-                text = str(number['amount'])
-
-            # Create surface with alpha
-            text_surface = font.render(text, True, color)
-            text_surface.set_alpha(alpha)
-
-            screen.blit(text_surface, (number['x'], number['y']))
-
-    def handle_click(self, pos: Tuple[int, int]) -> bool:
-        """Handle mouse click on combat UI"""
-        if not self.combat_ui_visible or not self.network_manager.get_my_turn():
-            return False
-
-        # Check action button clicks
-        for button in self.action_buttons:
-            if button['rect'].collidepoint(pos):
-                action = button['action']
-
-                if action == 'attack':
-                    self.process_attack()
-                elif action == 'defend':
-                    self.process_turn('defend')
-                elif action == 'magic':
-                    # For now, cast fireball - could expand to spell selection
-                    self.process_spell('fireball')
-                elif action == 'item':
-                    # For now, use health potion - could expand to item selection
-                    self.process_item_use('health_potion')
-
-                return True
-
-        return False
-
-    def get_combat_status(self) -> Dict:
-        """Get current combat status"""
-        if not self.network_manager.is_in_combat():
-            return {'in_combat': False}
-
-        turn_info = self.network_manager.get_combat_turn_info()
-
-        return {
-            'in_combat': True,
-            'is_my_turn': turn_info.get('is_my_turn', False),
-            'current_turn': turn_info.get('current_turn'),
-            'turn_order': turn_info.get('turn_order', []),
-            'combat_session': self.network_manager.combat_session
+class SpellManager:
+    """Manages available spells based on character aspect"""
+    
+    def __init__(self):
+        self.spell_library = {
+            "fire": [
+                Spell("Flame Bolt", 5, 8, 15, "damage", "Basic fire projectile"),
+                Spell("Fireball", 12, 15, 25, "damage", "Explosive fire magic", 20, "burn", 3),
+                Spell("Inferno", 25, 30, 45, "damage", "Devastating fire spell", 30, "burn", 5)
+            ],
+            "water": [
+                Spell("Ice Shard", 4, 6, 12, "damage", "Sharp ice projectile"),
+                Spell("Frost Blast", 10, 12, 20, "damage", "Freezing attack", 25, "freeze", 1),
+                Spell("Blizzard", 22, 25, 40, "damage", "Overwhelming ice storm", 35, "freeze", 2)
+            ],
+            "dream": [
+                Spell("Lightning Bolt", 6, 10, 18, "damage", "Electric shock"),
+                Spell("Chain Lightning", 15, 18, 28, "damage", "Multi-target lightning", 15, "stun", 1),
+                Spell("Thunder Storm", 28, 35, 50, "damage", "Massive electrical assault", 25, "stun", 2)
+            ],
+            "earth": [
+                Spell("Stone Throw", 3, 5, 10, "damage", "Hurled rock"),
+                Spell("Earth Spike", 8, 12, 18, "damage", "Piercing stone spear"),
+                Spell("Earthquake", 20, 20, 35, "damage", "Ground-shaking force", 20, "knockdown", 1)
+            ],
+            "life": [
+                Spell("Heal", 8, 15, 25, "heal", "Restore health"),
+                Spell("Greater Heal", 15, 25, 40, "heal", "Major healing"),
+                Spell("Holy Light", 10, 8, 15, "damage", "Damages undead, heals living", 30, "blind", 2)
+            ],
+            "void": [
+                Spell("Shadow Bolt", 7, 12, 20, "damage", "Dark energy projectile"),
+                Spell("Drain Life", 12, 10, 18, "drain", "Damage enemy, heal self", 0, "", 0),
+                Spell("Soul Burn", 20, 25, 35, "damage", "Corrupting darkness", 25, "curse", 3)
+            ]
         }
+    
+    def get_spells_for_aspect(self, aspect, level=1):
+        """Get available spells for character aspect and level"""
+        aspect_name = aspect.split('_')[0].lower() if aspect else "fire"
+        spells = self.spell_library.get(aspect_name, self.spell_library["fire"])
+        
+        # Return spells based on level
+        available_spells = []
+        if level >= 1:
+            available_spells.append(spells[0])  # Basic spell
+        if level >= 3:
+            available_spells.append(spells[1])  # Intermediate spell
+        if level >= 5:
+            available_spells.append(spells[2])  # Advanced spell
+        
+        return available_spells if available_spells else [spells[0]]
+
+
+class CombatManager:
+    """Advanced turn-based combat system"""
+    
+    def __init__(self, character_manager):
+        self.character_manager = character_manager
+        self.spell_manager = SpellManager()
+        self.combat_texts = []
+        self.combat_log = []
+        
+        # Combat state
+        self.current_enemy = None
+        self.player_turn = True
+        self.combat_phase = "select_action"  # select_action, select_target, animating, enemy_turn
+        self.selected_action = 0
+        self.selected_spell = 0
+        self.selected_item = 0
+        
+        # Combat options
+        self.actions = ["Attack", "Cast Spell", "Use Item", "Run Away"]
+        
+        # Status effects
+        self.player_status = {}
+        self.enemy_status = {}
+        
+        # Animation timer
+        self.animation_timer = 0
+        self.action_delay = 0
+        
+        # UI fonts
+        self.font = pygame.font.Font(None, 24)
+        self.large_font = pygame.font.Font(None, 32)
+        self.small_font = pygame.font.Font(None, 20)
+    
+    def start_combat(self, enemy_data):
+        """Initialize combat with an enemy"""
+        self.current_enemy = enemy_data.copy()
+        self.combat_texts.clear()
+        self.combat_log.clear()
+        self.player_status.clear()
+        self.enemy_status.clear()
+        self.player_turn = True
+        self.combat_phase = "select_action"
+        self.selected_action = 0
+        self.animation_timer = 0
+        
+        # Add combat start message
+        enemy_name = self.current_enemy.get("Name", "Enemy")
+        self.add_combat_log(f"Combat begins with {enemy_name}!", WHITE)
+    
+    def add_combat_log(self, message, color=WHITE):
+        """Add message to combat log"""
+        self.combat_log.append((message, color))
+        if len(self.combat_log) > 8:
+            self.combat_log.pop(0)
+    
+    def add_combat_text(self, x, y, text, text_type="damage", world_pos=None):
+        """Add floating combat text"""
+        combat_text = CombatText(x, y, text, text_type, world_pos)
+        self.combat_texts.append(combat_text)
+    
+    def calculate_damage(self, base_min, base_max, attacker_stats, defender_stats=None):
+        """Calculate damage with stat modifiers"""
+        # Base damage roll
+        base_damage = random.randint(base_min, base_max)
+        
+        # Strength modifier for physical attacks
+        str_bonus = max(0, (attacker_stats.get("strength", 10) - 10) // 2)
+        
+        # Critical hit chance based on dexterity
+        dex = attacker_stats.get("dexterity", 10)
+        crit_chance = max(5, (dex - 10) // 2 + 5)  # 5% base + dex modifier
+        
+        is_critical = random.randint(1, 100) <= crit_chance
+        
+        if is_critical:
+            final_damage = int((base_damage + str_bonus) * 1.5)
+            return final_damage, True
+        else:
+            return base_damage + str_bonus, False
+    
+    def calculate_spell_damage(self, spell, caster_stats):
+        """Calculate spell damage with intelligence/wisdom modifiers"""
+        base_damage = random.randint(spell.damage_min, spell.damage_max)
+        
+        # Intelligence modifier for damage spells
+        int_bonus = max(0, (caster_stats.get("intelligence", 10) - 10) // 2)
+        
+        # Wisdom modifier for healing spells  
+        wis_bonus = max(0, (caster_stats.get("wisdom", 10) - 10) // 2)
+        
+        if spell.spell_type == "heal":
+            return base_damage + wis_bonus, False
+        elif spell.spell_type == "drain":
+            return base_damage + int_bonus, False
+        else:
+            # Critical hit chance for spells
+            crit_chance = max(3, int_bonus)
+            is_critical = random.randint(1, 100) <= crit_chance
+            
+            if is_critical:
+                return int((base_damage + int_bonus) * 1.5), True
+            else:
+                return base_damage + int_bonus, False
+    
+    def calculate_hit_chance(self, attacker_stats, defender_stats):
+        """Calculate if attack hits based on stats"""
+        # Base hit chance
+        base_hit = 75
+        
+        # Attacker dexterity bonus
+        att_dex = attacker_stats.get("dexterity", 10)
+        hit_bonus = (att_dex - 10) // 2
+        
+        # Defender AC
+        if "armor_class" in defender_stats:
+            ac_penalty = (defender_stats["armor_class"] - 10) * 2
+        else:
+            def_dex = defender_stats.get("dexterity", 10)
+            ac_penalty = (def_dex - 10)
+        
+        final_hit_chance = max(5, base_hit + hit_bonus - ac_penalty)
+        return random.randint(1, 100) <= final_hit_chance
+    
+    def get_player_stats(self):
+        """Get player stats for combat calculations"""
+        if not self.character_manager or not self.character_manager.character_data:
+            return {"strength": 10, "dexterity": 10, "constitution": 10, 
+                   "intelligence": 10, "wisdom": 10, "charisma": 10}
+        
+        return {
+            "strength": self.character_manager.get_total_stat("strength"),
+            "dexterity": self.character_manager.get_total_stat("dexterity"),
+            "constitution": self.character_manager.get_total_stat("constitution"),
+            "intelligence": self.character_manager.get_total_stat("intelligence"),
+            "wisdom": self.character_manager.get_total_stat("wisdom"),
+            "charisma": self.character_manager.get_total_stat("charisma"),
+            "armor_class": self.character_manager.get_armor_class()
+        }
+    
+    def get_enemy_stats(self):
+        """Get enemy stats (simplified)"""
+        level = self.current_enemy.get("Level", 1)
+        return {
+            "strength": 10 + level,
+            "dexterity": 10 + level,
+            "constitution": 12 + level,
+            "intelligence": 8 + level,
+            "wisdom": 8 + level,
+            "charisma": 6
+        }
+    
+    def player_attack(self):
+        """Execute player's basic attack"""
+        player_stats = self.get_player_stats()
+        enemy_stats = self.get_enemy_stats()
+        
+        if self.calculate_hit_chance(player_stats, enemy_stats):
+            damage, is_critical = self.calculate_damage(10, 20, player_stats, enemy_stats)
+            
+            # Apply damage
+            self.current_enemy["Hit_Points"] -= damage
+            
+            # Add combat text and log
+            text_type = "critical" if is_critical else "damage"
+            crit_text = "CRITICAL! " if is_critical else ""
+            
+            self.add_combat_text(400, 250, f"-{damage}", text_type)
+            self.add_combat_log(f"{crit_text}You deal {damage} damage!", GREEN)
+            
+            return damage
+        else:
+            self.add_combat_text(400, 250, "MISS", "miss")
+            self.add_combat_log("Your attack misses!", GRAY)
+            return 0
+    
+    def player_cast_spell(self, spell):
+        """Execute player's spell cast"""
+        if not self.character_manager.character_data:
+            return False
+        
+        current_mana = self.character_manager.character_data.get("Aspect1_Mana", 0)
+        if current_mana < spell.mana_cost:
+            self.add_combat_log("Not enough mana!", RED)
+            return False
+        
+        # Consume mana
+        self.character_manager.character_data["Aspect1_Mana"] -= spell.mana_cost
+        
+        player_stats = self.get_player_stats()
+        damage, is_critical = self.calculate_spell_damage(spell, player_stats)
+        
+        if spell.spell_type == "heal":
+            # Healing spell
+            current_hp = self.character_manager.character_data.get("Hit_Points", 100)
+            level = self.character_manager.character_data.get("Level", 1)
+            max_hp = self.character_manager.get_max_hp_for_level(level)
+            
+            healed = min(damage, max_hp - current_hp)
+            self.character_manager.character_data["Hit_Points"] += healed
+            
+            self.add_combat_text(200, 250, f"+{healed}", "heal")
+            self.add_combat_log(f"You heal for {healed} HP!", GREEN)
+            
+        elif spell.spell_type == "drain":
+            # Drain life spell
+            self.current_enemy["Hit_Points"] -= damage
+            
+            # Heal player for half damage dealt
+            current_hp = self.character_manager.character_data.get("Hit_Points", 100)
+            level = self.character_manager.character_data.get("Level", 1)
+            max_hp = self.character_manager.get_max_hp_for_level(level)
+            
+            healed = min(damage // 2, max_hp - current_hp)
+            self.character_manager.character_data["Hit_Points"] += healed
+            
+            text_type = "critical" if is_critical else "spell"
+            self.add_combat_text(400, 250, f"-{damage}", text_type)
+            if healed > 0:
+                self.add_combat_text(200, 250, f"+{healed}", "heal")
+            
+            crit_text = "CRITICAL! " if is_critical else ""
+            self.add_combat_log(f"{crit_text}{spell.name} deals {damage} damage and heals {healed}!", PURPLE)
+            
+        else:
+            # Damage spell
+            self.current_enemy["Hit_Points"] -= damage
+            
+            text_type = "critical" if is_critical else "spell"
+            crit_text = "CRITICAL! " if is_critical else ""
+            
+            self.add_combat_text(400, 250, f"-{damage}", text_type)
+            self.add_combat_log(f"{crit_text}{spell.name} deals {damage} damage!", PURPLE)
+            
+            # Apply status effect if applicable
+            if spell.effect_chance > 0 and random.randint(1, 100) <= spell.effect_chance:
+                self.enemy_status[spell.effect_type] = spell.effect_value
+                self.add_combat_log(f"Enemy is affected by {spell.effect_type}!", ORANGE)
+        
+        return True
+    
+    def player_use_item(self, item_name):
+        """Use an item from inventory"""
+        success, message = self.character_manager.use_item_from_inventory(item_name)
+        
+        if success:
+            if "HP" in message:
+                self.add_combat_text(200, 250, message.split()[1], "heal")
+            elif "MP" in message:
+                self.add_combat_text(200, 250, message.split()[1], "mana")
+            
+            self.add_combat_log(message, GREEN)
+            return True
+        else:
+            self.add_combat_log(message, RED)
+            return False
+    
+    def enemy_turn(self):
+        """Execute enemy's turn"""
+        if not self.current_enemy or self.current_enemy.get("Hit_Points", 0) <= 0:
+            return
+        
+        enemy_stats = self.get_enemy_stats()
+        player_stats = self.get_player_stats()
+        
+        # Simple AI - enemy always attacks
+        if self.calculate_hit_chance(enemy_stats, player_stats):
+            damage, is_critical = self.calculate_damage(8, 18, enemy_stats, player_stats)
+            
+            # Apply damage to player
+            self.character_manager.character_data["Hit_Points"] -= damage
+            
+            text_type = "critical" if is_critical else "player_damage"
+            crit_text = "CRITICAL! " if is_critical else ""
+            
+            self.add_combat_text(200, 250, f"-{damage}", text_type)
+            enemy_name = self.current_enemy.get("Name", "Enemy")
+            self.add_combat_log(f"{crit_text}{enemy_name} deals {damage} damage!", RED)
+        else:
+            self.add_combat_text(200, 250, "MISS", "miss")
+            enemy_name = self.current_enemy.get("Name", "Enemy")
+            self.add_combat_log(f"{enemy_name}'s attack misses!", GRAY)
+    
+    def process_status_effects(self):
+        """Process ongoing status effects"""
+        # Process enemy status effects
+        for effect, duration in list(self.enemy_status.items()):
+            if effect == "burn":
+                burn_damage = random.randint(3, 8)
+                self.current_enemy["Hit_Points"] -= burn_damage
+                self.add_combat_text(400, 280, f"-{burn_damage}", "damage")
+                self.add_combat_log(f"Enemy burns for {burn_damage} damage!", ORANGE)
+            
+            # Reduce duration
+            self.enemy_status[effect] -= 1
+            if self.enemy_status[effect] <= 0:
+                del self.enemy_status[effect]
+                self.add_combat_log(f"Enemy recovers from {effect}!", WHITE)
+        
+        # Process player status effects (if any)
+        for effect, duration in list(self.player_status.items()):
+            self.player_status[effect] -= 1
+            if self.player_status[effect] <= 0:
+                del self.player_status[effect]
+    
+    def attempt_run(self):
+        """Attempt to run from combat"""
+        player_stats = self.get_player_stats()
+        enemy_stats = self.get_enemy_stats()
+        
+        # Base run chance of 60% + dexterity modifier
+        run_chance = 60 + (player_stats.get("dexterity", 10) - 10) * 3
+        run_chance = max(25, min(90, run_chance))  # Clamp between 25-90%
+        
+        if random.randint(1, 100) <= run_chance:
+            self.add_combat_log("You successfully escape!", GREEN)
+            return True
+        else:
+            self.add_combat_log("You couldn't escape!", RED)
+            return False
+    
+    def handle_keypress(self, key):
+        """Handle input during combat"""
+        if self.action_delay > 0:
+            return "continue"
+        
+        if self.combat_phase == "select_action":
+            if key == pygame.K_UP:
+                self.selected_action = (self.selected_action - 1) % len(self.actions)
+            elif key == pygame.K_DOWN:
+                self.selected_action = (self.selected_action + 1) % len(self.actions)
+            elif key == pygame.K_RETURN:
+                if self.selected_action == 0:  # Attack
+                    self.player_attack()
+                    self.player_turn = False
+                    self.action_delay = 30
+                elif self.selected_action == 1:  # Cast Spell
+                    # Get available spells
+                    if self.character_manager.character_data:
+                        aspect = self.character_manager.character_data.get("Aspect1", "fire_level_1")
+                        level = self.character_manager.character_data.get("Level", 1)
+                        spells = self.spell_manager.get_spells_for_aspect(aspect, level)
+                        if spells:
+                            self.combat_phase = "select_spell"
+                        else:
+                            self.add_combat_log("No spells available!", RED)
+                elif self.selected_action == 2:  # Use Item
+                    if self.character_manager.character_data:
+                        inventory = self.character_manager.character_data.get("Inventory", {})
+                        usable_items = [item for item in inventory.keys() if "Potion" in item or "Restore" in item]
+                        if usable_items:
+                            self.combat_phase = "select_item"
+                        else:
+                            self.add_combat_log("No usable items!", RED)
+                elif self.selected_action == 3:  # Run Away
+                    if self.attempt_run():
+                        return "run_success"
+                    else:
+                        self.player_turn = False
+                        self.action_delay = 30
+        
+        elif self.combat_phase == "select_spell":
+            aspect = self.character_manager.character_data.get("Aspect1", "fire_level_1")
+            level = self.character_manager.character_data.get("Level", 1)
+            spells = self.spell_manager.get_spells_for_aspect(aspect, level)
+            
+            if key == pygame.K_UP:
+                self.selected_spell = (self.selected_spell - 1) % len(spells)
+            elif key == pygame.K_DOWN:
+                self.selected_spell = (self.selected_spell + 1) % len(spells)
+            elif key == pygame.K_RETURN:
+                spell = spells[self.selected_spell]
+                if self.player_cast_spell(spell):
+                    self.player_turn = False
+                    self.action_delay = 30
+                self.combat_phase = "select_action"
+            elif key == pygame.K_ESCAPE:
+                self.combat_phase = "select_action"
+        
+        elif self.combat_phase == "select_item":
+            inventory = self.character_manager.character_data.get("Inventory", {})
+            usable_items = [item for item in inventory.keys() if "Potion" in item or "Restore" in item]
+            
+            if key == pygame.K_UP:
+                self.selected_item = (self.selected_item - 1) % len(usable_items)
+            elif key == pygame.K_DOWN:
+                self.selected_item = (self.selected_item + 1) % len(usable_items)
+            elif key == pygame.K_RETURN:
+                item_name = usable_items[self.selected_item]
+                if self.player_use_item(item_name):
+                    self.player_turn = False
+                    self.action_delay = 30
+                self.combat_phase = "select_action"
+            elif key == pygame.K_ESCAPE:
+                self.combat_phase = "select_action"
+        
+        return "continue"
+    
+    def update(self):
+        """Update combat system"""
+        self.animation_timer += 1
+        
+        # Update combat texts
+        for text in self.combat_texts[:]:
+            if not text.update():
+                self.combat_texts.remove(text)
+        
+        # Handle action delay
+        if self.action_delay > 0:
+            self.action_delay -= 1
+            return "continue"
+        
+        # Check for combat end conditions
+        if not self.current_enemy or self.current_enemy.get("Hit_Points", 0) <= 0:
+            return "victory"
+        
+        if not self.character_manager.character_data or self.character_manager.character_data.get("Hit_Points", 0) <= 0:
+            return "defeat"
+        
+        # Handle enemy turn
+        if not self.player_turn:
+            self.enemy_turn()
+            self.process_status_effects()
+            self.player_turn = True
+            self.action_delay = 30
+        
+        return "continue"
+    
+    def draw(self, screen):
+        """Draw combat interface"""
+        screen.fill((40, 20, 20))  # Dark red background
+        
+        # Draw title
+        title = self.large_font.render("⚔️ COMBAT ⚔️", True, WHITE)
+        title_rect = title.get_rect(center=(400, 50))
+        screen.blit(title, title_rect)
+        
+        if not self.character_manager.character_data or not self.current_enemy:
+            return
+        
+        # Draw combatant info
+        player_name = self.character_manager.character_data.get("Name", "Player")
+        player_hp = self.character_manager.character_data.get("Hit_Points", 100)
+        player_mana = self.character_manager.character_data.get("Aspect1_Mana", 50)
+        
+        enemy_name = self.current_enemy.get("Name", "Enemy")
+        enemy_hp = self.current_enemy.get("Hit_Points", 75)
+        
+        # Player info (left side)
+        player_info = [
+            f"{player_name}",
+            f"HP: {player_hp}",
+            f"MP: {player_mana}"
+        ]
+        
+        for i, info in enumerate(player_info):
+            color = GREEN if i == 0 else WHITE
+            text = self.font.render(info, True, color)
+            screen.blit(text, (50, 120 + i * 25))
+        
+        # Enemy info (right side)
+        enemy_info = [
+            f"{enemy_name}",
+            f"HP: {enemy_hp}"
+        ]
+        
+        for i, info in enumerate(enemy_info):
+            color = RED if i == 0 else WHITE
+            text = self.font.render(info, True, color)
+            text_rect = text.get_rect(topright=(750, 120 + i * 25))
+            screen.blit(text, text_rect)
+        
+        # Draw status effects
+        y_offset = 0
+        for effect, duration in self.enemy_status.items():
+            status_text = self.small_font.render(f"{effect.title()}: {duration}", True, ORANGE)
+            status_rect = status_text.get_rect(topright=(750, 170 + y_offset))
+            screen.blit(status_text, status_rect)
+            y_offset += 20
+        
+        # Draw action menu or spell/item selection
+        self.draw_action_interface(screen)
+        
+        # Draw combat log
+        log_y = 400
+        for i, (message, color) in enumerate(self.combat_log[-6:]):
+            text = self.small_font.render(message[:60], True, color)
+            screen.blit(text, (50, log_y + i * 20))
+        
+        # Draw combat texts
+        for text in self.combat_texts:
+            text.draw(screen)
+        
+        # Draw turn indicator
+        turn_text = "YOUR TURN" if self.player_turn else "ENEMY TURN"
+        turn_color = GREEN if self.player_turn else RED
+        turn_surface = self.font.render(turn_text, True, turn_color)
+        turn_rect = turn_surface.get_rect(center=(400, 100))
+        screen.blit(turn_surface, turn_rect)
+    
+    def draw_action_interface(self, screen):
+        """Draw the action selection interface"""
+        if self.combat_phase == "select_action":
+            # Draw action menu
+            action_y = 220
+            action_title = self.font.render("Choose Action:", True, WHITE)
+            screen.blit(action_title, (50, action_y))
+            action_y += 30
+            
+            for i, action in enumerate(self.actions):
+                color = MENU_SELECTED if i == self.selected_action else WHITE
+                action_text = self.font.render(f"> {action}", True, color)
+                screen.blit(action_text, (70, action_y + i * 25))
+        
+        elif self.combat_phase == "select_spell":
+            # Draw spell selection menu
+            if self.character_manager.character_data:
+                aspect = self.character_manager.character_data.get("Aspect1", "fire_level_1")
+                level = self.character_manager.character_data.get("Level", 1)
+                spells = self.spell_manager.get_spells_for_aspect(aspect, level)
+                current_mana = self.character_manager.character_data.get("Aspect1_Mana", 0)
+                
+                spell_y = 220
+                spell_title = self.font.render("Choose Spell:", True, WHITE)
+                screen.blit(spell_title, (50, spell_y))
+                spell_y += 30
+                
+                for i, spell in enumerate(spells):
+                    can_cast = current_mana >= spell.mana_cost
+                    if i == self.selected_spell:
+                        color = GREEN if can_cast else RED
+                    else:
+                        color = WHITE if can_cast else GRAY
+                    
+                    spell_text = f"> {spell.name} ({spell.mana_cost} MP)"
+                    text_surface = self.font.render(spell_text, True, color)
+                    screen.blit(text_surface, (70, spell_y + i * 25))
+                    
+                    # Show spell description for selected spell
+                    if i == self.selected_spell:
+                        desc_text = self.small_font.render(spell.description, True, MENU_TEXT)
+                        screen.blit(desc_text, (90, spell_y + i * 25 + 20))
+                
+                # Instructions
+                instruction = self.small_font.render("ENTER: Cast  ESC: Back", True, WHITE)
+                screen.blit(instruction, (50, spell_y + len(spells) * 25 + 20))
+        
+        elif self.combat_phase == "select_item":
+            # Draw item selection menu
+            if self.character_manager.character_data:
+                inventory = self.character_manager.character_data.get("Inventory", {})
+                usable_items = [item for item in inventory.keys() if "Potion" in item or "Restore" in item]
+                
+                item_y = 220
+                item_title = self.font.render("Choose Item:", True, WHITE)
+                screen.blit(item_title, (50, item_y))
+                item_y += 30
+                
+                for i, item_name in enumerate(usable_items):
+                    quantity = inventory[item_name]
+                    color = MENU_SELECTED if i == self.selected_item else WHITE
+                    
+                    item_text = f"> {item_name} x{quantity}"
+                    text_surface = self.font.render(item_text, True, color)
+                    screen.blit(text_surface, (70, item_y + i * 25))
+                
+                # Instructions
+                instruction = self.small_font.render("ENTER: Use  ESC: Back", True, WHITE)
+                screen.blit(instruction, (50, item_y + len(usable_items) * 25 + 20))

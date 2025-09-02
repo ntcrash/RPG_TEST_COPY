@@ -11,6 +11,28 @@ All notable changes to this project will be documented in this file.
 - Battle screen not taking turns
 - Dying needs to take credits
 
+## 09/01/2025 - v1.0.4
+### - Fixed
+🏪 Store exit collision loop - Player now moves away from store on exit
+🔒 Added store entry cooldown to prevent immediate re-entry
+🎯 Enhanced store exit with proper player repositioning and camera update
+
+## 09/01/2025 - v1.0.3
+### - Added
+- 🎮 Enhanced Magitech RPG - Combat Edition
+- 🏃 Animated character with 8-frame sprites
+- 🗺️ Tile-based world map system
+- 📷 Smooth camera following
+- ✨ Modular code architecture
+- 🎯 Enhanced collision detection
+- 👤 Character selection system
+- 🎛️ Toggleable instructions panel (F1)
+- ⚔️ Advanced turn-based combat system
+- 🔮 Spell casting with mana management
+- 💊 Inventory items usable in combat
+- 📊 Character stats affect combat
+- 🌟 Status effects and critical hits
+
 ## 08/17/2025 - v29...
 ### - Added
 - Added delete character from local and server (v24)

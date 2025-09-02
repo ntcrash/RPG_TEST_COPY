@@ -255,8 +255,91 @@ class UIRenderer:
             text_rect = text_surface.get_rect(center=(self.width // 2, y_pos))
             screen.blit(text_surface, text_rect)
 
+    def draw_status_overlay(self, screen, character_manager):
+        """Draw semi-transparent status overlay in top-left corner"""
+        if not character_manager or not character_manager.character_data:
+            return
+
+        # Create semi-transparent surface
+        overlay = pygame.Surface((280, 120), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 128))  # Semi-transparent black background
+
+        # Get character data
+        char_data = character_manager.character_data
+        name = char_data.get("Name", "Unknown")
+        level = char_data.get("Level", 1)
+        current_hp = char_data.get("Hit_Points", 100)
+        current_mana = char_data.get("Aspect1_Mana", 50)
+        credits = char_data.get("Credits", 0)
+
+        # Calculate max HP and mana
+        max_hp = character_manager.get_max_hp_for_level(level)
+        max_mana = character_manager.get_max_mana_for_level(level)
+
+        # Draw text info
+        y_pos = 10
+        text_items = [
+            f"Name: {name}",
+            f"Level: {level}",
+            f"Credits: {credits}"
+        ]
+
+        for text in text_items:
+            text_surface = self.small_font.render(text, True, WHITE)
+            overlay.blit(text_surface, (10, y_pos))
+            y_pos += 18
+
+        # HP Bar
+        y_pos += 8
+        hp_text = self.small_font.render("HP:", True, WHITE)
+        overlay.blit(hp_text, (10, y_pos))
+
+        # HP bar background
+        hp_bg_rect = pygame.Rect(45, y_pos + 2, 200, 12)
+        pygame.draw.rect(overlay, HEALTH_BAR_BG, hp_bg_rect)
+
+        # HP bar fill
+        if max_hp > 0:
+            hp_ratio = max(0, min(1, current_hp / max_hp))
+            hp_fill_width = int(200 * hp_ratio)
+            if hp_fill_width > 0:
+                hp_fill_rect = pygame.Rect(45, y_pos + 2, hp_fill_width, 12)
+                pygame.draw.rect(overlay, HEALTH_BAR_COLOR, hp_fill_rect)
+
+        # HP text on bar
+        hp_value_text = f"{current_hp}/{max_hp}"
+        hp_value_surface = self.small_font.render(hp_value_text, True, WHITE)
+        hp_text_rect = hp_value_surface.get_rect(center=(145, y_pos + 8))
+        overlay.blit(hp_value_surface, hp_text_rect)
+
+        # Mana Bar
+        y_pos += 20
+        mana_text = self.small_font.render("MP:", True, WHITE)
+        overlay.blit(mana_text, (10, y_pos))
+
+        # Mana bar background
+        mana_bg_rect = pygame.Rect(45, y_pos + 2, 200, 12)
+        pygame.draw.rect(overlay, MANA_BAR_BG, mana_bg_rect)
+
+        # Mana bar fill
+        if max_mana > 0:
+            mana_ratio = max(0, min(1, current_mana / max_mana))
+            mana_fill_width = int(200 * mana_ratio)
+            if mana_fill_width > 0:
+                mana_fill_rect = pygame.Rect(45, y_pos + 2, mana_fill_width, 12)
+                pygame.draw.rect(overlay, MANA_BAR_COLOR, mana_fill_rect)
+
+        # Mana text on bar
+        mana_value_text = f"{current_mana}/{max_mana}"
+        mana_value_surface = self.small_font.render(mana_value_text, True, WHITE)
+        mana_text_rect = mana_value_surface.get_rect(center=(145, y_pos + 8))
+        overlay.blit(mana_value_surface, mana_text_rect)
+
+        # Blit the overlay to the main screen
+        screen.blit(overlay, (10, 10))
+
     def draw_ui_overlay(self, screen, player_data):
-        """Draw UI overlay with player stats"""
+        """Draw UI overlay with player stats (legacy method - kept for compatibility)"""
         if not player_data:
             return
 
@@ -370,7 +453,6 @@ class Enemy(WorldObject):
 
         screen_x, screen_y = camera.world_to_screen(self.x, self.y)
         if camera.is_visible(self.x, self.y, self.width, self.height):
-
             # Smaller sparkling enemy effect
             sparkle = int(5 * abs(math.sin(animation_timer * 0.15)))  # Reduced sparkle
             treasure_radius = 10 + sparkle  # Smaller radius

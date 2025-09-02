@@ -5,7 +5,7 @@
     "Aspect1": "void_level_1",
     "Aspect2": "fire_level_1",
     "Aspect3": "Melee",
-    "Aspect1_Mana": 222,
+    "Aspect1_Mana": 138,
     "Aspect2_Mana": 10,
     "Aspect3_Mana": 20,
     "Weapon1": "Warrior's Sword",
@@ -14,12 +14,13 @@
     "Armor_Slot_1": "Plate Mail",
     "Armor_Slot_2": "Belt of Constitution",
     "Level": 50,
-    "Hit_Points": 551,
-    "Experience_Points": 209006,
-    "Credits": 127409,
+    "Hit_Points": 447,
+    "Experience_Points": 209191,
+    "Credits": 118647,
     "Inventory": {
-        "Greater Mana Potion": 11,
-        "Greater Health Potion": 2
+        "Greater Mana Potion": 12,
+        "Greater Health Potion": 15,
+        "Plate Mail": 1
     },
     "strength": 12,
     "dexterity": 12,
