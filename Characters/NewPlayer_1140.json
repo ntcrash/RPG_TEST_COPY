@@ -5,7 +5,7 @@
     "Aspect1": "fire_level_1",
     "Aspect2": "",
     "Aspect3": "",
-    "Aspect1_Mana": 149,
+    "Aspect1_Mana": 266,
     "Aspect2_Mana": 10,
     "Aspect3_Mana": 10,
     "Weapon1": "Spell Pistol",
@@ -14,13 +14,13 @@
     "Armor_Slot_1": "Spell_Armor",
     "Armor_Slot_2": "Mystic Armor",
     "Level": 50,
-    "Hit_Points": 500,
-    "Experience_Points": 18352,
-    "Credits": 25813,
+    "Hit_Points": 602,
+    "Experience_Points": 18517,
+    "Credits": 26307,
     "Inventory": {
         "Greater Health Potion": 16,
         "Warrior's Sword": 1,
-        "Mana Potion": 3
+        "Mana Potion": 2
     },
     "strength": 12,
     "dexterity": 12,

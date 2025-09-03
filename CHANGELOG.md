@@ -3,13 +3,188 @@ All notable changes to this project will be documented in this file.
 
 ## - ToDo
 - Add melee only attack
-- Add Different Spell cast in fight
-- Add multiplayer health and mana display
 - Add more levels to books and chapters
 - Clean up code... 
-- Get rid of Debugging... 
-- Battle screen not taking turns
+- Get rid of Debugging...
 - Dying needs to take credits
+
+## 09/03/2025 - v1.2.0 - REST SYSTEM WITH COOLDOWN
+### - Added
+🛌 **Complete Rest System**
+- Strategic rest areas placed throughout the world (8 locations)
+- 3-minute cooldown timer system for balanced gameplay
+- 75-90% HP/MP restoration with randomized recovery amounts
+- Visual availability indicators (pulsing when ready, cooldown display)
+- Enhanced rest area graphics with blue tent designs
+- Free healing alternative to expensive consumable potions
+
+🎨 **Enhanced Rest Area Visuals**
+- Dynamic color-coded rest areas (blue=available, red=cooldown, gray=recently used)
+- Pulsing animations and glow effects for available rest areas
+- Cooldown timer display directly on rest areas
+- "Walk into to rest" interaction hints with fade effects
+- Enhanced tent graphics with improved visual feedback
+
+📊 **Rest Status HUD System**
+- Bottom-left corner rest status display
+- Real-time cooldown timer (MM:SS format)
+- "Rest Available" indicator when ready to use
+- Integration with existing UI systems
+- Persistent status tracking across game sessions
+
+🎵 **Audio Integration**
+- Rest interaction sound effects
+- Healing audio feedback for successful rest
+- Error sounds for cooldown attempts
+- Integration with existing enhanced audio system
+
+⚖️ **Balanced Resource Management**
+- Strategic rest area placement in world corners and center
+- Collision detection prioritizes rest areas for better UX  
+- Rest areas safe from enemy spawn interference
+- Cooldown system prevents rest spam while allowing strategic planning
+
+### - Technical Improvements
+- Modular RestManager class for cooldown and interaction logic
+- EnhancedRestArea class extending base RestArea with animations
+- Integration with existing collision detection system
+- Proper world-to-screen coordinate conversion for rest areas
+- Rest system update loop integration with main game logic
+
+## 09/02/2025 - v1.1.2 - COMBAT SYSTEM HOTFIX
+### - Fixed
+🔧 Combat System Fixes
+
+Fixed 'EnhancedCombatManager' object has no attribute 'add_combat_log' error
+Enhanced music loading error handling to prevent crashes when sound files are missing
+Improved sound system fallback behavior for missing audio files
+Added proper error messages for missing music files instead of silent failures
+Fixed combat system integration issues that were causing crashes on startup
+Fixed "invalid color argument" errors in UI components and combat animations
+Fixed "invalid color argument" error when colliding with enemies and entering combat
+CRITICAL FIX: Replaced Unicode emojis with ASCII text in combat interface to prevent rendering errors
+Fixed combat title rendering error that was preventing combat screen from displaying
+Replaced all problematic Unicode characters (⚔️🔮🧪🏃❤️💙⭐🔥❄️⚡✨💚) with safe ASCII alternatives
+Added comprehensive error handling in combat text creation and rendering
+Fixed color validation in combat animations and particle systems
+Added coordinate validation to prevent invalid drawing positions
+
+- Improved
+🎵 Audio System Improvements
+
+Better file existence checking before attempting to load music files
+More graceful degradation when sound system is unavailable
+Enhanced error reporting for debugging audio issues
+Sound system now continues working even if individual files are missing
+
+🎨 Visual System Improvements
+
+Added robust color validation throughout the UI system
+Enhanced drawing coordinate handling to prevent rendering errors
+Improved animation system stability with better value bounds checking
+Better fallback handling for visual effects when rendering fails
+Added comprehensive error handling in combat text and animation systems
+Enhanced combat entry animations with safer initialization
+Improved particle system color validation
+Combat interface now uses safe ASCII characters instead of Unicode emojis for better compatibility
+
+## 09/02/2025 - v1.1.1 - MODULAR STORE SYSTEM
+### - Added
+🏪 **Store System Modularization**
+- Created dedicated store_system.py module for better code organization
+- Enhanced StoreManager class with improved functionality and UI
+- StoreIntegration class for seamless game integration
+- Improved error handling and visual feedback for purchases
+- Better separation of concerns between game logic and store functionality
+
+### - Changed
+📦 **Code Architecture Improvements**
+- Moved Store class and StoreItem class to store_system.py
+- Refactored game_states.py to use new modular store system
+- Simplified store input handling and purchase logic
+- Enhanced store UI with better visual organization
+- Improved collision detection for store interactions
+
+### - Fixed
+🔧 **Store System Fixes**
+- Fixed store exit cooldown handling through proper integration
+- Improved store navigation and scrolling functionality
+- Better visual feedback for purchase attempts and insufficient funds
+- Enhanced auto-equipment functionality for purchased items
+
+## 09/01/2025 - v1.1.0 - COMBAT EDITION WITH SOUND & ANIMATION
+### - Added
+🎵 **Complete Audio System Integration**
+- Dynamic background music system (menu, world, combat, shop themes)
+- Comprehensive sound effects library (40+ different sounds)
+- Contextual audio that changes based on game state
+- Volume controls and audio fallback for missing files
+
+⚔️ **Enhanced Combat System**
+- Advanced turn-based combat with visual effects
+- Animated spell casting circles with rotating magical runes
+- Sword slash animations with motion blur trails
+- Impact flash effects for hits and critical strikes
+- Healing sparkle animations for restoration spells
+- Screen shake effects for powerful attacks and criticals
+- Enhanced floating combat text with bounce and fade effects
+
+🎭 **Visual Combat Enhancements**
+- Spell-specific animations (fire, ice, lightning, heal, drain)
+- Combat animation system with multiple effect types
+- Pulsing health warnings when HP is low
+- Enhanced UI with animated selection highlights
+- Status effect icons and visual indicators
+- Combat log with color-coded messages and fade effects
+
+🔊 **Sound Effect Categories**
+- Combat sounds: sword hits, spell casting, critical hits
+- UI sounds: menu navigation, item pickup, shop interactions  
+- World sounds: footsteps, door opening, treasure collection
+- Victory/defeat musical stings and fanfares
+- Character-specific sounds for different spell types
+
+⏰ **Combat Balance System**
+- Post-combat immunity periods to prevent spam
+- Combat entry cooldowns for strategic gameplay
+- Enhanced reward system based on enemy difficulty
+- Level-scaled loot drops and experience gains
+- Elite/Ancient enemy bonus reward multipliers
+
+🎯 **Enhanced Game Integration**
+- Seamless integration with existing game systems
+- Automatic sound directory creation with placeholders
+- Backward compatibility with existing save files
+- No breaking changes to existing gameplay mechanics
+
+### - Technical Improvements
+- Modular sound manager with fallback support
+- Enhanced combat manager with animation pipeline
+- Improved combat text system with multiple effect types
+- Screen shake system with intensity scaling
+- Audio context switching based on game state
+
+## 09/01/2025 - v1.0.4
+### - Fixed
+🏪 Store exit collision loop - Player now moves away from store on exit
+🔒 Added store entry cooldown to prevent immediate re-entry
+🎯 Enhanced store exit with proper player repositioning and camera update
+
+## 09/01/2025 - v1.0.3
+### - Added
+- 🎮 Enhanced Magitech RPG - Combat Edition
+- 🏃 Animated character with 8-frame sprites
+- 🗺️ Tile-based world map system
+- 📷 Smooth camera following
+- ✨ Modular code architecture
+- 🎯 Enhanced collision detection
+- 👤 Character selection system
+- 🎛️ Toggleable instructions panel (F1)
+- ⚔️ Advanced turn-based combat system
+- 🔮 Spell casting with mana management
+- 💊 Inventory items usable in combat
+- 📊 Character stats affect combat
+- 🌟 Status effects and critical hits
 
 ## 08/17/2025 - v29...
 ### - Added
