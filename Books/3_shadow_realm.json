@@ -1,0 +1,22 @@
+{
+    "Title": "The Shadow Realm Mysteries",
+    "Chapter1": "The Dark Forest",
+    "Chapter1_Level": 4,
+    "Chapter1_Enemy_Type": "shadow_beast",
+    "Chapter2": "The Void Citadel",
+    "Chapter2_Level": 6,
+    "Chapter2_Enemy_Type": "void_wraith",
+    "Chapter3": "The Emperor's Throne",
+    "Chapter3_Level": 8,
+    "Chapter3_Enemy_Type": "shadow_emperor",
+    "Recommended_Level": 5,
+    "Rewards": {
+        "experience_multiplier": 1.5,
+        "credit_bonus": 1000,
+        "special_items": [
+            "Shadow Cloak",
+            "Void Blade",
+            "Dark Mastery Tome"
+        ]
+    }
+}

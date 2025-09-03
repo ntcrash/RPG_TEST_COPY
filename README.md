@@ -2,7 +2,7 @@
 
 ## Overview
 
-Magitech RPG is a multiplayer turn-based role-playing game built with Python and Pygame. The game features a Zelda-inspired tile-based world map, real-time multiplayer functionality, character creation with D&D-style stats, turn-based combat system, and comprehensive loot mechanics. Players can create characters, explore a procedurally generated world, engage in combat, and interact with other players in real-time sessions.
+Magitech RPG is a single player turn-based role-playing game built with Python and Pygame. The game features a Zelda-inspired tile-based world map, real-time multiplayer functionality, character creation with D&D-style stats, turn-based combat system, and comprehensive loot mechanics. Players can create characters, explore a procedurally generated world, engage in combat, and interact with other players in real-time sessions.
 
 ## User Preferences
 

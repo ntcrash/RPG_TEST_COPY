@@ -2,7 +2,7 @@ import pygame
 import random
 import math
 
-# Color constants
+# Color constants - ensuring all values are valid (0-255)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 BLUE = (0, 0, 255)
@@ -13,6 +13,7 @@ PURPLE = (128, 0, 128)
 ORANGE = (255, 165, 0)
 GOLD = (255, 215, 0)
 SILVER = (192, 192, 192)
+YELLOW = (255, 255, 0)
 
 # Enhanced UI Colors
 DARK_BLUE = (25, 25, 55)
@@ -35,6 +36,21 @@ MENU_TEXT = (220, 220, 220)
 MENU_SELECTED = (255, 215, 0)
 
 
+def clamp_color(color):
+    """Ensure color values are within valid range (0-255)"""
+    if len(color) == 3:
+        return (max(0, min(255, int(color[0]))),
+                max(0, min(255, int(color[1]))),
+                max(0, min(255, int(color[2]))))
+    elif len(color) == 4:
+        return (max(0, min(255, int(color[0]))),
+                max(0, min(255, int(color[1]))),
+                max(0, min(255, int(color[2]))),
+                max(0, min(255, int(color[3]))))
+    else:
+        return WHITE  # Fallback to white for invalid colors
+
+
 class HealthManaBar:
     """Health and Mana bar display component"""
 
@@ -45,8 +61,8 @@ class HealthManaBar:
         self.height = height
         self.max_value = max_value
         self.current_value = current_value
-        self.bar_color = bar_color
-        self.bg_color = bg_color
+        self.bar_color = clamp_color(bar_color)
+        self.bg_color = clamp_color(bg_color)
         self.label = label
         self.font = pygame.font.Font(None, 24)
 
@@ -67,7 +83,7 @@ class HealthManaBar:
                 pygame.draw.rect(screen, self.bar_color, (self.x, self.y, fill_width, self.height))
 
         # Draw border
-        pygame.draw.rect(screen, UI_BORDER_COLOR, (self.x, self.y, self.width, self.height), 2)
+        pygame.draw.rect(screen, clamp_color(UI_BORDER_COLOR), (self.x, self.y, self.width, self.height), 2)
 
         # Draw label text
         text = f"{self.label}: {int(self.current_value)}/{int(self.max_value)}"
@@ -84,7 +100,7 @@ class DamageText:
         self.x = x
         self.y = y
         self.text = text
-        self.color = color
+        self.color = clamp_color(color)
         self.timer = 60
         self.font = pygame.font.Font(None, 28)
         self.alpha = 255
@@ -97,18 +113,18 @@ class DamageText:
         return self.timer > 0
 
     def draw(self, screen):
-        text_surface = self.font.render(self.text, True, self.color)
+        text_surface = self.font.render(str(self.text), True, self.color)
         text_surface.set_alpha(self.alpha)
-        screen.blit(text_surface, (self.x, self.y))
+        screen.blit(text_surface, (int(self.x), int(self.y)))
 
     def draw_at_world_pos(self, screen, camera):
         """Draw damage text at world position using camera"""
         if self.world_pos:
             screen_x, screen_y = camera.world_to_screen(self.world_pos[0], self.world_pos[1])
             screen_y -= (60 - self.timer) * 2  # Float upward
-            text_surface = self.font.render(self.text, True, self.color)
+            text_surface = self.font.render(str(self.text), True, self.color)
             text_surface.set_alpha(self.alpha)
-            screen.blit(text_surface, (screen_x, screen_y))
+            screen.blit(text_surface, (int(screen_x), int(screen_y)))
         else:
             self.draw(screen)
 
@@ -122,7 +138,7 @@ class ParticleSystem:
     def add_particle(self, x, y, color=(255, 255, 255)):
         self.particles.append({
             'x': x, 'y': y, 'vx': random.uniform(-2, 2), 'vy': random.uniform(-3, -1),
-            'life': 30, 'color': color, 'size': random.randint(2, 4)
+            'life': 30, 'color': clamp_color(color), 'size': random.randint(2, 4)
         })
 
     def update(self):
@@ -200,12 +216,16 @@ class UIRenderer:
 
     def draw_gradient_rect(self, surface, color1, color2, rect):
         """Draw a rectangle with gradient effect"""
+        color1 = clamp_color(color1)
+        color2 = clamp_color(color2)
+
         for y in range(rect.height):
-            ratio = y / rect.height
+            ratio = y / rect.height if rect.height > 0 else 0
             r = int(color1[0] * (1 - ratio) + color2[0] * ratio)
             g = int(color1[1] * (1 - ratio) + color2[1] * ratio)
             b = int(color1[2] * (1 - ratio) + color2[2] * ratio)
-            pygame.draw.line(surface, (r, g, b),
+            line_color = clamp_color((r, g, b))
+            pygame.draw.line(surface, line_color,
                              (rect.x, rect.y + y), (rect.x + rect.width, rect.y + y))
 
     def draw_enhanced_menu(self, screen, title, options, selected_index, subtitle="", animation_timer=0):
@@ -457,14 +477,14 @@ class Enemy(WorldObject):
             sparkle = int(5 * abs(math.sin(animation_timer * 0.15)))  # Reduced sparkle
             treasure_radius = 10 + sparkle  # Smaller radius
             pygame.draw.circle(screen, RED,
-                               (screen_x + 10, screen_y + 10), treasure_radius)
+                               (int(screen_x + 10), int(screen_y + 10)), treasure_radius)
             pygame.draw.circle(screen, BLACK,
-                               (screen_x + 10, screen_y + 10), treasure_radius, 2)
+                               (int(screen_x + 10), int(screen_y + 10)), treasure_radius, 2)
 
             # Draw "E" symbol
             font = pygame.font.Font(None, 16)  # Smaller font
             text = font.render("E", True, BLACK)
-            text_rect = text.get_rect(center=(screen_x + 10, screen_y + 10))
+            text_rect = text.get_rect(center=(int(screen_x + 10), int(screen_y + 10)))
             screen.blit(text, text_rect)
 
 
@@ -474,7 +494,6 @@ class Treasure(WorldObject):
     def __init__(self, x, y, value=None):
         super().__init__(x, y, "treasure")
         self.value = value or random.randint(50, 150)
-        # self.value = value
         # Make treasure smaller
         self.width = 20  # Reduced from 30
         self.height = 20  # Reduced from 30
@@ -489,14 +508,14 @@ class Treasure(WorldObject):
             sparkle = int(5 * abs(math.sin(animation_timer * 0.15)))  # Reduced sparkle
             treasure_radius = 10 + sparkle  # Smaller radius
             pygame.draw.circle(screen, GOLD,
-                               (screen_x + 10, screen_y + 10), treasure_radius)
+                               (int(screen_x + 10), int(screen_y + 10)), treasure_radius)
             pygame.draw.circle(screen, BLACK,
-                               (screen_x + 10, screen_y + 10), treasure_radius, 2)
+                               (int(screen_x + 10), int(screen_y + 10)), treasure_radius, 2)
 
             # Draw "$" symbol
             font = pygame.font.Font(None, 16)  # Smaller font
             text = font.render("$", True, BLACK)
-            text_rect = text.get_rect(center=(screen_x + 10, screen_y + 10))
+            text_rect = text.get_rect(center=(int(screen_x + 10), int(screen_y + 10)))
             screen.blit(text, text_rect)
 
 
@@ -515,7 +534,7 @@ class Shop(WorldObject):
         screen_x, screen_y = camera.world_to_screen(self.x, self.y)
         if camera.is_visible(self.x, self.y, self.width, self.height):
             # Animated store
-            store_rect = pygame.Rect(screen_x, screen_y, self.width, self.height)
+            store_rect = pygame.Rect(int(screen_x), int(screen_y), self.width, self.height)
             pygame.draw.rect(screen, PURPLE, store_rect)
             pygame.draw.rect(screen, WHITE, store_rect, 3)
 
@@ -524,5 +543,5 @@ class Shop(WorldObject):
             font_size = 28 + pulse
             font = pygame.font.Font(None, font_size)
             shop_text = font.render("S", True, GOLD)
-            shop_rect = shop_text.get_rect(center=(screen_x + 25, screen_y + 25))
+            shop_rect = shop_text.get_rect(center=(int(screen_x + 25), int(screen_y + 25)))
             screen.blit(shop_text, shop_rect)

@@ -1,0 +1,25 @@
+{
+    "version": "1.1.2",
+    "settings": {
+        "default_credits": 1000,
+        "max_level": 50,
+        "xp_per_level": 150,
+        "save_interval": 30,
+        "difficulty_scaling": 1.2
+    },
+    "balance": {
+        "combat_multipliers": {
+            "player_damage": 1.0,
+            "enemy_damage": 1.0,
+            "critical_chance_base": 5,
+            "experience_gain": 1.0,
+            "credit_gain": 1.0
+        }
+    },
+    "features": {
+        "enhanced_combat": true,
+        "sound_effects": true,
+        "animations": true,
+        "auto_save": true
+    }
+}
