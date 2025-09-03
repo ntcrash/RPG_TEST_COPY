@@ -527,22 +527,49 @@ class Shop(WorldObject):
         super().__init__(x, y, "shop")
         self.width = 50
         self.height = 50
+        self.active = True  # Ensure shop is always active
 
     def draw(self, screen, camera, animation_timer=0):
         if not self.active:
+            print(f"Shop at ({self.x}, {self.y}) is not active!")
             return
 
         screen_x, screen_y = camera.world_to_screen(self.x, self.y)
-        if camera.is_visible(self.x, self.y, self.width, self.height):
-            # Animated store
-            store_rect = pygame.Rect(int(screen_x), int(screen_y), self.width, self.height)
-            pygame.draw.rect(screen, PURPLE, store_rect)
-            pygame.draw.rect(screen, WHITE, store_rect, 3)
 
-            # Shop sign with pulse effect
-            pulse = int(5 * abs(math.sin(animation_timer * 0.1)))
-            font_size = 28 + pulse
+        # Always try to draw the shop regardless of visibility check
+        # Animated store with better shop icon
+        store_rect = pygame.Rect(int(screen_x), int(screen_y), self.width, self.height)
+        pygame.draw.rect(screen, PURPLE, store_rect)
+        pygame.draw.rect(screen, WHITE, store_rect, 3)
+
+        # Shop building details
+        # Roof
+        roof_points = [
+            (int(screen_x + 5), int(screen_y + 15)),
+            (int(screen_x + 25), int(screen_y + 5)),
+            (int(screen_x + 45), int(screen_y + 15))
+        ]
+        pygame.draw.polygon(screen, (100, 50, 150), roof_points)
+
+        # Door
+        door_rect = pygame.Rect(int(screen_x + 20), int(screen_y + 25), 10, 20)
+        pygame.draw.rect(screen, (80, 40, 0), door_rect)
+
+        # Window
+        window_rect = pygame.Rect(int(screen_x + 10), int(screen_y + 25), 8, 8)
+        pygame.draw.rect(screen, (200, 200, 255), window_rect)
+
+        # Shop sign with pulse effect
+        pulse = int(3 * abs(math.sin(animation_timer * 0.1)))
+        font_size = 16 + pulse
+        try:
             font = pygame.font.Font(None, font_size)
-            shop_text = font.render("S", True, GOLD)
-            shop_rect = shop_text.get_rect(center=(int(screen_x + 25), int(screen_y + 25)))
-            screen.blit(shop_text, shop_rect)
+            shop_text = font.render("SHOP", True, GOLD)
+            shop_rect_text = shop_text.get_rect(center=(int(screen_x + 25), int(screen_y - 8)))
+            screen.blit(shop_text, shop_rect_text)
+        except:
+            # Fallback if font creation fails
+            font = pygame.font.Font(None, 16)
+            shop_text = font.render("SHOP", True, GOLD)
+            shop_rect_text = shop_text.get_rect(center=(int(screen_x + 25), int(screen_y - 8)))
+            screen.blit(shop_text, shop_rect_text)

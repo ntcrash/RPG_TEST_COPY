@@ -2,11 +2,82 @@
 All notable changes to this project will be documented in this file.
 
 ## - ToDo
-- Add melee only attack
-- Add more levels to books and chapters
-- Clean up code... 
-- Get rid of Debugging...
+- Add settings control screen. Using game_config.json
+- Add crafting
+- Add crafting loot
+- finish adding levels correctly
 - Dying needs to take credits
+- Fix Main Game sound
+
+## 09/03/2025 - v1.3.0 - MULTI-LEVEL SYSTEM WITH WORLD PROGRESSION
+### - Added
+🗺️ Complete Multi-Level System
+
+5 distinct worlds with 4 levels each (20 total levels)
+Progressive difficulty scaling with world themes
+Level completion system with automatic unlocking
+World progression: Grasslands → Ice Kingdom → Shadow Realm → Elemental Chaos → Cosmic Nexus
+Level persistence system saves current world/level on exit
+Each world has unique enemy types, themes, and visual styles
+
+🎮 Enhanced Level Selection Interface
+
+Comprehensive level select screen accessible from main menu and in-game (L key)
+Visual world tabs with unlock status indicators
+Level difficulty ratings (Easy, Normal, Hard, Expert, Nightmare)
+Recommended character level for each area
+Current level highlighting and selection animations
+Locked level indicators with progression requirements
+
+⚔️ World-Themed Enemy System
+
+5 unique enemy themes matching world aesthetics
+50+ different enemy types across all difficulty tiers
+Theme-specific boss encounters for each world
+Progressive enemy scaling: Basic → Elite → Champion → Ancient → Boss
+World-appropriate enemy names and combat aspects
+Enhanced reward multipliers based on enemy tier
+
+🌍 Dynamic World Generation
+
+Level-based enemy and treasure spawning
+Multiple rest areas in higher difficulty worlds
+World-specific background colors and atmospheric effects
+Treasure quantity scaling with world difficulty
+Strategic rest area placement for challenging levels
+
+📊 Enhanced Progression System
+
+Level completion bonuses with scaling rewards
+Automatic next-level unlocking upon area completion
+World progression tracking with persistent save system
+Enhanced status overlay showing current world and difficulty
+Character progression now tied to world completion
+
+🎨 Visual and Audio Enhancements
+
+World-specific color schemes and themes
+Enhanced status display with level information
+Improved enemy variety with thematic designs
+Level completion celebration effects
+World transition animations and feedback
+
+- Technical Improvements
+
+Modular LevelManager class for progression tracking
+WorldLevelGenerator for dynamic content creation
+LevelSelectScreen with full navigation system
+Enhanced EnemyManager with theme-based generation
+Persistent progression system with JSON save files
+Integration with existing combat and character systems
+
+- Gameplay Balance
+
+Difficulty curves calibrated for character progression
+World-appropriate loot multipliers (1.0x to 4.0x)
+Enemy health scaling from 60 HP (basic) to 666 HP (final boss)
+Strategic rest area placement increases with world difficulty
+Level completion requirements encourage full exploration
 
 ## 09/03/2025 - v1.2.0 - REST SYSTEM WITH COOLDOWN
 ### - Added
