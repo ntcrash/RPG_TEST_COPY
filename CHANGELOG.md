@@ -8,6 +8,49 @@ All notable changes to this project will be documented in this file.
 - Get rid of Debugging...
 - Dying needs to take credits
 
+## 09/03/2025 - v1.2.0 - REST SYSTEM WITH COOLDOWN
+### - Added
+🛌 **Complete Rest System**
+- Strategic rest areas placed throughout the world (8 locations)
+- 3-minute cooldown timer system for balanced gameplay
+- 75-90% HP/MP restoration with randomized recovery amounts
+- Visual availability indicators (pulsing when ready, cooldown display)
+- Enhanced rest area graphics with blue tent designs
+- Free healing alternative to expensive consumable potions
+
+🎨 **Enhanced Rest Area Visuals**
+- Dynamic color-coded rest areas (blue=available, red=cooldown, gray=recently used)
+- Pulsing animations and glow effects for available rest areas
+- Cooldown timer display directly on rest areas
+- "Walk into to rest" interaction hints with fade effects
+- Enhanced tent graphics with improved visual feedback
+
+📊 **Rest Status HUD System**
+- Bottom-left corner rest status display
+- Real-time cooldown timer (MM:SS format)
+- "Rest Available" indicator when ready to use
+- Integration with existing UI systems
+- Persistent status tracking across game sessions
+
+🎵 **Audio Integration**
+- Rest interaction sound effects
+- Healing audio feedback for successful rest
+- Error sounds for cooldown attempts
+- Integration with existing enhanced audio system
+
+⚖️ **Balanced Resource Management**
+- Strategic rest area placement in world corners and center
+- Collision detection prioritizes rest areas for better UX  
+- Rest areas safe from enemy spawn interference
+- Cooldown system prevents rest spam while allowing strategic planning
+
+### - Technical Improvements
+- Modular RestManager class for cooldown and interaction logic
+- EnhancedRestArea class extending base RestArea with animations
+- Integration with existing collision detection system
+- Proper world-to-screen coordinate conversion for rest areas
+- Rest system update loop integration with main game logic
+
 ## 09/02/2025 - v1.1.2 - COMBAT SYSTEM HOTFIX
 ### - Fixed
 🔧 Combat System Fixes

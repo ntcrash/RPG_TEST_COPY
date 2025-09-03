@@ -12,6 +12,7 @@ from game_data import CharacterManager, EnemyManager, create_sample_files
 from character_creation import CharacterCreation
 from store_system import StoreIntegration
 from enhanced_combat_integration import integrate_enhanced_combat_with_game_states, setup_enhanced_audio_system
+from rest_system import RestManager, EnhancedRestArea
 
 
 class GameState:
@@ -78,6 +79,9 @@ class EnhancedGameManager:
         self.character_manager = CharacterManager()
         self.enemy_manager = EnemyManager()
 
+        # Initialize rest system
+        self.rest_manager = RestManager(self.character_manager)
+
         # Initialize visual systems
         self.ui_renderer = UIRenderer(self.WIDTH, self.HEIGHT)
         self.particles = ParticleSystem()
@@ -124,10 +128,6 @@ class EnhancedGameManager:
         # Add static shop in top-right corner
         static_shop = Shop(world_width - 80, 20)  # Top-right corner
         self.shops.append(static_shop)
-
-        # Add static rest area in bottom-right corner
-        static_rest = RestArea(world_width - 80, 750)  # Bottom-right corner
-        self.rests.append(static_rest)
 
         # Initialize enhanced combat integration system
         integrate_enhanced_combat_with_game_states(self)
@@ -193,6 +193,40 @@ class EnhancedGameManager:
                 enemy = Enemy(x, y, self.enemy_manager.create_scaled_enemy())
                 self.enemies.append(enemy)
 
+        # Create rest areas - single rest area in bottom-right
+        world_width, world_height = self.tile_map.get_world_pixel_size()
+
+        # Single rest area in bottom-right corner with some inset
+        rest_x = world_width - 120
+        rest_y = world_height - 120
+
+        # Make sure rest area doesn't conflict with other objects
+        too_close_to_existing = False
+        for enemy in self.enemies:
+            if math.dist((rest_x, rest_y), (enemy.x, enemy.y)) < 50:
+                too_close_to_existing = True
+                break
+
+        for treasure in self.treasures:
+            if math.dist((rest_x, rest_y), (treasure.x, treasure.y)) < 40:
+                too_close_to_existing = True
+                break
+
+        # Create the rest area regardless of conflicts (move conflicting objects if needed)
+        if too_close_to_existing:
+            # Move any conflicting enemies or treasures
+            for enemy in self.enemies[:]:
+                if math.dist((rest_x, rest_y), (enemy.x, enemy.y)) < 50:
+                    enemy.x = max(50, enemy.x - 80)  # Move enemy left
+
+            for treasure in self.treasures[:]:
+                if math.dist((rest_x, rest_y), (treasure.x, treasure.y)) < 40:
+                    treasure.x = max(50, treasure.x - 60)  # Move treasure left
+
+        # Create the single rest area
+        rest_area = EnhancedRestArea(rest_x, rest_y, self.rest_manager)
+        self.rests.append(rest_area)
+
     def check_collisions(self):
         """Check for collisions between player and world objects"""
         # Skip collision checks during store exit cooldown
@@ -202,6 +236,13 @@ class EnhancedGameManager:
 
         player_rect = pygame.Rect(self.animated_player.x, self.animated_player.y,
                                   self.animated_player.display_width, self.animated_player.display_height)
+
+        # Check rest area collisions first (highest priority for UX)
+        for rest_area in self.rests:
+            if rest_area.active:
+                rest_rect = pygame.Rect(rest_area.x, rest_area.y, rest_area.width, rest_area.height)
+                if player_rect.colliderect(rest_rect):
+                    return "rest", rest_area
 
         # Check enemy collisions
         for enemy in self.enemies:
@@ -416,6 +457,13 @@ class EnhancedGameManager:
         self.animation_timer += 1
         self.particles.update()
 
+        # Update rest manager
+        self.rest_manager.update()
+
+        # Update rest areas
+        for rest_area in self.rests:
+            rest_area.update()
+
         # Update character creator if active
         if self.current_state == GameState.CREATE_CHARACTER and self.character_creator:
             self.character_creator.update()
@@ -439,10 +487,39 @@ class EnhancedGameManager:
                 self.camera.update(self.animated_player.x + self.animated_player.display_width // 2,
                                    self.animated_player.y + self.animated_player.display_height // 2)
 
-            # Check for collisions (now enhanced with combat integration)
+            # Check for collisions (now enhanced with combat integration and rest areas)
             collision_type, collision_obj = self.check_collisions()
 
-            if collision_type == "enemy":
+            if collision_type == "rest":
+                # Handle rest area interaction
+                result = collision_obj.attempt_interaction()
+
+                if result["success"]:
+                    # Add visual feedback for successful rest
+                    if hasattr(self, 'combat_integration') and self.combat_integration:
+                        self.combat_integration.play_world_sound("heal", 0.8)
+
+                    # Add floating text for HP/MP restoration
+                    if "hp_gained" in result and result["hp_gained"] > 0:
+                        damage_text = DamageText(0, 0, f"+{result['hp_gained']} HP", HEAL_TEXT_COLOR)
+                        damage_text.world_pos = (self.animated_player.x, self.animated_player.y - 20)
+                        self.damage_texts.append(damage_text)
+
+                    if "mp_gained" in result and result["mp_gained"] > 0:
+                        damage_text = DamageText(0, 0, f"+{result['mp_gained']} MP", (100, 150, 255))
+                        damage_text.world_pos = (self.animated_player.x, self.animated_player.y - 40)
+                        self.damage_texts.append(damage_text)
+                else:
+                    # Add visual feedback for failed rest attempt
+                    if hasattr(self, 'combat_integration') and self.combat_integration:
+                        self.combat_integration.play_world_sound("menu_select", 0.5)
+
+                    # Show cooldown message
+                    damage_text = DamageText(0, 0, "On Cooldown!", RED)
+                    damage_text.world_pos = (self.animated_player.x, self.animated_player.y - 20)
+                    self.damage_texts.append(damage_text)
+
+            elif collision_type == "enemy":
                 collision_obj.active = False
                 self.current_enemy = collision_obj
                 self.current_state = GameState.FIGHT
@@ -548,6 +625,10 @@ class EnhancedGameManager:
         for shop in self.shops:
             shop.draw(self.screen, self.camera, self.animation_timer)
 
+        # Draw rest areas
+        for rest_area in self.rests:
+            rest_area.draw(self.screen, self.camera.x, self.camera.y)
+
         # Draw animated player at correct screen position
         screen_x, screen_y = self.camera.world_to_screen(self.animated_player.x, self.animated_player.y)
         self.animated_player.draw_at_screen_position(self.screen, screen_x, screen_y)
@@ -555,11 +636,15 @@ class EnhancedGameManager:
         # Draw new semi-transparent status overlay
         self.ui_renderer.draw_status_overlay(self.screen, self.character_manager)
 
+        # Draw rest status HUD
+        self.rest_manager.draw_rest_hud(self.screen, self.WIDTH, self.HEIGHT)
+
         # Draw instructions only if enabled
         if self.show_instructions:
             instructions = [
                 "Arrow Keys: Move character",
                 "Walk into objects to interact",
+                "🛌 Rest areas: Restore HP/MP (3min cooldown)",
                 "I: Inventory  C: Character Sheet  H: Help",
                 "F1: Toggle this panel  ESC: Main Menu"
             ]
@@ -741,8 +826,8 @@ class EnhancedGameManager:
     def draw(self):
         """Draw current state"""
         # Debug: Print current state occasionally
-        # if self.animation_timer % 60 == 0:  # Every 4 seconds at 15 FPS
-            # print(f"Current draw state: {self.current_state}")
+        if self.animation_timer % 60 == 0:  # Every 4 seconds at 15 FPS
+            print(f"Current draw state: {self.current_state}")
 
         if self.current_state == GameState.OPENING:
             self.draw_opening_screen()

@@ -166,6 +166,7 @@ class RestArea:
         self.height = 60
         self.rect = pygame.Rect(x, y, self.width, self.height)
         self.rest_cost = 75
+        self.active = True  # Required by collision detection system
 
     def draw(self, screen, camera_x=0, camera_y=0):
         # Adjust position for camera
