@@ -1,0 +1,16 @@
+{
+    "master_volume": 1.0,
+    "music_volume": 0.3,
+    "sfx_volume": 0.9,
+    "music_enabled": true,
+    "sfx_enabled": true,
+    "fullscreen": false,
+    "show_fps": true,
+    "auto_save": true,
+    "difficulty_multiplier": 0.5,
+    "animation_speed": 1.3,
+    "combat_text_enabled": true,
+    "screen_shake": true,
+    "particle_effects": true,
+    "show_instructions": false
+}
