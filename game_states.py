@@ -13,6 +13,8 @@ from character_creation import CharacterCreation
 from store_system import StoreIntegration
 from enhanced_combat_integration import integrate_enhanced_combat_with_game_states, setup_enhanced_audio_system
 from rest_system import RestManager, EnhancedRestArea
+from level_system import LevelManager, WorldLevelGenerator, LevelSelectScreen
+from settings_system import SettingsIntegration
 
 
 class GameState:
@@ -27,6 +29,8 @@ class GameState:
     INVENTORY = 7
     CHARACTER_SHEET = 8
     HELP = 9
+    LEVEL_SELECT = 10
+    SETTINGS = 11
 
 
 def is_too_close(x, y, positions, min_distance=20):
@@ -65,7 +69,7 @@ class EnhancedGameManager:
         # Screen settings
         self.WIDTH, self.HEIGHT = 800, 600
         self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
-        pygame.display.set_caption("Magitech RPG - Combat Edition with Sound & Animation")
+        pygame.display.set_caption("Magitech RPG - Multi-Level Edition")
 
         # Game state
         self.current_state = GameState.OPENING
@@ -78,6 +82,11 @@ class EnhancedGameManager:
         # Initialize subsystems
         self.character_manager = CharacterManager()
         self.enemy_manager = EnemyManager()
+
+        # Initialize level system
+        self.level_manager = LevelManager()
+        self.world_generator = WorldLevelGenerator(self.level_manager)
+        self.level_select_screen = None
 
         # Initialize rest system
         self.rest_manager = RestManager(self.character_manager)
@@ -105,6 +114,7 @@ class EnhancedGameManager:
         # Initialize tile map
         self.tile_map = EnhancedTileMap()
         self.map_tiles = None
+        self.current_level_content = None
         self.load_map_data()
 
         # Initialize camera
@@ -117,17 +127,34 @@ class EnhancedGameManager:
         self.treasures = []
         self.shops = []
         self.rests = []
+        self.trees = []  # New list for trees
 
         # Combat system variables (for legacy compatibility)
         self.current_enemy = None
         self.combat_messages = []
 
         # Setup initial world
-        self.setup_world_objects()
+        self.setup_world_for_current_level()
 
-        # Add static shop in top-right corner
-        static_shop = Shop(world_width - 80, 20)  # Top-right corner
-        self.shops.append(static_shop)
+        # FINAL SAFETY CHECK - Always ensure shop exists
+        world_width, world_height = self.tile_map.get_world_pixel_size()
+        if len(self.shops) == 0:
+            print("INITIALIZATION SHOP CREATION - no shops after initial setup")
+            init_shop = Shop(world_width - 80, 20)
+            init_shop.active = True
+            self.shops.append(init_shop)
+            print(f"Initialization shop created at ({world_width - 80}, 20)")
+
+        print(f"=== GAME INITIALIZATION COMPLETE ===")
+        print(
+            f"Final object counts: {len(self.enemies)} enemies, {len(self.treasures)} treasures, {len(self.shops)} shops, {len(self.rests)} rest areas, {len(self.trees)} trees")
+        if len(self.shops) > 0:
+            for i, shop in enumerate(self.shops):
+                print(f"  Shop {i}: pos=({shop.x}, {shop.y}), active={shop.active}")
+        print("=========================================")
+
+        # Static objects that should always be present
+        # Note: Static shop is added in setup methods, no need to add here again
 
         # Initialize enhanced combat integration system
         integrate_enhanced_combat_with_game_states(self)
@@ -135,6 +162,12 @@ class EnhancedGameManager:
 
         # Initialize store integration
         self.store_integration = StoreIntegration(self)
+
+        # Initialize settings integration
+        self.settings_integration = SettingsIntegration(self)
+
+        # Load settings
+        self.load_settings()
 
     def load_character_list(self):
         """Load list of available characters"""
@@ -145,13 +178,189 @@ class EnhancedGameManager:
         """Load map data and create tiles"""
         self.map_tiles = self.tile_map.load_map_from_file("map.txt")
 
-    def setup_world_objects(self):
-        """Setup game world objects based on map"""
+    def setup_world_for_current_level(self):
+        """Setup game world based on current level"""
+        current_level = self.level_manager.get_current_level()
+        if not current_level:
+            # Fallback to default setup
+            self.setup_world_objects()
+            return
+
+        # Generate content for current level
+        self.current_level_content = self.world_generator.generate_level_content(current_level)
+
+        # Set enemy manager difficulty and theme
+        world_level_difficulty = (current_level.world - 1) * 4 + current_level.level
+        self.enemy_manager.set_difficulty_level(world_level_difficulty)
+
+        # Set world theme based on current world
+        theme_mapping = {1: "grassland", 2: "ice", 3: "shadow", 4: "elemental", 5: "cosmic"}
+        world_theme = theme_mapping.get(current_level.world, "grassland")
+        self.enemy_manager.set_world_theme(world_theme)
+
+        # Setup world objects based on generated content
+        self.setup_enhanced_world_objects()
+
+    def setup_enhanced_world_objects(self):
+        """Setup enhanced world objects based on level content"""
         # Clear existing objects
         self.enemies.clear()
         self.treasures.clear()
         self.shops.clear()
         self.rests.clear()
+        self.trees.clear()  # Clear trees too
+
+        if not self.current_level_content:
+            self.setup_world_objects()  # Fallback
+            return
+
+        # Create enemies based on level content
+        enemy_count = self.current_level_content["enemy_count"]
+        enemy_types = self.current_level_content["enemy_types"]
+
+        enemy_positions = []
+        max_attempts = 1000
+        attempts = 0
+
+        while len(enemy_positions) < enemy_count and attempts < max_attempts:
+            attempts += 1
+            x = random.randint(50, 750)
+            y = random.randint(50, 550)
+
+            if not is_too_close(x, y, enemy_positions, min_distance=30):
+                enemy_positions.append((x, y))
+
+        # Create enemies with appropriate types
+        for x, y in enemy_positions:
+            enemy_type = random.choice(enemy_types)
+            if enemy_type == "boss":
+                enemy_data = self.enemy_manager.create_scaled_boss()
+            else:
+                enemy_data = self.enemy_manager.create_scaled_enemy()
+
+            # Apply level multipliers
+            current_level = self.level_manager.get_current_level()
+            if current_level:
+                enemy_data["Hit_Points"] = int(enemy_data["Hit_Points"] * current_level.enemy_multiplier)
+                enemy_data["Level"] = max(1, int(enemy_data["Level"] * current_level.enemy_multiplier))
+
+            enemy = Enemy(x, y, enemy_data)
+            self.enemies.append(enemy)
+
+        # Create treasures based on level content
+        treasure_count = self.current_level_content["treasure_count"]
+        treasure_positions = []
+
+        attempts = 0
+        while len(treasure_positions) < treasure_count and attempts < max_attempts:
+            attempts += 1
+            x = random.randint(50, 750)
+            y = random.randint(50, 550)
+
+            all_positions = enemy_positions + treasure_positions
+            if not is_too_close(x, y, all_positions, min_distance=25):
+                treasure_positions.append((x, y))
+
+        for x, y in treasure_positions:
+            # Apply loot multiplier to treasure value
+            base_value = random.randint(50, 150)
+            current_level = self.level_manager.get_current_level()
+            if current_level:
+                treasure_value = int(base_value * current_level.loot_multiplier)
+            else:
+                treasure_value = base_value
+
+            treasure = Treasure(x, y, treasure_value)
+            self.treasures.append(treasure)
+
+        # Create trees for environmental decoration
+        self.create_trees(enemy_positions + treasure_positions)
+
+        # Create rest areas - multiple rest areas for higher levels
+        world_width, world_height = self.tile_map.get_world_pixel_size()
+        current_level = self.level_manager.get_current_level()
+
+        # Number of rest areas based on world difficulty
+        rest_area_count = 1 + (current_level.world - 1) if current_level else 1
+        rest_positions = [
+            (world_width - 120, world_height - 120),  # Bottom-right (always)
+            (80, world_height - 120),  # Bottom-left
+            (world_width - 120, 80),  # Top-right
+            (80, 80),  # Top-left
+            (world_width // 2, world_height // 2),  # Center
+        ]
+
+        all_object_positions = enemy_positions + treasure_positions
+
+        for i in range(min(rest_area_count, len(rest_positions))):
+            rest_x, rest_y = rest_positions[i]
+
+            # Ensure rest area doesn't conflict with other objects
+            if not is_too_close(rest_x, rest_y, all_object_positions, min_distance=60):
+                rest_area = EnhancedRestArea(rest_x, rest_y, self.rest_manager)
+                self.rests.append(rest_area)
+
+    def create_trees(self, existing_positions):
+        """Create trees for environmental decoration"""
+        current_level = self.level_manager.get_current_level()
+
+        # Determine tree count and types based on world theme
+        if current_level:
+            if current_level.world == 1:  # Grassland
+                tree_count = random.randint(15, 25)
+                tree_types = ["normal", "oak", "normal", "oak", "normal"]
+            elif current_level.world == 2:  # Ice world
+                tree_count = random.randint(8, 15)
+                tree_types = ["pine", "pine", "pine"]  # Mostly pine trees for ice world
+            elif current_level.world == 3:  # Shadow realm
+                tree_count = random.randint(12, 20)
+                tree_types = ["normal", "oak"]  # Darker looking trees
+            elif current_level.world == 4:  # Elemental chaos
+                tree_count = random.randint(5, 12)
+                tree_types = ["normal", "pine", "oak"]  # Mixed types
+            else:  # Cosmic world
+                tree_count = random.randint(3, 8)
+                tree_types = ["oak", "normal"]  # Fewer, more mystical trees
+        else:
+            # Default fallback
+            tree_count = random.randint(12, 20)
+            tree_types = ["normal", "oak", "pine"]
+
+        tree_positions = []
+        max_attempts = 1000
+        attempts = 0
+
+        while len(tree_positions) < tree_count and attempts < max_attempts:
+            attempts += 1
+            x = random.randint(60, 740)  # Leave border space
+            y = random.randint(60, 540)
+
+            # Check distance from all existing objects (enemies, treasures, rest areas)
+            all_positions = existing_positions + tree_positions
+
+            # Trees need more space since they're larger
+            if not is_too_close(x, y, all_positions, min_distance=45):
+                # Also avoid the player starting area
+                player_start_x, player_start_y = 480, 480
+                if math.dist((x, y), (player_start_x, player_start_y)) > 80:
+                    tree_positions.append((x, y))
+
+        # Create trees with varied types
+        for x, y in tree_positions:
+            tree_type = random.choice(tree_types)
+            tree = Tree(x, y, tree_type)
+            self.trees.append(tree)
+
+        print(f"Created {len(self.trees)} trees of types: {set(tree.tree_type for tree in self.trees)}")
+
+    def setup_world_objects(self):
+        """Setup game world objects based on map (fallback method)"""
+        # Clear existing objects
+        self.enemies.clear()
+        self.treasures.clear()
+        self.shops.clear()
+        self.rests.clear()
+        self.trees.clear()
 
         # Parse map for object positions
         object_positions = self.tile_map.parse_map_for_objects()
@@ -193,6 +402,9 @@ class EnhancedGameManager:
                 enemy = Enemy(x, y, self.enemy_manager.create_scaled_enemy())
                 self.enemies.append(enemy)
 
+        # Create trees (fallback version with default settings)
+        self.create_trees(enemy_positions + treasure_positions)
+
         # Create rest areas - single rest area in bottom-right
         world_width, world_height = self.tile_map.get_world_pixel_size()
 
@@ -227,6 +439,67 @@ class EnhancedGameManager:
         rest_area = EnhancedRestArea(rest_x, rest_y, self.rest_manager)
         self.rests.append(rest_area)
 
+    def check_tree_collision(self, player_rect):
+        """Check if player is colliding with any trees"""
+        for tree in self.trees:
+            if tree.active and tree.is_blocking():
+                if player_rect.colliderect(tree.get_rect()):
+                    return tree
+        return None
+
+    def check_level_completion(self):
+        """Check if current level is completed and handle progression"""
+        # Level is completed when all enemies are defeated
+        active_enemies = [enemy for enemy in self.enemies if enemy.active]
+
+        if len(active_enemies) == 0 and len(self.enemies) > 0:
+            # Level completed!
+            current_level = self.level_manager.get_current_level()
+            if current_level:
+                # Award completion bonus
+                if self.character_manager.character_data:
+                    completion_bonus = int(200 * current_level.loot_multiplier)
+                    self.character_manager.character_data["Credits"] += completion_bonus
+                    self.character_manager.character_data["Experience_Points"] += int(
+                        100 * current_level.enemy_multiplier)
+
+                    # Visual feedback
+                    damage_text = DamageText(0, 0, f"Level Complete! +{completion_bonus} Credits!", GOLD)
+                    damage_text.world_pos = (self.animated_player.x, self.animated_player.y - 40)
+                    self.damage_texts.append(damage_text)
+
+                    # Check for level up
+                    self.character_manager.level_up_check()
+                    self.character_manager.save_character()
+
+                # Unlock next level
+                self.level_manager.complete_current_level()
+
+                return True
+
+        return False
+
+    def change_level(self, world, level):
+        """Change to a specific level"""
+        if self.level_manager.set_current_level(world, level):
+            # Reset player position to center
+            world_center_x = 480
+            world_center_y = 480
+            self.animated_player.x = world_center_x
+            self.animated_player.y = world_center_y
+
+            # Setup new world
+            self.setup_world_for_current_level()
+
+            # Update camera
+            self.camera.update(
+                self.animated_player.x + self.animated_player.display_width // 2,
+                self.animated_player.y + self.animated_player.display_height // 2
+            )
+
+            return True
+        return False
+
     def check_collisions(self):
         """Check for collisions between player and world objects"""
         # Skip collision checks during store exit cooldown
@@ -236,6 +509,11 @@ class EnhancedGameManager:
 
         player_rect = pygame.Rect(self.animated_player.x, self.animated_player.y,
                                   self.animated_player.display_width, self.animated_player.display_height)
+
+        # Check tree collisions first (blocking movement)
+        tree_collision = self.check_tree_collision(player_rect)
+        if tree_collision:
+            return "tree", tree_collision
 
         # Check rest area collisions first (highest priority for UX)
         for rest_area in self.rests:
@@ -286,18 +564,25 @@ class EnhancedGameManager:
 
         elif self.current_state == GameState.MAIN_MENU:
             if key == pygame.K_UP:
-                self.selected_option = (self.selected_option - 1) % 3
+                self.selected_option = (self.selected_option - 1) % 5  # Now 5 options
             elif key == pygame.K_DOWN:
-                self.selected_option = (self.selected_option + 1) % 3
+                self.selected_option = (self.selected_option + 1) % 5  # Now 5 options
             elif key == pygame.K_RETURN:
                 if self.selected_option == 0:  # Start Game
                     self.load_character_list()
                     self.current_state = GameState.CHARACTER_SELECT
 
-                elif self.selected_option == 1:  # Help
+                elif self.selected_option == 1:  # Level Select
+                    self.level_select_screen = LevelSelectScreen(self.level_manager, self.WIDTH, self.HEIGHT)
+                    self.current_state = GameState.LEVEL_SELECT
+
+                elif self.selected_option == 2:  # Settings
+                    self.current_state = GameState.SETTINGS
+
+                elif self.selected_option == 3:  # Help
                     self.current_state = GameState.HELP
 
-                elif self.selected_option == 2:  # Quit
+                elif self.selected_option == 4:  # Quit
                     return False
 
             elif key == pygame.K_ESCAPE:
@@ -354,6 +639,9 @@ class EnhancedGameManager:
                 self.current_state = GameState.CHARACTER_SHEET
             elif key == pygame.K_h:
                 self.current_state = GameState.HELP
+            elif key == pygame.K_l:  # Level select shortcut
+                self.level_select_screen = LevelSelectScreen(self.level_manager, self.WIDTH, self.HEIGHT)
+                self.current_state = GameState.LEVEL_SELECT
             elif key == pygame.K_F1:  # Key to toggle instructions
                 self.show_instructions = not self.show_instructions
 
@@ -379,6 +667,37 @@ class EnhancedGameManager:
                 # Fallback to main menu if store system not available
                 self.current_state = GameState.MAIN_MENU
 
+        elif self.current_state == GameState.LEVEL_SELECT:
+            if self.level_select_screen:
+                result = self.level_select_screen.handle_input(key)
+
+                if result == "back":
+                    self.current_state = GameState.MAIN_MENU
+                elif result == "level_selected":
+                    # Change to selected level and return to game
+                    self.change_level(self.level_select_screen.selected_world,
+                                      self.level_select_screen.selected_level)
+                    self.current_state = GameState.GAME_BOARD
+                elif result == "level_locked":
+                    # Show message about locked level
+                    pass
+            else:
+                self.current_state = GameState.MAIN_MENU
+
+        elif self.current_state == GameState.SETTINGS:
+            if hasattr(self, 'settings_integration') and self.settings_integration:
+                result = self.settings_integration.handle_settings_input(key)
+
+                if result == "exit_settings":
+                    self.current_state = GameState.MAIN_MENU
+                elif result in ["save_success", "save_failed"]:
+                    # Could add visual feedback here
+                    pass
+                return True
+            else:
+                # Fallback if settings not available
+                self.current_state = GameState.MAIN_MENU
+
         elif self.current_state == GameState.HELP:
             if key == pygame.K_ESCAPE or key == pygame.K_h:
                 if hasattr(self, 'previous_state') and self.previous_state:
@@ -391,6 +710,8 @@ class EnhancedGameManager:
                 self.handle_combat_action()
             elif key == pygame.K_ESCAPE:
                 self.current_state = GameState.GAME_BOARD
+                # Ensure world music resumes after combat
+                self.start_world_music()
 
         return True
 
@@ -408,6 +729,14 @@ class EnhancedGameManager:
         damage_text = DamageText(0, 0, f"-{player_damage}", DAMAGE_TEXT_COLOR)
         damage_text.world_pos = (self.current_enemy.x, self.current_enemy.y)
         self.damage_texts.append(damage_text)
+
+        if self.current_enemy.enemy_data["Hit_Points"] <= 0:
+            # Victory
+            xp_gained = random.randint(25, 75)
+            credits_gained = random.randint(50, 150)
+
+            self.character_manager.character_data["Experience_Points"] += xp_gained
+            self.character_manager.character_data["Credits"] += credits_gained
 
         if self.current_enemy.enemy_data["Hit_Points"] <= 0:
             # Victory
@@ -464,6 +793,10 @@ class EnhancedGameManager:
         for rest_area in self.rests:
             rest_area.update()
 
+        # Update level select screen if active
+        if self.current_state == GameState.LEVEL_SELECT and self.level_select_screen:
+            self.level_select_screen.update()
+
         # Update character creator if active
         if self.current_state == GameState.CREATE_CHARACTER and self.character_creator:
             self.character_creator.update()
@@ -478,19 +811,43 @@ class EnhancedGameManager:
             self.store_integration.update()
 
         if self.current_state == GameState.GAME_BOARD:
+            # Store previous player position for collision rollback
+            prev_x = self.animated_player.x
+            prev_y = self.animated_player.y
+
             # Update animated player position
             world_width, world_height = self.tile_map.get_world_pixel_size()
             moved = self.animated_player.update_position(world_width, world_height)
+
+            # Check for tree collisions and prevent movement if blocked
+            if moved:
+                player_rect = pygame.Rect(self.animated_player.x, self.animated_player.y,
+                                          self.animated_player.display_width, self.animated_player.display_height)
+
+                # Check if player is colliding with trees
+                tree_collision = self.check_tree_collision(player_rect)
+                if tree_collision:
+                    # Rollback movement - player can't walk through trees
+                    self.animated_player.x = prev_x
+                    self.animated_player.y = prev_y
+                    moved = False  # Don't update camera if movement was blocked
 
             # Update camera if player moved
             if moved:
                 self.camera.update(self.animated_player.x + self.animated_player.display_width // 2,
                                    self.animated_player.y + self.animated_player.display_height // 2)
 
+            # Check for level completion
+            self.check_level_completion()
+
             # Check for collisions (now enhanced with combat integration and rest areas)
             collision_type, collision_obj = self.check_collisions()
 
-            if collision_type == "rest":
+            if collision_type == "tree":
+                # Trees block movement, but this is handled in the movement check above
+                pass
+
+            elif collision_type == "rest":
                 # Handle rest area interaction
                 result = collision_obj.attempt_interaction()
 
@@ -557,12 +914,12 @@ class EnhancedGameManager:
         self.particles.draw(self.screen)
 
         # Title with glow effect
-        title_surface = self.ui_renderer.title_font.render("MAGITECH RPG - COMBAT EDITION", True, MENU_SELECTED)
+        title_surface = self.ui_renderer.title_font.render("MAGITECH RPG - MULTI-LEVEL EDITION", True, MENU_SELECTED)
         title_rect = title_surface.get_rect(center=(self.WIDTH // 2, 150))
         self.screen.blit(title_surface, title_rect)
 
         # Subtitle
-        subtitle = self.ui_renderer.font.render("With Enhanced Combat, Sound & Animation", True, MENU_TEXT)
+        subtitle = self.ui_renderer.font.render("With Enhanced Combat, Sound & 20 Levels", True, MENU_TEXT)
         subtitle_rect = subtitle.get_rect(center=(self.WIDTH // 2, 200))
         self.screen.blit(subtitle, subtitle_rect)
 
@@ -578,11 +935,11 @@ class EnhancedGameManager:
         menu_options = []
         for char in self.available_characters:
             if char == "New Character":
-                menu_options.append("🆕 Create New Character")
+                menu_options.append("Create New Character")
             else:
                 # Format character filename nicely
                 char_name = char.replace(".json", "").replace("_", " ").title()
-                menu_options.append(f"👤 {char_name}")
+                menu_options.append(f"Load {char_name}")
 
         self.ui_renderer.draw_enhanced_menu(self.screen, "SELECT CHARACTER", menu_options,
                                             self.selected_character, "Choose your hero!",
@@ -590,7 +947,7 @@ class EnhancedGameManager:
 
         # Instructions
         instructions = [
-            "↑↓ Navigate characters",
+            "UP/DOWN: Navigate characters",
             "ENTER: Select character",
             "ESC: Back to main menu"
         ]
@@ -609,32 +966,42 @@ class EnhancedGameManager:
 
     def draw_game_board(self):
         """Draw the main game board"""
-        # Draw tile map background
+        # Get level background color
+        bg_color = (50, 100, 50)  # Default green
+        current_level = self.level_manager.get_current_level()
+        if current_level:
+            bg_color = self.world_generator._get_background_color(current_level)
+
+        # Draw tile map background or colored background
         if self.map_tiles:
             self.tile_map.draw(self.map_tiles, self.screen, -self.camera.x, -self.camera.y)
         else:
-            self.screen.fill((50, 100, 50))  # Fallback green background
+            self.screen.fill(bg_color)
 
-        # Draw world objects
+        # Draw trees first (behind other objects)
+        for tree in self.trees:
+            tree.draw(self.screen, self.camera, self.animation_timer)
+
+        # Draw world objects with debug info
         for enemy in self.enemies:
             enemy.draw(self.screen, self.camera, self.animation_timer)
 
         for treasure in self.treasures:
             treasure.draw(self.screen, self.camera, self.animation_timer)
 
-        for shop in self.shops:
+        # Debug: Always try to draw shops and rests
+        for i, shop in enumerate(self.shops):
             shop.draw(self.screen, self.camera, self.animation_timer)
 
-        # Draw rest areas
-        for rest_area in self.rests:
+        for i, rest_area in enumerate(self.rests):
             rest_area.draw(self.screen, self.camera.x, self.camera.y)
 
         # Draw animated player at correct screen position
         screen_x, screen_y = self.camera.world_to_screen(self.animated_player.x, self.animated_player.y)
         self.animated_player.draw_at_screen_position(self.screen, screen_x, screen_y)
 
-        # Draw new semi-transparent status overlay
-        self.ui_renderer.draw_status_overlay(self.screen, self.character_manager)
+        # Draw enhanced status overlay with level info
+        self.draw_enhanced_status_overlay()
 
         # Draw rest status HUD
         self.rest_manager.draw_rest_hud(self.screen, self.WIDTH, self.HEIGHT)
@@ -644,8 +1011,9 @@ class EnhancedGameManager:
             instructions = [
                 "Arrow Keys: Move character",
                 "Walk into objects to interact",
-                "🛌 Rest areas: Restore HP/MP (3min cooldown)",
-                "I: Inventory  C: Character Sheet  H: Help",
+                "Rest areas: Restore HP/MP (3min cooldown)",
+                "Trees block your path - walk around them",
+                "I: Inventory  C: Character  H: Help  L: Level Select",
                 "F1: Toggle this panel  ESC: Main Menu"
             ]
             self.ui_renderer.draw_instructions_panel(self.screen, instructions)
@@ -665,6 +1033,30 @@ class EnhancedGameManager:
 
         # Draw particles
         self.particles.draw(self.screen)
+
+    def draw_enhanced_status_overlay(self):
+        """Draw enhanced status overlay with level information"""
+        # Draw standard status overlay
+        self.ui_renderer.draw_status_overlay(self.screen, self.character_manager)
+
+        # Add level information
+        current_level = self.level_manager.get_current_level()
+        if current_level:
+            # Level info overlay
+            level_overlay = pygame.Surface((300, 40), pygame.SRCALPHA)
+            level_overlay.fill((0, 0, 0, 128))
+
+            level_text = f"Level: {current_level.get_display_name()}"
+            difficulty_text = f"Difficulty: {current_level.get_difficulty_description()}"
+
+            level_surface = self.ui_renderer.small_font.render(level_text, True, WHITE)
+            difficulty_surface = self.ui_renderer.small_font.render(difficulty_text, True, MENU_SELECTED)
+
+            level_overlay.blit(level_surface, (10, 5))
+            level_overlay.blit(difficulty_surface, (10, 20))
+
+            # Blit level overlay below main status overlay
+            self.screen.blit(level_overlay, (10, 140))
 
     def draw_fight_screen(self):
         """Draw the fight screen - now enhanced with advanced combat"""
@@ -711,7 +1103,7 @@ class EnhancedGameManager:
         """Draw the inventory screen"""
         self.screen.fill(MENU_BG)
 
-        title = self.ui_renderer.large_font.render("🎒 INVENTORY", True, WHITE)
+        title = self.ui_renderer.large_font.render("INVENTORY", True, WHITE)
         title_rect = title.get_rect(center=(self.WIDTH // 2, 50))
         self.screen.blit(title, title_rect)
 
@@ -743,7 +1135,7 @@ class EnhancedGameManager:
         """Draw the character sheet screen"""
         self.screen.fill(MENU_BG)
 
-        title = self.ui_renderer.large_font.render("📋 CHARACTER SHEET", True, WHITE)
+        title = self.ui_renderer.large_font.render("CHARACTER SHEET", True, WHITE)
         title_rect = title.get_rect(center=(self.WIDTH // 2, 50))
         self.screen.blit(title, title_rect)
 
@@ -799,41 +1191,59 @@ class EnhancedGameManager:
         """Draw help screen"""
         self.screen.fill(MENU_BG)
 
-        title = self.ui_renderer.large_font.render("❓ HELP", True, WHITE)
+        title = self.ui_renderer.large_font.render("HELP", True, WHITE)
         title_rect = title.get_rect(center=(self.WIDTH // 2, 50))
         self.screen.blit(title, title_rect)
 
         help_text = load_help_text()
 
         y_pos = 100
+        line_count = 0
+        max_lines = 20  # Limit lines to fit on screen
+
         for line in help_text:
+            if line_count >= max_lines:
+                break
+
             if line == "":
                 y_pos += 15
                 continue
 
-            if line.isupper() and ":" not in line:
+            if line.startswith("##") or line.isupper() and ":" not in line:
                 color = MENU_SELECTED
                 font_to_use = self.ui_renderer.font
             else:
                 color = MENU_TEXT
                 font_to_use = self.ui_renderer.small_font
 
-            text = font_to_use.render(line, True, color)
-            text_rect = text.get_rect(center=(self.WIDTH // 2, y_pos))
+            # Remove markdown formatting
+            display_line = line.replace("##", "").replace("**", "").replace("- ", "").strip()
+            if len(display_line) > 70:
+                display_line = display_line[:67] + "..."
+
+            text = font_to_use.render(display_line, True, color)
+            screen_center = self.WIDTH // 2
+            text_rect = text.get_rect(center=(screen_center, y_pos))
             self.screen.blit(text, text_rect)
-            y_pos += 25
+            y_pos += 18
+            line_count += 1
+
+        # Instructions
+        instruction = self.ui_renderer.small_font.render("Press ESC or H to return", True, MENU_TEXT)
+        instruction_rect = instruction.get_rect(center=(self.WIDTH // 2, self.HEIGHT - 30))
+        self.screen.blit(instruction, instruction_rect)
+
+    def load_settings(self):
+        """Load settings - placeholder for compatibility"""
+        pass
 
     def draw(self):
         """Draw current state"""
-        # Debug: Print current state occasionally
-        if self.animation_timer % 60 == 0:  # Every 4 seconds at 15 FPS
-            print(f"Current draw state: {self.current_state}")
-
         if self.current_state == GameState.OPENING:
             self.draw_opening_screen()
 
         elif self.current_state == GameState.MAIN_MENU:
-            menu_options = ["🎮 Start Game", "❓ Help", "🚪 Quit"]
+            menu_options = ["Start Game", "Level Select", "Settings", "Help", "Quit"]
             self.ui_renderer.draw_enhanced_menu(self.screen, "MAGITECH RPG", menu_options,
                                                 self.selected_option, "Choose your destiny!",
                                                 self.animation_timer)
@@ -849,6 +1259,26 @@ class EnhancedGameManager:
 
         elif self.current_state == GameState.FIGHT:
             self.draw_fight_screen()
+
+        elif self.current_state == GameState.LEVEL_SELECT:
+            if self.level_select_screen:
+                self.level_select_screen.draw(self.screen)
+            else:
+                # Fallback
+                self.screen.fill(MENU_BG)
+                error_text = self.ui_renderer.font.render("Level select not available!", True, RED)
+                error_rect = error_text.get_rect(center=(self.WIDTH // 2, self.HEIGHT // 2))
+                self.screen.blit(error_text, error_rect)
+
+        elif self.current_state == GameState.SETTINGS:
+            if hasattr(self, 'settings_integration') and self.settings_integration:
+                self.settings_integration.draw_settings(self.screen)
+            else:
+                # Fallback if settings system not available
+                self.screen.fill(MENU_BG)
+                error_text = self.ui_renderer.font.render("Settings system not available!", True, RED)
+                error_rect = error_text.get_rect(center=(self.WIDTH // 2, self.HEIGHT // 2))
+                self.screen.blit(error_text, error_rect)
 
         elif self.current_state == GameState.STORE:
             if hasattr(self, 'store_integration') and self.store_integration:
@@ -875,8 +1305,12 @@ class EnhancedGameManager:
         running = True
 
         changelog = load_changelog_text()
-
-        print(f"{changelog}")
+        print("=== MAGITECH RPG - MULTI-LEVEL EDITION ===")
+        print("Now featuring 20 levels across 5 unique worlds!")
+        print("Press L during gameplay for level select")
+        print("Trees now populate the world - walk around them!")
+        print("Settings menu available from main menu!")
+        print("==========================================")
 
         while running:
             # Handle events
@@ -898,6 +1332,10 @@ class EnhancedGameManager:
             # Update display
             pygame.display.flip()
             clock.tick(15)
+
+        # Save progression before quitting
+        if hasattr(self, 'level_manager'):
+            self.level_manager.save_progression()
 
         pygame.quit()
         sys.exit()

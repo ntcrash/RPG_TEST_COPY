@@ -197,14 +197,14 @@ class EnhancedRestArea(RestArea):
         if (-self.width < screen_x < screen.get_width() and
                 -self.height < screen_y < screen.get_height()):
 
-            # Much smaller base rectangle to match tent size
-            draw_rect = pygame.Rect(screen_x + 5, screen_y + 5, 20, 20)  # Centered smaller rectangle
+            # Base area for tent (larger for better visibility)
+            draw_rect = pygame.Rect(screen_x, screen_y, 50, 50)  # Made larger
 
             # Base color depends on availability
             if self.can_interact():
                 base_color = (0, 150, 250)  # Bright blue when available
                 # Add pulsing effect
-                pulse = int(10 * abs(math.sin(self.pulse_timer * 0.1)))  # Reduced pulse intensity
+                pulse = int(15 * abs(math.sin(self.pulse_timer * 0.1)))
                 border_color = (min(255, 0 + pulse), min(255, 150 + pulse), min(255, 250 + pulse))
             elif not self.rest_manager.can_rest():
                 base_color = (100, 50, 50)  # Dark red when on cooldown
@@ -213,26 +213,40 @@ class EnhancedRestArea(RestArea):
                 base_color = (100, 100, 150)  # Gray when recently used
                 border_color = (150, 150, 200)
 
-            # Draw smaller base area
+            # Draw base area
             pygame.draw.rect(screen, base_color, draw_rect)
-            pygame.draw.rect(screen, border_color, draw_rect, 1)  # Thinner border
+            pygame.draw.rect(screen, border_color, draw_rect, 2)
 
-            # Draw small tent shape that fits nicely in the rectangle
-            tent_center_x = screen_x + 12.5  # Center of 25px area
-            tent_center_y = screen_y + 12.5  # Center of 25px area
+            # Draw tent shape (larger and more detailed)
+            tent_center_x = screen_x + 25  # Center of 50px area
+            tent_center_y = screen_y + 25  # Center of 50px area
 
+            # Main tent triangle
             tent_points = [
-                (tent_center_x, tent_center_y - 5),  # Top point
-                (tent_center_x - 8, tent_center_y + 5),  # Bottom left
-                (tent_center_x + 8, tent_center_y + 5)  # Bottom right
+                (tent_center_x, tent_center_y - 15),  # Top point
+                (tent_center_x - 20, tent_center_y + 15),  # Bottom left
+                (tent_center_x + 20, tent_center_y + 15)  # Bottom right
             ]
 
-            tent_color = (200, 230, 255) if self.can_interact() else (150, 150, 180)
+            tent_color = (220, 240, 255) if self.can_interact() else (180, 180, 200)
             pygame.draw.polygon(screen, tent_color, tent_points)
-            pygame.draw.polygon(screen, BLACK, tent_points, 1)
+            pygame.draw.polygon(screen, BLACK, tent_points, 2)
 
-            # Rest label with status - positioned above
-            rest_font = pygame.font.Font(None, 11)  # Even smaller font
+            # Tent entrance flap
+            flap_points = [
+                (tent_center_x - 5, tent_center_y + 15),
+                (tent_center_x + 5, tent_center_y + 15),
+                (tent_center_x, tent_center_y + 5)
+            ]
+            pygame.draw.polygon(screen, (100, 120, 140), flap_points)
+
+            # Tent pole
+            pygame.draw.line(screen, (139, 69, 19),
+                           (tent_center_x, tent_center_y - 15),
+                           (tent_center_x, tent_center_y + 15), 3)
+
+            # Rest label with status - positioned above tent
+            rest_font = pygame.font.Font(None, 14)
             if self.can_interact():
                 label_text = "REST"
                 label_color = WHITE
@@ -247,23 +261,23 @@ class EnhancedRestArea(RestArea):
                 label_color = GRAY
 
             text = rest_font.render(label_text, True, label_color)
-            text_rect = text.get_rect(center=(tent_center_x, screen_y - 8))
+            text_rect = text.get_rect(center=(tent_center_x, screen_y - 10))
 
-            # Smaller text background
-            bg_rect = text_rect.inflate(3, 1)
+            # Text background
+            bg_rect = text_rect.inflate(6, 2)
             pygame.draw.rect(screen, (0, 0, 0, 180), bg_rect)
 
             screen.blit(text, text_rect)
 
-            # Simplified interaction hint
+            # Interaction hint when available
             if self.can_interact():
-                hint_font = pygame.font.Font(None, 8)  # Very small font
-                hint_text = hint_font.render("Rest", True, WHITE)
-                hint_rect = hint_text.get_rect(center=(tent_center_x, screen_y + 32))
+                hint_font = pygame.font.Font(None, 10)
+                hint_text = hint_font.render("Walk into tent", True, WHITE)
+                hint_rect = hint_text.get_rect(center=(tent_center_x, screen_y + 60))
 
                 # Subtle fade effect
-                alpha = int(100 + 100 * abs(math.sin(self.pulse_timer * 0.2)))
-                hint_bg = pygame.Rect(hint_rect.x - 2, hint_rect.y, hint_rect.width + 4, hint_rect.height + 1)
+                alpha = int(150 + 100 * abs(math.sin(self.pulse_timer * 0.2)))
+                hint_bg = pygame.Rect(hint_rect.x - 3, hint_rect.y, hint_rect.width + 6, hint_rect.height + 2)
                 pygame.draw.rect(screen, (0, 0, 0, alpha), hint_bg)
 
                 hint_text.set_alpha(alpha)

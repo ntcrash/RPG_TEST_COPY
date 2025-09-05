@@ -2,11 +2,134 @@
 All notable changes to this project will be documented in this file.
 
 ## - ToDo
-- Add melee only attack
-- Add more levels to books and chapters
-- Clean up code... 
-- Get rid of Debugging...
+- Add settings control screen. Using game_config.json
+- Add crafting
+- Add crafting loot
+- finish adding levels correctly
 - Dying needs to take credits
+- Fix Main Game sound
+
+## 09/04/2025 - v1.3.0 - ENVIRONMENTAL TREE SYSTEM
+### - Added
+🌳 **Complete Tree System**
+- Tree class with collision detection for blocking player movement
+- Three tree types: Normal, Oak, and Pine with distinct visual styles
+- Animated tree swaying effects for more natural environment
+- World-themed tree generation based on current level/world
+- Smart tree placement avoiding conflicts with other objects
+- Collision system prevents player from walking through trees
+
+🎨 **Enhanced Environmental Generation**
+- Level-based tree count and type selection
+- World 1 (Grassland): 15-25 mixed trees (Normal, Oak)
+- World 2 (Ice): 8-15 Pine trees for arctic theme
+- World 3 (Shadow): 12-20 darker trees for mysterious atmosphere
+- World 4 (Elemental): 5-12 mixed types for chaotic environment
+- World 5 (Cosmic): 3-8 mystical trees for otherworldly feel
+
+🎮 **Improved Gameplay Mechanics**
+- Tree collision detection with movement rollback system
+- Trees drawn behind other objects for proper depth layering
+- Updated movement system to handle environmental obstacles
+- Enhanced world navigation requiring strategic pathfinding around trees
+
+🔧 **Technical Improvements**
+- Tree objects inherit proper collision and drawing systems
+- Integration with existing world generation and level systems
+- Camera-aware tree rendering for performance optimization
+- Proper tree scaling and positioning within world bounds
+
+### - Changed
+🗺️ **World Generation Updates**
+- Modified setup_enhanced_world_objects() to include tree creation
+- Enhanced setup_world_objects() fallback method with tree support
+- Updated collision detection to prioritize tree blocking
+- Improved object spacing algorithms to accommodate larger tree objects
+
+🎯 **Movement System Enhancements**
+- Added previous position tracking for collision rollback
+- Tree collision checking with movement prevention
+- Enhanced player update loop with environmental obstacle detection
+- Improved camera update logic to handle blocked movement
+
+### - Technical Details
+- Tree class with configurable size, type, and collision properties
+- Smart positioning algorithm with 45-pixel minimum distance from other objects
+- Visual variety with trunk colors, leaf colors, and size variations
+- Animation system with subtle swaying based on world position and time
+- Proper integration with existing game state and level management systems
+
+---
+
+## 09/03/2025 - v1.3.0 - MULTI-LEVEL SYSTEM WITH WORLD PROGRESSION
+### - Added
+🗺️ Complete Multi-Level System
+
+5 distinct worlds with 4 levels each (20 total levels)
+Progressive difficulty scaling with world themes
+Level completion system with automatic unlocking
+World progression: Grasslands → Ice Kingdom → Shadow Realm → Elemental Chaos → Cosmic Nexus
+Level persistence system saves current world/level on exit
+Each world has unique enemy types, themes, and visual styles
+
+🎮 Enhanced Level Selection Interface
+
+Comprehensive level select screen accessible from main menu and in-game (L key)
+Visual world tabs with unlock status indicators
+Level difficulty ratings (Easy, Normal, Hard, Expert, Nightmare)
+Recommended character level for each area
+Current level highlighting and selection animations
+Locked level indicators with progression requirements
+
+⚔️ World-Themed Enemy System
+
+5 unique enemy themes matching world aesthetics
+50+ different enemy types across all difficulty tiers
+Theme-specific boss encounters for each world
+Progressive enemy scaling: Basic → Elite → Champion → Ancient → Boss
+World-appropriate enemy names and combat aspects
+Enhanced reward multipliers based on enemy tier
+
+🌍 Dynamic World Generation
+
+Level-based enemy and treasure spawning
+Multiple rest areas in higher difficulty worlds
+World-specific background colors and atmospheric effects
+Treasure quantity scaling with world difficulty
+Strategic rest area placement for challenging levels
+
+📊 Enhanced Progression System
+
+Level completion bonuses with scaling rewards
+Automatic next-level unlocking upon area completion
+World progression tracking with persistent save system
+Enhanced status overlay showing current world and difficulty
+Character progression now tied to world completion
+
+🎨 Visual and Audio Enhancements
+
+World-specific color schemes and themes
+Enhanced status display with level information
+Improved enemy variety with thematic designs
+Level completion celebration effects
+World transition animations and feedback
+
+- Technical Improvements
+
+Modular LevelManager class for progression tracking
+WorldLevelGenerator for dynamic content creation
+LevelSelectScreen with full navigation system
+Enhanced EnemyManager with theme-based generation
+Persistent progression system with JSON save files
+Integration with existing combat and character systems
+
+- Gameplay Balance
+
+Difficulty curves calibrated for character progression
+World-appropriate loot multipliers (1.0x to 4.0x)
+Enemy health scaling from 60 HP (basic) to 666 HP (final boss)
+Strategic rest area placement increases with world difficulty
+Level completion requirements encourage full exploration
 
 ## 09/03/2025 - v1.2.0 - REST SYSTEM WITH COOLDOWN
 ### - Added
