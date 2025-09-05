@@ -347,7 +347,7 @@ class SettingsScreen:
         self.draw_instructions(screen, instructions)
 
     def get_setting_display_value(self, option):
-        """Get display value for a setting"""
+        """Get display value for a setting - ENHANCED VERSION"""
         key = option["key"]
         value = self.game_settings.get(key)
 
@@ -355,9 +355,19 @@ class SettingsScreen:
             return "ON" if value else "OFF"
         elif option["type"] == "slider":
             if key == "difficulty_multiplier":
-                difficulty_names = {0.5: "Easy", 0.8: "Normal", 1.0: "Normal", 1.2: "Hard", 1.5: "Expert",
-                                    2.0: "Nightmare"}
-                return difficulty_names.get(value, f"{value:.1f}")
+                # Enhanced difficulty display names
+                difficulty_names = {
+                    0.5: "Very Easy",
+                    0.6: "Easy",
+                    0.8: "Normal-",
+                    1.0: "Normal",
+                    1.2: "Normal+",
+                    1.4: "Hard",
+                    1.6: "Very Hard",
+                    1.8: "Expert",
+                    2.0: "Nightmare"
+                }
+                return difficulty_names.get(value, f"{value:.1f}x")
             elif "volume" in key:
                 return f"{int(value * 100)}%"
             else:
@@ -389,7 +399,7 @@ class SettingsIntegration:
         self.apply_settings_to_game()
 
     def apply_settings_to_game(self):
-        """Apply current settings to the game"""
+        """Apply current settings to the game - ENHANCED VERSION"""
         # Apply audio settings
         if hasattr(self.game_manager, 'combat_integration'):
             sound_manager = self.game_manager.combat_integration.sound_manager
@@ -400,12 +410,53 @@ class SettingsIntegration:
         # Apply display settings
         self.game_manager.show_instructions = self.game_settings.get("show_instructions")
 
-        # Apply gameplay settings
+        # Apply gameplay settings - FIXED DIFFICULTY APPLICATION
+        difficulty = self.game_settings.get("difficulty_multiplier")
+
+        # Apply to enemy manager if available
         if hasattr(self.game_manager, 'enemy_manager'):
-            difficulty = self.game_settings.get("difficulty_multiplier")
-            # Apply difficulty to enemy manager if it has a difficulty setting
-            if hasattr(self.game_manager.enemy_manager, 'difficulty_multiplier'):
+            print(f"DEBUG: Applying difficulty {difficulty} to enemy_manager")
+            if hasattr(self.game_manager.enemy_manager, 'set_difficulty_multiplier'):
+                self.game_manager.enemy_manager.set_difficulty_multiplier(difficulty)
+            else:
+                # Fallback: set attribute directly
                 self.game_manager.enemy_manager.difficulty_multiplier = difficulty
+
+        # Also apply to character manager's enemy manager if it exists
+        if hasattr(self.game_manager, 'character_manager'):
+            char_mgr = self.game_manager.character_manager
+            if hasattr(char_mgr, 'enemy_manager'):
+                print(f"DEBUG: Applying difficulty {difficulty} to character_manager.enemy_manager")
+                if hasattr(char_mgr.enemy_manager, 'set_difficulty_multiplier'):
+                    char_mgr.enemy_manager.set_difficulty_multiplier(difficulty)
+                else:
+                    char_mgr.enemy_manager.difficulty_multiplier = difficulty
+
+        # Apply to game states if available
+        if hasattr(self.game_manager, 'game_states'):
+            for state in self.game_manager.game_states.values():
+                if hasattr(state, 'enemy_manager'):
+                    print(f"DEBUG: Applying difficulty {difficulty} to game_state.enemy_manager")
+                    if hasattr(state.enemy_manager, 'set_difficulty_multiplier'):
+                        state.enemy_manager.set_difficulty_multiplier(difficulty)
+                    else:
+                        state.enemy_manager.difficulty_multiplier = difficulty
+
+        # Apply to any combat systems
+        if hasattr(self.game_manager, 'combat_integration'):
+            combat_integration = self.game_manager.combat_integration
+            if hasattr(combat_integration, 'combat_manager'):
+                combat_mgr = combat_integration.combat_manager
+                if hasattr(combat_mgr, 'character_manager'):
+                    char_mgr = combat_mgr.character_manager
+                    if hasattr(char_mgr, 'enemy_manager'):
+                        print(f"DEBUG: Applying difficulty {difficulty} to combat.character_manager.enemy_manager")
+                        if hasattr(char_mgr.enemy_manager, 'set_difficulty_multiplier'):
+                            char_mgr.enemy_manager.set_difficulty_multiplier(difficulty)
+                        else:
+                            char_mgr.enemy_manager.difficulty_multiplier = difficulty
+
+        print(f"DEBUG: Difficulty setting {difficulty} applied to all available enemy managers")
 
     def handle_settings_input(self, key):
         """Handle input for settings screen"""

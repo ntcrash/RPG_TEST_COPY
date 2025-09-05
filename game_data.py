@@ -373,13 +373,19 @@ class CharacterManager:
 
         return f"{name} (Lv.{level} {race} {char_class}) - HP: {hp}/{max_hp}, Credits: {credits}, XP: {xp}"
 
+
 class EnemyManager:
-    """Enhanced enemy manager with level-based scaling"""
+    """Enhanced enemy manager with level-based scaling and difficulty multiplier"""
 
     def __init__(self):
         self.current_book_level = 1
         self.world_theme = "grassland"  # Current world theme
+        self.difficulty_multiplier = 1.0  # Add difficulty multiplier attribute
         self.enemy_templates = self._create_enhanced_enemy_templates()
+
+    def set_difficulty_multiplier(self, multiplier):
+        """Set the difficulty multiplier from settings"""
+        self.difficulty_multiplier = max(0.1, min(3.0, multiplier))  # Clamp between 0.1 and 3.0
 
     def _create_enhanced_enemy_templates(self):
         """Create enhanced enemy templates organized by world themes"""
@@ -414,84 +420,88 @@ class EnemyManager:
                 "basic": [
                     {"name": "Ice Goblin", "hp_base": 70, "aspect": "water_level_1"},
                     {"name": "Frost Wolf", "hp_base": 75, "aspect": "water_level_1"},
-                    {"name": "Snow Troll", "hp_base": 85, "aspect": "water_level_1"},
-                    {"name": "Ice Sprite", "hp_base": 60, "aspect": "water_level_1"},
+                    {"name": "Frozen Warrior", "hp_base": 80, "aspect": "water_level_1"},
+                    {"name": "Ice Sprite", "hp_base": 65, "aspect": "water_level_1"},
                 ],
                 "elite": [
                     {"name": "Frost Giant", "hp_base": 140, "aspect": "water_level_2"},
-                    {"name": "Ice Wraith", "hp_base": 120, "aspect": "water_level_2"},
-                    {"name": "Yeti Warrior", "hp_base": 160, "aspect": "water_level_2"},
+                    {"name": "Ice Shaman", "hp_base": 120, "aspect": "water_level_2"},
+                    {"name": "Blizzard Bear", "hp_base": 150, "aspect": "water_level_2"},
                 ],
                 "champion": [
-                    {"name": "Glacier Colossus", "hp_base": 220, "aspect": "water_level_3"},
-                    {"name": "Frost Lich", "hp_base": 200, "aspect": "void_level_3"},
+                    {"name": "Crystal Guardian", "hp_base": 200, "aspect": "water_level_3"},
+                    {"name": "Frozen Lich", "hp_base": 180, "aspect": "water_level_3"},
                 ],
                 "ancient": [
-                    {"name": "Ancient Ice Dragon", "hp_base": 300, "aspect": "water_level_4"},
-                    {"name": "Eternal Frost Guardian", "hp_base": 280, "aspect": "water_level_4"},
+                    {"name": "Ancient Ice Wyrm", "hp_base": 300, "aspect": "water_level_4"},
+                    {"name": "Primordial Frost", "hp_base": 280, "aspect": "water_level_4"},
                 ],
                 "boss": [
-                    {"name": "❄️ ICE EMPEROR ❄️", "hp_base": 450, "aspect": "water_level_5"},
+                    {"name": "❄️ ICE TITAN OVERLORD ❄️", "hp_base": 450, "aspect": "water_level_5"},
                 ]
             },
             "shadow": {
                 "basic": [
-                    {"name": "Shadow Imp", "hp_base": 65, "aspect": "void_level_1"},
-                    {"name": "Nightmare Hound", "hp_base": 75, "aspect": "void_level_1"},
-                    {"name": "Dark Wraith", "hp_base": 70, "aspect": "void_level_1"},
-                    {"name": "Void Stalker", "hp_base": 80, "aspect": "void_level_1"},
+                    {"name": "Shadow Imp", "hp_base": 55, "aspect": "void_level_1"},
+                    {"name": "Dark Wraith", "hp_base": 60, "aspect": "void_level_1"},
+                    {"name": "Phantom Scout", "hp_base": 58, "aspect": "void_level_1"},
                 ],
                 "elite": [
-                    {"name": "Shadow Knight", "hp_base": 130, "aspect": "void_level_2"},
-                    {"name": "Nightmare Lord", "hp_base": 140, "aspect": "void_level_2"},
-                    {"name": "Void Assassin", "hp_base": 110, "aspect": "void_level_2"},
+                    {"name": "Shadow Assassin", "hp_base": 110, "aspect": "void_level_2"},
+                    {"name": "Dark Sorcerer", "hp_base": 100, "aspect": "void_level_2"},
+                    {"name": "Void Stalker", "hp_base": 115, "aspect": "void_level_2"},
                 ],
                 "champion": [
-                    {"name": "Dark Paladin", "hp_base": 200, "aspect": "void_level_3"},
-                    {"name": "Nightmare Dragon", "hp_base": 230, "aspect": "void_level_3"},
+                    {"name": "Shadow Lord", "hp_base": 160, "aspect": "void_level_3"},
+                    {"name": "Dark Overlord", "hp_base": 170, "aspect": "void_level_3"},
                 ],
                 "ancient": [
-                    {"name": "Ancient Shadow Lord", "hp_base": 320, "aspect": "void_level_4"},
-                    {"name": "Void Leviathan", "hp_base": 300, "aspect": "void_level_4"},
+                    {"name": "Ancient Darkness", "hp_base": 260, "aspect": "void_level_4"},
+                    {"name": "Void Ancient", "hp_base": 270, "aspect": "void_level_4"},
                 ],
                 "boss": [
-                    {"name": "🌑 SHADOW EMPEROR 🌑", "hp_base": 500, "aspect": "void_level_5"},
+                    {"name": "🌑 SHADOW REALM MASTER 🌑", "hp_base": 500, "aspect": "void_level_5"},
                 ]
             },
             "elemental": {
                 "basic": [
-                    {"name": "Fire Elemental", "hp_base": 75, "aspect": "fire_level_1"},
-                    {"name": "Lightning Sprite", "hp_base": 60, "aspect": "dream_level_1"},
+                    {"name": "Fire Elemental", "hp_base": 70, "aspect": "fire_level_1"},
                     {"name": "Earth Golem", "hp_base": 90, "aspect": "earth_level_1"},
-                    {"name": "Storm Wisp", "hp_base": 65, "aspect": "dream_level_1"},
+                    {"name": "Air Spirit", "hp_base": 60, "aspect": "air_level_1"},
+                    {"name": "Water Nymph", "hp_base": 65, "aspect": "water_level_1"},
                 ],
                 "elite": [
-                    {"name": "Greater Fire Elemental", "hp_base": 140, "aspect": "fire_level_2"},
-                    {"name": "Storm Lord", "hp_base": 130, "aspect": "dream_level_2"},
-                    {"name": "Stone Titan", "hp_base": 170, "aspect": "earth_level_2"},
+                    {"name": "Greater Fire Elemental", "hp_base": 130, "aspect": "fire_level_2"},
+                    {"name": "Stone Titan", "hp_base": 160, "aspect": "earth_level_2"},
+                    {"name": "Storm Lord", "hp_base": 120, "aspect": "air_level_2"},
+                    {"name": "Tsunami Spirit", "hp_base": 125, "aspect": "water_level_2"},
                 ],
                 "champion": [
-                    {"name": "Elemental Chaos Spawn", "hp_base": 210, "aspect": "fire_level_3"},
-                    {"name": "Thunder King", "hp_base": 200, "aspect": "dream_level_3"},
+                    {"name": "Inferno Guardian", "hp_base": 190, "aspect": "fire_level_3"},
+                    {"name": "Mountain King", "hp_base": 220, "aspect": "earth_level_3"},
+                    {"name": "Hurricane Master", "hp_base": 175, "aspect": "air_level_3"},
+                    {"name": "Tidal Force", "hp_base": 185, "aspect": "water_level_3"},
                 ],
                 "ancient": [
-                    {"name": "Primordial Fire", "hp_base": 330, "aspect": "fire_level_4"},
-                    {"name": "Ancient Storm Dragon", "hp_base": 310, "aspect": "dream_level_4"},
+                    {"name": "Primordial Fire", "hp_base": 280, "aspect": "fire_level_4"},
+                    {"name": "Elder Earth Spirit", "hp_base": 320, "aspect": "earth_level_4"},
+                    {"name": "Ancient Wind", "hp_base": 260, "aspect": "air_level_4"},
+                    {"name": "Oceanic Ancient", "hp_base": 270, "aspect": "water_level_4"},
                 ],
                 "boss": [
-                    {"name": "⚡ ELEMENTAL OVERLORD ⚡", "hp_base": 550, "aspect": "fire_level_5"},
+                    {"name": "⚡ ELEMENTAL NEXUS ⚡", "hp_base": 550, "aspect": "life_level_5"},
                 ]
             },
             "cosmic": {
                 "basic": [
-                    {"name": "Astral Wanderer", "hp_base": 80, "aspect": "dream_level_2"},
-                    {"name": "Void Walker", "hp_base": 85, "aspect": "void_level_2"},
-                    {"name": "Star Fragment", "hp_base": 75, "aspect": "life_level_2"},
+                    {"name": "Star Wisp", "hp_base": 80, "aspect": "void_level_1"},
+                    {"name": "Cosmic Drifter", "hp_base": 85, "aspect": "dream_level_1"},
+                    {"name": "Nebula Spawn", "hp_base": 75, "aspect": "void_level_1"},
                 ],
                 "elite": [
-                    {"name": "Cosmic Horror", "hp_base": 160, "aspect": "void_level_3"},
-                    {"name": "Stellar Guardian", "hp_base": 150, "aspect": "life_level_3"},
-                    {"name": "Dimension Ripper", "hp_base": 140, "aspect": "dream_level_3"},
+                    {"name": "Starborn Warrior", "hp_base": 150, "aspect": "void_level_2"},
+                    {"name": "Galactic Hunter", "hp_base": 140, "aspect": "dream_level_2"},
+                    {"name": "Void Sentinel", "hp_base": 155, "aspect": "void_level_2"},
                 ],
                 "champion": [
                     {"name": "Galactic Destroyer", "hp_base": 240, "aspect": "void_level_4"},
@@ -539,17 +549,22 @@ class EnemyManager:
         # Scale HP based on current book level
         base_hp = enemy_template["hp_base"]
         level_scaling = (self.current_book_level - 1) * 12
-        scaled_hp = base_hp + level_scaling + random.randint(-10, 15)
+        random_variance = random.randint(-10, 15)
+
+        # Apply difficulty multiplier
+        scaled_hp = base_hp + level_scaling + random_variance
+        final_hp = int(scaled_hp * self.difficulty_multiplier)
 
         # Create enemy data
         enemy_data = {
             "Name": enemy_template["name"],
-            "Hit_Points": max(1, scaled_hp),
+            "Hit_Points": max(1, final_hp),
             "Aspect1": enemy_template["aspect"],
-            "Level": max(1, self.current_book_level),
+            "Level": max(1, int(self.current_book_level * self.difficulty_multiplier)),
             "Experience_Points": 0,
             "Tier": tier,
-            "Theme": self.world_theme
+            "Theme": self.world_theme,
+            "difficulty_multiplier": self.difficulty_multiplier  # Store for combat calculations
         }
 
         return enemy_data
@@ -561,16 +576,21 @@ class EnemyManager:
 
         base_hp = boss_template["hp_base"]
         level_scaling = (self.current_book_level - 1) * 30
-        scaled_hp = base_hp + level_scaling + random.randint(-30, 50)
+        random_variance = random.randint(-30, 50)
+
+        # Apply difficulty multiplier to boss
+        scaled_hp = base_hp + level_scaling + random_variance
+        final_hp = int(scaled_hp * self.difficulty_multiplier)
 
         boss_data = {
             "Name": boss_template["name"],
-            "Hit_Points": max(1, scaled_hp),
+            "Hit_Points": max(1, final_hp),
             "Aspect1": boss_template["aspect"],
-            "Level": max(1, self.current_book_level + 3),
+            "Level": max(1, int((self.current_book_level + 3) * self.difficulty_multiplier)),
             "Experience_Points": 0,
             "Tier": "boss",
-            "Theme": self.world_theme
+            "Theme": self.world_theme,
+            "difficulty_multiplier": self.difficulty_multiplier  # Store for combat calculations
         }
 
         return boss_data
@@ -586,16 +606,21 @@ class EnemyManager:
                     if enemy_type.lower() in enemy["name"].lower():
                         base_hp = enemy["hp_base"]
                         level_scaling = (level - 1) * 15
-                        scaled_hp = base_hp + level_scaling
+                        random_variance = random.randint(-5, 10)
+
+                        # Apply difficulty multiplier
+                        scaled_hp = base_hp + level_scaling + random_variance
+                        final_hp = int(scaled_hp * self.difficulty_multiplier)
 
                         return {
                             "Name": enemy["name"],
-                            "Hit_Points": max(1, scaled_hp),
+                            "Hit_Points": max(1, final_hp),
                             "Aspect1": enemy["aspect"],
-                            "Level": level,
+                            "Level": max(1, int(level * self.difficulty_multiplier)),
                             "Experience_Points": 0,
                             "Tier": tier,
-                            "Theme": theme_name
+                            "Theme": theme_name,
+                            "difficulty_multiplier": self.difficulty_multiplier
                         }
 
         # Fallback to basic enemy
@@ -612,33 +637,30 @@ class EnemyManager:
             self.set_world_theme("ice")
         elif level <= 12:
             self.set_world_theme("shadow")
-        elif level <= 16:
+        elif level <= 18:
             self.set_world_theme("elemental")
         else:
             self.set_world_theme("cosmic")
 
-    def get_enemy_reward_multiplier(self, enemy_data):
-        """Get reward multiplier based on enemy tier"""
-        tier = enemy_data.get("Tier", "basic")
-        multipliers = {
-            "basic": 1.0,
-            "elite": 1.4,
-            "champion": 1.8,
-            "ancient": 2.5,
-            "boss": 4.0
-        }
-        return multipliers.get(tier, 1.0)
+    def get_enemy_stats_for_combat(self, enemy_data):
+        """Get enemy stats for combat calculations with difficulty scaling"""
+        level = enemy_data.get("Level", 1)
+        difficulty_mult = enemy_data.get("difficulty_multiplier", 1.0)
 
-    def get_theme_description(self, theme):
-        """Get description of world theme"""
-        descriptions = {
-            "grassland": "Peaceful forests and meadows with natural creatures",
-            "ice": "Frozen wasteland filled with ice-based enemies",
-            "shadow": "Dark realm where nightmares come to life",
-            "elemental": "Chaotic realm where elements collide",
-            "cosmic": "Astral plane with beings beyond comprehension"
+        # Base stats scaled by level and difficulty
+        base_stat_bonus = int((level - 1) * difficulty_mult)
+
+        return {
+            "strength": 10 + base_stat_bonus,
+            "dexterity": 10 + base_stat_bonus,
+            "constitution": 12 + base_stat_bonus,
+            "intelligence": 8 + base_stat_bonus,
+            "wisdom": 8 + base_stat_bonus,
+            "charisma": 6,
+            "armor_class": 10 + int(base_stat_bonus * 0.5),  # AC scales slower
+            "difficulty_multiplier": difficulty_mult
         }
-        return descriptions.get(theme, "Unknown realm")
+
 
 def create_sample_files():
     """Create sample game files if they don't exist"""
