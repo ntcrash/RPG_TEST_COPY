@@ -250,75 +250,193 @@ class CombatManager:
             return base_damage + str_bonus, False
     
     def calculate_spell_damage(self, spell, caster_stats):
-        """Calculate spell damage with intelligence/wisdom modifiers"""
+        """Calculate spell damage with intelligence/wisdom modifiers - ENHANCED VERSION"""
         base_damage = random.randint(spell.damage_min, spell.damage_max)
-        
+
         # Intelligence modifier for damage spells
         int_bonus = max(0, (caster_stats.get("intelligence", 10) - 10) // 2)
-        
-        # Wisdom modifier for healing spells  
+
+        # Wisdom modifier for healing spells
         wis_bonus = max(0, (caster_stats.get("wisdom", 10) - 10) // 2)
-        
+
+        print(f"DEBUG: Spell base damage: {base_damage}, INT bonus: {int_bonus}, WIS bonus: {wis_bonus}")
+
         if spell.spell_type == "heal":
-            return base_damage + wis_bonus, False
+            final_damage = base_damage + wis_bonus
+            print(f"DEBUG: Heal spell final: {final_damage}")
+            return final_damage, False
         elif spell.spell_type == "drain":
-            return base_damage + int_bonus, False
+            final_damage = base_damage + int_bonus
+            print(f"DEBUG: Drain spell final: {final_damage}")
+            return final_damage, False
         else:
-            # Critical hit chance for spells
+            # Critical hit chance for spells based on intelligence
             crit_chance = max(3, int_bonus)
             is_critical = random.randint(1, 100) <= crit_chance
-            
+
             if is_critical:
-                return int((base_damage + int_bonus) * 1.5), True
+                final_damage = int((base_damage + int_bonus) * 1.5)
+                print(f"DEBUG: CRITICAL SPELL! Final damage: {final_damage}")
+                return final_damage, True
             else:
-                return base_damage + int_bonus, False
-    
+                final_damage = base_damage + int_bonus
+                print(f"DEBUG: Normal spell damage: {final_damage}")
+                return final_damage, False
+
     def calculate_hit_chance(self, attacker_stats, defender_stats):
-        """Calculate if attack hits based on stats"""
+        """Calculate if attack hits based on stats - ENHANCED VERSION"""
         # Base hit chance
         base_hit = 75
-        
+
         # Attacker dexterity bonus
         att_dex = attacker_stats.get("dexterity", 10)
         hit_bonus = (att_dex - 10) // 2
-        
-        # Defender AC
-        if "armor_class" in defender_stats:
-            ac_penalty = (defender_stats["armor_class"] - 10) * 2
-        else:
-            def_dex = defender_stats.get("dexterity", 10)
-            ac_penalty = (def_dex - 10)
-        
+
+        # Defender AC penalty
+        defender_ac = defender_stats.get("armor_class", 10)
+        ac_penalty = (defender_ac - 10) * 2
+
         final_hit_chance = max(5, base_hit + hit_bonus - ac_penalty)
-        return random.randint(1, 100) <= final_hit_chance
-    
+
+        roll = random.randint(1, 100)
+        hit = roll <= final_hit_chance
+
+        print(f"DEBUG: Hit calculation - Base: {base_hit}, DEX bonus: {hit_bonus}, AC penalty: {ac_penalty}")
+        print(f"DEBUG: Final hit chance: {final_hit_chance}%, Roll: {roll}, Hit: {hit}")
+
+        return hit
+
     def get_player_stats(self):
-        """Get player stats for combat calculations"""
-        if not self.character_manager or not self.character_manager.character_data:
-            return {"strength": 10, "dexterity": 10, "constitution": 10, 
-                   "intelligence": 10, "wisdom": 10, "charisma": 10}
-        
-        return {
-            "strength": self.character_manager.get_total_stat("strength"),
-            "dexterity": self.character_manager.get_total_stat("dexterity"),
-            "constitution": self.character_manager.get_total_stat("constitution"),
-            "intelligence": self.character_manager.get_total_stat("intelligence"),
-            "wisdom": self.character_manager.get_total_stat("wisdom"),
-            "charisma": self.character_manager.get_total_stat("charisma"),
-            "armor_class": self.character_manager.get_armor_class()
+        """Get player stats for combat calculations - FIXED VERSION"""
+        # First check if we have character manager and data
+        if not self.character_manager:
+            print("WARNING: No character manager available, using default stats")
+            return {"strength": 10, "dexterity": 10, "constitution": 10,
+                    "intelligence": 10, "wisdom": 10, "charisma": 10, "armor_class": 10}
+
+        if not self.character_manager.character_data:
+            print("WARNING: No character data available, using default stats")
+            return {"strength": 10, "dexterity": 10, "constitution": 10,
+                    "intelligence": 10, "wisdom": 10, "charisma": 10, "armor_class": 10}
+
+        try:
+            # Get stats using character manager methods
+            stats = {
+                "strength": self.character_manager.get_total_stat("strength"),
+                "dexterity": self.character_manager.get_total_stat("dexterity"),
+                "constitution": self.character_manager.get_total_stat("constitution"),
+                "intelligence": self.character_manager.get_total_stat("intelligence"),
+                "wisdom": self.character_manager.get_total_stat("wisdom"),
+                "charisma": self.character_manager.get_total_stat("charisma"),
+                "armor_class": self.character_manager.get_armor_class()
+            }
+
+            # Verify we got valid stats
+            for stat_name, value in stats.items():
+                if value is None or value < 1:
+                    print(f"WARNING: Invalid {stat_name} value: {value}, using default 10")
+                    stats[stat_name] = 10
+
+            print(f"DEBUG: Player stats loaded: {stats}")
+            return stats
+
+        except Exception as e:
+            print(f"ERROR getting player stats: {e}")
+            # Fallback to reading directly from character data
+            return self.get_stats_from_character_data()
+
+    def get_stats_from_character_data(self):
+        """Fallback method to get stats directly from character data"""
+        char_data = self.character_manager.character_data
+
+        # Base stats from character data
+        base_stats = {
+            "strength": char_data.get("Strength", 10),
+            "dexterity": char_data.get("Dexterity", 10),
+            "constitution": char_data.get("Constitution", 10),
+            "intelligence": char_data.get("Intelligence", 10),
+            "wisdom": char_data.get("Wisdom", 10),
+            "charisma": char_data.get("Charisma", 10)
         }
-    
+
+        # Calculate AC from dexterity + equipment
+        dex_bonus = max(0, (base_stats["dexterity"] - 10) // 2)
+        base_ac = 10 + dex_bonus
+
+        # Add equipment AC bonus if available
+        equipment_ac = 0
+        inventory = char_data.get("Inventory", {})
+        for item_name, item_data in inventory.items():
+            if isinstance(item_data, dict) and item_data.get("equipped", False):
+                if "Armor_Class" in item_data:
+                    equipment_ac += item_data["Armor_Class"]
+
+        base_stats["armor_class"] = base_ac + equipment_ac
+
+        print(f"DEBUG: Stats from character data: {base_stats}")
+        return base_stats
+
     def get_enemy_stats(self):
-        """Get enemy stats (simplified)"""
+        """Get enemy stats with difficulty scaling"""
+        if not self.current_enemy:
+            return {"strength": 10, "dexterity": 10, "constitution": 12,
+                    "intelligence": 8, "wisdom": 8, "charisma": 6, "armor_class": 10}
+
+        # Use the new enemy stats method if available
+        if hasattr(self.character_manager, 'enemy_manager'):
+            try:
+                enemy_stats = self.character_manager.enemy_manager.get_enemy_stats_for_combat(self.current_enemy)
+                print(f"DEBUG: Enemy stats with difficulty: {enemy_stats}")
+                return enemy_stats
+            except:
+                pass
+
+        # Fallback to basic enemy stats with scaling
         level = self.current_enemy.get("Level", 1)
-        return {
-            "strength": 10 + level,
-            "dexterity": 10 + level,
-            "constitution": 12 + level,
-            "intelligence": 8 + level,
-            "wisdom": 8 + level,
-            "charisma": 6
+        difficulty_mult = self.current_enemy.get("difficulty_multiplier", 1.0)
+
+        # Apply difficulty multiplier to enemy stats
+        base_bonus = int((level - 1) * difficulty_mult)
+
+        enemy_stats = {
+            "strength": 10 + base_bonus,
+            "dexterity": 10 + base_bonus,
+            "constitution": 12 + base_bonus,
+            "intelligence": 8 + base_bonus,
+            "wisdom": 8 + base_bonus,
+            "charisma": 6,
+            "armor_class": 10 + int(base_bonus * 0.5)
         }
+
+        print(f"DEBUG: Enemy stats (fallback): {enemy_stats}")
+        return enemy_stats
+
+    def calculate_damage(self, base_min, base_max, attacker_stats, defender_stats=None):
+        """Calculate damage with stat modifiers - ENHANCED VERSION"""
+        # Base damage roll
+        base_damage = random.randint(base_min, base_max)
+
+        # Strength modifier for physical attacks
+        str_bonus = max(0, (attacker_stats.get("strength", 10) - 10) // 2)
+
+        print(f"DEBUG: Base damage: {base_damage}, STR bonus: {str_bonus} (STR: {attacker_stats.get('strength', 10)})")
+
+        # Critical hit chance based on dexterity
+        dex = attacker_stats.get("dexterity", 10)
+        crit_chance = max(5, (dex - 10) // 2 + 5)  # 5% base + dex modifier
+
+        print(f"DEBUG: Crit chance: {crit_chance}% (DEX: {dex})")
+
+        is_critical = random.randint(1, 100) <= crit_chance
+
+        if is_critical:
+            final_damage = int((base_damage + str_bonus) * 1.5)
+            print(f"DEBUG: CRITICAL HIT! Final damage: {final_damage}")
+            return final_damage, True
+        else:
+            final_damage = base_damage + str_bonus
+            print(f"DEBUG: Normal hit. Final damage: {final_damage}")
+            return final_damage, False
     
     def player_attack(self):
         """Execute player's basic attack"""
