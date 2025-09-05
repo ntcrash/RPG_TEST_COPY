@@ -9,6 +9,33 @@ All notable changes to this project will be documented in this file.
 - Dying needs to take credits
 - Fix Main Game sound
 
+## 09/05/2025 - v1.4.1
+### - Fixed
+🔧 **Difficulty Mode System** - Fixed difficulty multiplier not being applied to enemy HP and stats
+- Added `set_difficulty_multiplier()` method to EnemyManager
+- Enhanced settings integration to properly apply difficulty to all enemy managers
+- Enemy HP and level now scale correctly with difficulty setting (0.5x to 2.0x)
+- Added debug logging for difficulty application verification
+
+⚔️ **Player Combat Stats Integration** - Fixed player stats not being used in combat calculations
+- Enhanced `get_player_stats()` method with proper error handling and fallbacks
+- Added `get_stats_from_character_data()` fallback method for direct stat reading
+- Fixed combat damage, hit chance, and spell damage calculations to use actual player stats
+- Added comprehensive debug logging for stat calculations
+- Improved stat validation and null value handling
+
+🎯 **Combat Balance Improvements**
+- Enemy stats now properly scale with difficulty multiplier
+- Added armor class scaling for enemies based on difficulty
+- Enhanced critical hit calculations using actual player dexterity
+- Improved spell damage scaling with intelligence/wisdom modifiers
+- Added difficulty multiplier storage in enemy data for combat reference
+
+### - Enhanced
+📊 **Debug Information** - Added extensive debug logging for combat stat calculations
+🎮 **Difficulty Display** - Enhanced difficulty setting display names (Very Easy to Nightmare)
+⚙️ **Settings Integration** - Improved settings application across all game managers
+
 ## 09/04/2025 - v1.3.0 - ENVIRONMENTAL TREE SYSTEM
 ### - Added
 🌳 **Complete Tree System**
