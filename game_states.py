@@ -14,6 +14,7 @@ from store_system import StoreIntegration
 from enhanced_combat_integration import integrate_enhanced_combat_with_game_states, setup_enhanced_audio_system
 from rest_system import RestManager, EnhancedRestArea
 from level_system import LevelManager, WorldLevelGenerator, LevelSelectScreen
+from settings_system import SettingsIntegration
 
 
 class GameState:
@@ -29,6 +30,7 @@ class GameState:
     CHARACTER_SHEET = 8
     HELP = 9
     LEVEL_SELECT = 10
+    SETTINGS = 11
 
 
 def is_too_close(x, y, positions, min_distance=20):
@@ -125,6 +127,7 @@ class EnhancedGameManager:
         self.treasures = []
         self.shops = []
         self.rests = []
+        self.trees = []  # New list for trees
 
         # Combat system variables (for legacy compatibility)
         self.current_enemy = None
@@ -144,7 +147,7 @@ class EnhancedGameManager:
 
         print(f"=== GAME INITIALIZATION COMPLETE ===")
         print(
-            f"Final object counts: {len(self.enemies)} enemies, {len(self.treasures)} treasures, {len(self.shops)} shops, {len(self.rests)} rest areas")
+            f"Final object counts: {len(self.enemies)} enemies, {len(self.treasures)} treasures, {len(self.shops)} shops, {len(self.rests)} rest areas, {len(self.trees)} trees")
         if len(self.shops) > 0:
             for i, shop in enumerate(self.shops):
                 print(f"  Shop {i}: pos=({shop.x}, {shop.y}), active={shop.active}")
@@ -159,6 +162,12 @@ class EnhancedGameManager:
 
         # Initialize store integration
         self.store_integration = StoreIntegration(self)
+
+        # Initialize settings integration
+        self.settings_integration = SettingsIntegration(self)
+
+        # Load settings
+        self.load_settings()
 
     def load_character_list(self):
         """Load list of available characters"""
@@ -199,6 +208,7 @@ class EnhancedGameManager:
         self.treasures.clear()
         self.shops.clear()
         self.rests.clear()
+        self.trees.clear()  # Clear trees too
 
         if not self.current_level_content:
             self.setup_world_objects()  # Fallback
@@ -263,6 +273,9 @@ class EnhancedGameManager:
             treasure = Treasure(x, y, treasure_value)
             self.treasures.append(treasure)
 
+        # Create trees for environmental decoration
+        self.create_trees(enemy_positions + treasure_positions)
+
         # Create rest areas - multiple rest areas for higher levels
         world_width, world_height = self.tile_map.get_world_pixel_size()
         current_level = self.level_manager.get_current_level()
@@ -287,6 +300,59 @@ class EnhancedGameManager:
                 rest_area = EnhancedRestArea(rest_x, rest_y, self.rest_manager)
                 self.rests.append(rest_area)
 
+    def create_trees(self, existing_positions):
+        """Create trees for environmental decoration"""
+        current_level = self.level_manager.get_current_level()
+
+        # Determine tree count and types based on world theme
+        if current_level:
+            if current_level.world == 1:  # Grassland
+                tree_count = random.randint(15, 25)
+                tree_types = ["normal", "oak", "normal", "oak", "normal"]
+            elif current_level.world == 2:  # Ice world
+                tree_count = random.randint(8, 15)
+                tree_types = ["pine", "pine", "pine"]  # Mostly pine trees for ice world
+            elif current_level.world == 3:  # Shadow realm
+                tree_count = random.randint(12, 20)
+                tree_types = ["normal", "oak"]  # Darker looking trees
+            elif current_level.world == 4:  # Elemental chaos
+                tree_count = random.randint(5, 12)
+                tree_types = ["normal", "pine", "oak"]  # Mixed types
+            else:  # Cosmic world
+                tree_count = random.randint(3, 8)
+                tree_types = ["oak", "normal"]  # Fewer, more mystical trees
+        else:
+            # Default fallback
+            tree_count = random.randint(12, 20)
+            tree_types = ["normal", "oak", "pine"]
+
+        tree_positions = []
+        max_attempts = 1000
+        attempts = 0
+
+        while len(tree_positions) < tree_count and attempts < max_attempts:
+            attempts += 1
+            x = random.randint(60, 740)  # Leave border space
+            y = random.randint(60, 540)
+
+            # Check distance from all existing objects (enemies, treasures, rest areas)
+            all_positions = existing_positions + tree_positions
+
+            # Trees need more space since they're larger
+            if not is_too_close(x, y, all_positions, min_distance=45):
+                # Also avoid the player starting area
+                player_start_x, player_start_y = 480, 480
+                if math.dist((x, y), (player_start_x, player_start_y)) > 80:
+                    tree_positions.append((x, y))
+
+        # Create trees with varied types
+        for x, y in tree_positions:
+            tree_type = random.choice(tree_types)
+            tree = Tree(x, y, tree_type)
+            self.trees.append(tree)
+
+        print(f"Created {len(self.trees)} trees of types: {set(tree.tree_type for tree in self.trees)}")
+
     def setup_world_objects(self):
         """Setup game world objects based on map (fallback method)"""
         # Clear existing objects
@@ -294,6 +360,7 @@ class EnhancedGameManager:
         self.treasures.clear()
         self.shops.clear()
         self.rests.clear()
+        self.trees.clear()
 
         # Parse map for object positions
         object_positions = self.tile_map.parse_map_for_objects()
@@ -335,6 +402,9 @@ class EnhancedGameManager:
                 enemy = Enemy(x, y, self.enemy_manager.create_scaled_enemy())
                 self.enemies.append(enemy)
 
+        # Create trees (fallback version with default settings)
+        self.create_trees(enemy_positions + treasure_positions)
+
         # Create rest areas - single rest area in bottom-right
         world_width, world_height = self.tile_map.get_world_pixel_size()
 
@@ -368,6 +438,14 @@ class EnhancedGameManager:
         # Create the single rest area
         rest_area = EnhancedRestArea(rest_x, rest_y, self.rest_manager)
         self.rests.append(rest_area)
+
+    def check_tree_collision(self, player_rect):
+        """Check if player is colliding with any trees"""
+        for tree in self.trees:
+            if tree.active and tree.is_blocking():
+                if player_rect.colliderect(tree.get_rect()):
+                    return tree
+        return None
 
     def check_level_completion(self):
         """Check if current level is completed and handle progression"""
@@ -432,6 +510,11 @@ class EnhancedGameManager:
         player_rect = pygame.Rect(self.animated_player.x, self.animated_player.y,
                                   self.animated_player.display_width, self.animated_player.display_height)
 
+        # Check tree collisions first (blocking movement)
+        tree_collision = self.check_tree_collision(player_rect)
+        if tree_collision:
+            return "tree", tree_collision
+
         # Check rest area collisions first (highest priority for UX)
         for rest_area in self.rests:
             if rest_area.active:
@@ -481,9 +564,9 @@ class EnhancedGameManager:
 
         elif self.current_state == GameState.MAIN_MENU:
             if key == pygame.K_UP:
-                self.selected_option = (self.selected_option - 1) % 4  # Now 4 options
+                self.selected_option = (self.selected_option - 1) % 5  # Now 5 options
             elif key == pygame.K_DOWN:
-                self.selected_option = (self.selected_option + 1) % 4  # Now 4 options
+                self.selected_option = (self.selected_option + 1) % 5  # Now 5 options
             elif key == pygame.K_RETURN:
                 if self.selected_option == 0:  # Start Game
                     self.load_character_list()
@@ -493,10 +576,13 @@ class EnhancedGameManager:
                     self.level_select_screen = LevelSelectScreen(self.level_manager, self.WIDTH, self.HEIGHT)
                     self.current_state = GameState.LEVEL_SELECT
 
-                elif self.selected_option == 2:  # Help
+                elif self.selected_option == 2:  # Settings
+                    self.current_state = GameState.SETTINGS
+
+                elif self.selected_option == 3:  # Help
                     self.current_state = GameState.HELP
 
-                elif self.selected_option == 3:  # Quit
+                elif self.selected_option == 4:  # Quit
                     return False
 
             elif key == pygame.K_ESCAPE:
@@ -598,6 +684,20 @@ class EnhancedGameManager:
             else:
                 self.current_state = GameState.MAIN_MENU
 
+        elif self.current_state == GameState.SETTINGS:
+            if hasattr(self, 'settings_integration') and self.settings_integration:
+                result = self.settings_integration.handle_settings_input(key)
+
+                if result == "exit_settings":
+                    self.current_state = GameState.MAIN_MENU
+                elif result in ["save_success", "save_failed"]:
+                    # Could add visual feedback here
+                    pass
+                return True
+            else:
+                # Fallback if settings not available
+                self.current_state = GameState.MAIN_MENU
+
         elif self.current_state == GameState.HELP:
             if key == pygame.K_ESCAPE or key == pygame.K_h:
                 if hasattr(self, 'previous_state') and self.previous_state:
@@ -629,6 +729,14 @@ class EnhancedGameManager:
         damage_text = DamageText(0, 0, f"-{player_damage}", DAMAGE_TEXT_COLOR)
         damage_text.world_pos = (self.current_enemy.x, self.current_enemy.y)
         self.damage_texts.append(damage_text)
+
+        if self.current_enemy.enemy_data["Hit_Points"] <= 0:
+            # Victory
+            xp_gained = random.randint(25, 75)
+            credits_gained = random.randint(50, 150)
+
+            self.character_manager.character_data["Experience_Points"] += xp_gained
+            self.character_manager.character_data["Credits"] += credits_gained
 
         if self.current_enemy.enemy_data["Hit_Points"] <= 0:
             # Victory
@@ -703,9 +811,26 @@ class EnhancedGameManager:
             self.store_integration.update()
 
         if self.current_state == GameState.GAME_BOARD:
+            # Store previous player position for collision rollback
+            prev_x = self.animated_player.x
+            prev_y = self.animated_player.y
+
             # Update animated player position
             world_width, world_height = self.tile_map.get_world_pixel_size()
             moved = self.animated_player.update_position(world_width, world_height)
+
+            # Check for tree collisions and prevent movement if blocked
+            if moved:
+                player_rect = pygame.Rect(self.animated_player.x, self.animated_player.y,
+                                          self.animated_player.display_width, self.animated_player.display_height)
+
+                # Check if player is colliding with trees
+                tree_collision = self.check_tree_collision(player_rect)
+                if tree_collision:
+                    # Rollback movement - player can't walk through trees
+                    self.animated_player.x = prev_x
+                    self.animated_player.y = prev_y
+                    moved = False  # Don't update camera if movement was blocked
 
             # Update camera if player moved
             if moved:
@@ -718,7 +843,11 @@ class EnhancedGameManager:
             # Check for collisions (now enhanced with combat integration and rest areas)
             collision_type, collision_obj = self.check_collisions()
 
-            if collision_type == "rest":
+            if collision_type == "tree":
+                # Trees block movement, but this is handled in the movement check above
+                pass
+
+            elif collision_type == "rest":
                 # Handle rest area interaction
                 result = collision_obj.attempt_interaction()
 
@@ -849,6 +978,10 @@ class EnhancedGameManager:
         else:
             self.screen.fill(bg_color)
 
+        # Draw trees first (behind other objects)
+        for tree in self.trees:
+            tree.draw(self.screen, self.camera, self.animation_timer)
+
         # Draw world objects with debug info
         for enemy in self.enemies:
             enemy.draw(self.screen, self.camera, self.animation_timer)
@@ -857,14 +990,10 @@ class EnhancedGameManager:
             treasure.draw(self.screen, self.camera, self.animation_timer)
 
         # Debug: Always try to draw shops and rests
-        # print(f"Drawing {len(self.shops)} shops and {len(self.rests)} rest areas")
-
         for i, shop in enumerate(self.shops):
-            # print(f"Shop {i}: pos=({shop.x}, {shop.y}), active={shop.active}")
             shop.draw(self.screen, self.camera, self.animation_timer)
 
         for i, rest_area in enumerate(self.rests):
-            # print(f"Rest {i}: pos=({rest_area.x}, {rest_area.y}), active={getattr(rest_area, 'active', True)}")
             rest_area.draw(self.screen, self.camera.x, self.camera.y)
 
         # Draw animated player at correct screen position
@@ -883,6 +1012,7 @@ class EnhancedGameManager:
                 "Arrow Keys: Move character",
                 "Walk into objects to interact",
                 "Rest areas: Restore HP/MP (3min cooldown)",
+                "Trees block your path - walk around them",
                 "I: Inventory  C: Character  H: Help  L: Level Select",
                 "F1: Toggle this panel  ESC: Main Menu"
             ]
@@ -1103,13 +1233,17 @@ class EnhancedGameManager:
         instruction_rect = instruction.get_rect(center=(self.WIDTH // 2, self.HEIGHT - 30))
         self.screen.blit(instruction, instruction_rect)
 
+    def load_settings(self):
+        """Load settings - placeholder for compatibility"""
+        pass
+
     def draw(self):
         """Draw current state"""
         if self.current_state == GameState.OPENING:
             self.draw_opening_screen()
 
         elif self.current_state == GameState.MAIN_MENU:
-            menu_options = ["Start Game", "Level Select", "Help", "Quit"]
+            menu_options = ["Start Game", "Level Select", "Settings", "Help", "Quit"]
             self.ui_renderer.draw_enhanced_menu(self.screen, "MAGITECH RPG", menu_options,
                                                 self.selected_option, "Choose your destiny!",
                                                 self.animation_timer)
@@ -1133,6 +1267,16 @@ class EnhancedGameManager:
                 # Fallback
                 self.screen.fill(MENU_BG)
                 error_text = self.ui_renderer.font.render("Level select not available!", True, RED)
+                error_rect = error_text.get_rect(center=(self.WIDTH // 2, self.HEIGHT // 2))
+                self.screen.blit(error_text, error_rect)
+
+        elif self.current_state == GameState.SETTINGS:
+            if hasattr(self, 'settings_integration') and self.settings_integration:
+                self.settings_integration.draw_settings(self.screen)
+            else:
+                # Fallback if settings system not available
+                self.screen.fill(MENU_BG)
+                error_text = self.ui_renderer.font.render("Settings system not available!", True, RED)
                 error_rect = error_text.get_rect(center=(self.WIDTH // 2, self.HEIGHT // 2))
                 self.screen.blit(error_text, error_rect)
 
@@ -1164,6 +1308,8 @@ class EnhancedGameManager:
         print("=== MAGITECH RPG - MULTI-LEVEL EDITION ===")
         print("Now featuring 20 levels across 5 unique worlds!")
         print("Press L during gameplay for level select")
+        print("Trees now populate the world - walk around them!")
+        print("Settings menu available from main menu!")
         print("==========================================")
 
         while running:

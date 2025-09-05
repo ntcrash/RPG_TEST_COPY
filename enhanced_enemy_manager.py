@@ -1,3 +1,5 @@
+import random
+
 class EnemyManager:
     """Enhanced enemy manager with level-based scaling"""
 

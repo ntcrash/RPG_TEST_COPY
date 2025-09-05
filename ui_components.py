@@ -28,6 +28,10 @@ ENEMY_HEALTH_COLOR = (255, 100, 100)
 DAMAGE_TEXT_COLOR = (255, 255, 0)
 HEAL_TEXT_COLOR = (0, 255, 0)
 
+# Tree colors
+BROWN = (139, 69, 19)
+DARK_GREEN = (0, 100, 0)
+
 # Menu colors
 MENU_BG = (15, 20, 35)
 MENU_ACCENT = (45, 85, 135)
@@ -194,6 +198,96 @@ class RestArea:
             text = rest_font.render("REST", True, WHITE)
             text_rect = text.get_rect(center=(screen_x + 30, screen_y - 10))
             screen.blit(text, text_rect)
+
+
+class Tree:
+    """Tree object for environmental decoration and possible interaction"""
+
+    def __init__(self, x, y, tree_type="normal"):
+        self.x = x
+        self.y = y
+        self.width = 40
+        self.height = 60
+        self.tree_type = tree_type
+        self.active = True
+        self.collision_rect = pygame.Rect(x + 10, y + 35, 20, 25)  # Smaller collision for trunk only
+
+        # Different tree types for visual variety
+        if tree_type == "oak":
+            self.trunk_color = (101, 67, 33)
+            self.leaf_color = (34, 139, 34)
+            self.trunk_width = 12
+            self.leaf_radius = 22
+        elif tree_type == "pine":
+            self.trunk_color = (139, 69, 19)
+            self.leaf_color = (0, 100, 0)
+            self.trunk_width = 8
+            self.leaf_radius = 18
+        else:  # normal
+            self.trunk_color = BROWN
+            self.leaf_color = DARK_GREEN
+            self.trunk_width = 10
+            self.leaf_radius = 20
+
+    def get_rect(self):
+        """Get collision rectangle (just the trunk for gameplay)"""
+        return self.collision_rect
+
+    def is_blocking(self):
+        """Check if this tree blocks player movement"""
+        return True  # Trees block movement
+
+    def draw(self, screen, camera, animation_timer=0):
+        """Draw the tree with camera offset"""
+        if not self.active:
+            return
+
+        screen_x, screen_y = camera.world_to_screen(self.x, self.y)
+
+        # Only draw if visible on screen
+        if camera.is_visible(self.x, self.y, self.width, self.height):
+            # Draw trunk
+            trunk_x = screen_x + (self.width - self.trunk_width) // 2
+            trunk_y = screen_y + self.height - 25
+            pygame.draw.rect(screen, self.trunk_color,
+                             (trunk_x, trunk_y, self.trunk_width, 20))
+
+            # Draw leaves (circle for canopy)
+            leaf_center_x = screen_x + self.width // 2
+            leaf_center_y = screen_y + 20
+
+            # Add slight swaying animation
+            sway = int(2 * math.sin(animation_timer * 0.05 + self.x * 0.01))
+            leaf_center_x += sway
+
+            pygame.draw.circle(screen, self.leaf_color,
+                               (leaf_center_x, leaf_center_y), self.leaf_radius)
+            pygame.draw.circle(screen, BLACK,
+                               (leaf_center_x, leaf_center_y), self.leaf_radius, 2)
+
+            # Add some detail to make it look more tree-like
+            if self.tree_type == "pine":
+                # Draw pine tree shape (triangle layers)
+                for i in range(3):
+                    layer_y = leaf_center_y + i * 8
+                    layer_size = self.leaf_radius - i * 3
+                    points = [
+                        (leaf_center_x, layer_y - layer_size),
+                        (leaf_center_x - layer_size, layer_y + layer_size // 2),
+                        (leaf_center_x + layer_size, layer_y + layer_size // 2)
+                    ]
+                    pygame.draw.polygon(screen, self.leaf_color, points)
+                    pygame.draw.polygon(screen, BLACK, points, 1)
+
+    def draw_shadow(self, screen, camera):
+        """Draw a subtle shadow beneath the tree"""
+        screen_x, screen_y = camera.world_to_screen(self.x, self.y)
+
+        if camera.is_visible(self.x, self.y, self.width, self.height):
+            # Shadow ellipse
+            shadow_rect = pygame.Rect(screen_x + 5, screen_y + self.height - 10,
+                                      self.width - 10, 8)
+            pygame.draw.ellipse(screen, (0, 0, 0, 50), shadow_rect)
 
 
 class UIRenderer:

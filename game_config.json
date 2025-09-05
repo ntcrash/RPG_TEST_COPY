@@ -1,15 +1,38 @@
 {
-    "version": "1.1.2",
+    "version": "1.3.2",
     "settings": {
+        "master_volume": 0.7,
+        "sfx_volume": 0.8,
+        "music_volume": 0.6,
+        "show_fps": false,
+        "show_debug_info": false,
+        "auto_save": true,
+        "save_interval": 30,
+        "difficulty_scaling": 1.0,
+        "screen_shake": true,
+        "combat_animations": true,
+        "particle_effects": true,
         "default_credits": 1000,
         "max_level": 50,
-        "xp_per_level": 150,
-        "save_interval": 30,
-        "difficulty_scaling": 1.2
+        "xp_per_level": 150
+    },
+    "debug": {
+        "enabled": false,
+        "show_collision_boxes": false,
+        "show_world_coordinates": false,
+        "show_camera_info": false,
+        "show_object_counts": false,
+        "log_combat_calculations": false,
+        "log_level_generation": false,
+        "invincibility_mode": false,
+        "infinite_mana": false,
+        "infinite_credits": false,
+        "fast_combat": false,
+        "skip_animations": false
     },
     "balance": {
         "combat_multipliers": {
-            "player_damage": 1.0,
+            "player_damage": 3,
             "enemy_damage": 1.0,
             "critical_chance_base": 5,
             "experience_gain": 1.0,
@@ -20,6 +43,8 @@
         "enhanced_combat": true,
         "sound_effects": true,
         "animations": true,
-        "auto_save": true
+        "level_system": true,
+        "rest_system": true,
+        "store_system": true
     }
 }

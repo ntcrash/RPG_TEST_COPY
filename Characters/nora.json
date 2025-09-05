@@ -1,0 +1,26 @@
+{
+    "Name": "Nora",
+    "Race": "Human",
+    "Type": "True Mage",
+    "Level": 2,
+    "Hit_Points": 85,
+    "Credits": 498,
+    "Experience_Points": 178,
+    "Aspect1": "fire_level_1",
+    "Aspect1_Mana": 82,
+    "Weapon1": "Spell Pistol",
+    "Weapon2": "",
+    "Weapon3": "Basic Staff",
+    "Armor_Slot_1": "Leather Armor",
+    "Armor_Slot_2": "",
+    "Inventory": {
+        "Greater Health Potion": 1,
+        "Health Potion": 2
+    },
+    "strength": 15,
+    "dexterity": 12,
+    "constitution": 11,
+    "intelligence": 11,
+    "wisdom": 9,
+    "charisma": 18
+}
