@@ -230,7 +230,21 @@ class CharacterManager:
         calculated_level = self.get_player_level()
 
         if calculated_level > current_level and calculated_level <= 50:
+            levels_gained = calculated_level - current_level
             self.character_data["Level"] = calculated_level
+
+            # Increase base stats slightly for each level gained
+            stats_to_increase = ['Strength', 'Dexterity', 'Constitution', 'Intelligence', 'Wisdom', 'Charisma']
+            stat_increases = {}
+
+            for _ in range(levels_gained):
+                for stat in stats_to_increase:
+                    # Small chance to increase each stat by 1 (25% chance per level)
+                    if random.randint(1, 4) == 1:
+                        current_stat = self.character_data.get(stat, 10)
+                        if current_stat < 25:  # Cap stats at 25
+                            self.character_data[stat] = current_stat + 1
+                            stat_increases[stat] = stat_increases.get(stat, 0) + 1
 
             # Increase max HP and mana
             new_max_hp = self.get_max_hp_for_level(calculated_level)
@@ -243,7 +257,13 @@ class CharacterManager:
             self.character_data["Hit_Points"] = min(new_max_hp, current_hp + 25)
             self.character_data["Aspect1_Mana"] = min(new_max_mana, current_mana + 10)
 
-            print(f"LEVEL UP! {self.character_data.get('Name', 'Player')} reached level {calculated_level}")
+            # Create level up message with stat improvements
+            level_message = f"LEVEL UP! {self.character_data.get('Name', 'Player')} reached level {calculated_level}"
+            if stat_increases:
+                stat_text = ", ".join([f"{stat}+{bonus}" for stat, bonus in stat_increases.items()])
+                level_message += f" - Stats increased: {stat_text}"
+
+            print(level_message)
             self.save_character()
             return True
         return False

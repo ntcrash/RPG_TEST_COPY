@@ -1319,9 +1319,18 @@ class EnhancedGameManager:
         self.inventory_items = inventory
         if not hasattr(self, 'selected_inventory_item'):
             self.selected_inventory_item = 0
+        if not hasattr(self, 'inventory_scroll_offset'):
+            self.inventory_scroll_offset = 0
         # Keep selection within bounds
         if self.inventory_items and self.selected_inventory_item >= len(self.inventory_items):
             self.selected_inventory_item = len(self.inventory_items) - 1
+
+        # Update scroll offset based on selection
+        max_visible_items = 12  # Number of items visible on screen at once
+        if self.selected_inventory_item < self.inventory_scroll_offset:
+            self.inventory_scroll_offset = self.selected_inventory_item
+        elif self.selected_inventory_item >= self.inventory_scroll_offset + max_visible_items:
+            self.inventory_scroll_offset = self.selected_inventory_item - max_visible_items + 1
 
         if not inventory:
             empty_text = self.ui_renderer.font.render("Your inventory is empty!", True, WHITE)
@@ -1343,17 +1352,25 @@ class EnhancedGameManager:
             pygame.draw.line(self.screen, MENU_ACCENT, (50, 110), (650, 110), 2)
 
             y_pos = 120
-            for item_index, (item_name, quantity) in enumerate(inventory.items()):
+            max_visible_items = 12
+            scroll_offset = getattr(self, 'inventory_scroll_offset', 0)
+
+            # Convert inventory to list for slicing
+            inventory_list = list(inventory.items())
+            visible_items = inventory_list[scroll_offset:scroll_offset + max_visible_items]
+
+            for display_index, (item_name, quantity) in enumerate(visible_items):
+                actual_index = scroll_offset + display_index
                 item_info = inventory_manager.get_item_info(item_name)
 
                 # Highlight selected item
-                if hasattr(self, 'selected_inventory_item') and item_index == self.selected_inventory_item:
+                if hasattr(self, 'selected_inventory_item') and actual_index == self.selected_inventory_item:
                     highlight_rect = pygame.Rect(45, y_pos - 3, 600, 30)
                     pygame.draw.rect(self.screen, MENU_HIGHLIGHT, highlight_rect)
 
                 # Item name
                 item_color = MENU_SELECTED if (hasattr(self,
-                                                       'selected_inventory_item') and item_index == self.selected_inventory_item) else WHITE
+                                                       'selected_inventory_item') and actual_index == self.selected_inventory_item) else WHITE
                 item_text = self.ui_renderer.font.render(f"{item_name}", True, item_color)
                 self.screen.blit(item_text, (50, y_pos))
 
@@ -1377,15 +1394,19 @@ class EnhancedGameManager:
 
                 y_pos += 35
 
-                # Prevent overflow
-                if y_pos > self.HEIGHT - 150:
-                    overflow_text = self.ui_renderer.small_font.render("... (scroll down for more)", True, GRAY)
-                    self.screen.blit(overflow_text, (50, y_pos))
-                    break
+            # Show scroll indicators
+            if scroll_offset > 0:
+                up_arrow = self.ui_renderer.small_font.render("▲ More items above", True, LIGHT_BLUE)
+                self.screen.blit(up_arrow, (450, 90))
+
+            if scroll_offset + max_visible_items < len(inventory_list):
+                down_arrow = self.ui_renderer.small_font.render("▼ More items below", True, LIGHT_BLUE)
+                self.screen.blit(down_arrow, (450, y_pos + 10))
 
         # Instructions
         instructions = [
             "ESC/I: Return to game",
+            "↑↓: Navigate items",
             "E: Equip selected item (equipment only)",
             "U: Use selected item (consumables only)"
         ]
