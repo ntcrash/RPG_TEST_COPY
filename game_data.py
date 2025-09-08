@@ -150,60 +150,12 @@ class CharacterManager:
         return self.character_data.get(stat_name.lower(), 10)
 
     def get_equipment_stat_bonus(self, stat_name):
-        """Calculate stat bonus from equipped items"""
-        if not self.character_data:
-            return 0
-
-        total_bonus = 0
-        inventory = self.character_data.get("Inventory", {})
-
-        # Equipment stat bonuses mapping
-        equipment_bonuses = {
-            # Weapons
-            "Enhanced Spell Blade": {"strength": 2, "dexterity": 1},
-            "Mystic Staff": {"intelligence": 3, "wisdom": 1},
-            "Warrior's Sword": {"strength": 3, "constitution": 1},
-            "Iron Sword": {"strength": 1},
-            "Basic Staff": {"intelligence": 1, "wisdom": 1},
-
-            # Armor
-            "Mystic Armor": {"constitution": 2, "intelligence": 1},
-            "Plate Mail": {"constitution": 3, "strength": 1},
-            "Leather Armor": {"dexterity": 2, "constitution": 1},
-            "Basic Armor": {"constitution": 1},
-            "Spell_Armor": {"intelligence": 1, "constitution": 1},
-
-            # Accessories
-            "Ring of Strength": {"strength": 2},
-            "Amulet of Intelligence": {"intelligence": 2},
-            "Boots of Dexterity": {"dexterity": 2},
-            "Belt of Constitution": {"constitution": 2},
-            "Crown of Wisdom": {"wisdom": 2},
-            "Pendant of Charisma": {"charisma": 2}
-        }
-
-        # Check equipped items
-        equipped_items = [
-            self.character_data.get("Weapon1", ""),
-            self.character_data.get("Weapon2", ""),
-            self.character_data.get("Weapon3", ""),
-            self.character_data.get("Armor_Slot_1", ""),
-            self.character_data.get("Armor_Slot_2", "")
-        ]
-
-        for item in equipped_items:
-            if item and item in equipment_bonuses:
-                bonus = equipment_bonuses[item].get(stat_name.lower(), 0)
-                total_bonus += bonus
-
-        # Check inventory for accessories (assumes they're equipped if owned)
-        for item_name, quantity in inventory.items():
-            if quantity > 0 and item_name in equipment_bonuses:
-                if item_name.startswith(("Ring", "Amulet", "Boots", "Belt", "Crown", "Pendant")):
-                    bonus = equipment_bonuses[item_name].get(stat_name.lower(), 0)
-                    total_bonus += bonus
-
-        return total_bonus
+        """Calculate stat bonus from equipped items - MOVED TO INVENTORY SYSTEM"""
+        # This method has been moved to inventory_system.py
+        # Use the InventoryManager for equipment stat calculations
+        from inventory_system import InventoryManager
+        inventory_manager = InventoryManager(self)
+        return inventory_manager.get_equipment_stat_bonus(stat_name)
 
     def get_total_stat(self, stat_name):
         """Get total stat value including equipment bonuses"""
@@ -278,7 +230,21 @@ class CharacterManager:
         calculated_level = self.get_player_level()
 
         if calculated_level > current_level and calculated_level <= 50:
+            levels_gained = calculated_level - current_level
             self.character_data["Level"] = calculated_level
+
+            # Increase base stats slightly for each level gained
+            stats_to_increase = ['Strength', 'Dexterity', 'Constitution', 'Intelligence', 'Wisdom', 'Charisma']
+            stat_increases = {}
+
+            for _ in range(levels_gained):
+                for stat in stats_to_increase:
+                    # Small chance to increase each stat by 1 (25% chance per level)
+                    if random.randint(1, 4) == 1:
+                        current_stat = self.character_data.get(stat, 10)
+                        if current_stat < 25:  # Cap stats at 25
+                            self.character_data[stat] = current_stat + 1
+                            stat_increases[stat] = stat_increases.get(stat, 0) + 1
 
             # Increase max HP and mana
             new_max_hp = self.get_max_hp_for_level(calculated_level)
@@ -291,71 +257,24 @@ class CharacterManager:
             self.character_data["Hit_Points"] = min(new_max_hp, current_hp + 25)
             self.character_data["Aspect1_Mana"] = min(new_max_mana, current_mana + 10)
 
-            print(f"LEVEL UP! {self.character_data.get('Name', 'Player')} reached level {calculated_level}")
+            # Create level up message with stat improvements
+            level_message = f"LEVEL UP! {self.character_data.get('Name', 'Player')} reached level {calculated_level}"
+            if stat_increases:
+                stat_text = ", ".join([f"{stat}+{bonus}" for stat, bonus in stat_increases.items()])
+                level_message += f" - Stats increased: {stat_text}"
+
+            print(level_message)
             self.save_character()
             return True
         return False
 
     def use_item_from_inventory(self, item_name):
-        """Use an item from inventory"""
-        if not self.character_data:
-            return False, "No character loaded!"
-
-        inventory = self.character_data.get("Inventory", {})
-
-        if item_name not in inventory or inventory[item_name] <= 0:
-            return False, "Item not in inventory!"
-
-        level = self.character_data.get("Level", 1)
-
-        if "Health Potion" in item_name:
-            effect_value = 25 if "Greater" not in item_name else 50
-            current_hp = self.character_data.get("Hit_Points", 100)
-            max_hp = self.get_max_hp_for_level(level)
-            new_hp = min(max_hp, current_hp + effect_value)
-            hp_restored = new_hp - current_hp
-            self.character_data["Hit_Points"] = new_hp
-
-            inventory[item_name] -= 1
-            if inventory[item_name] <= 0:
-                del inventory[item_name]
-            self.character_data["Inventory"] = inventory
-
-            return True, f"Restored {hp_restored} HP!"
-
-        elif "Mana Potion" in item_name:
-            effect_value = 15 if "Greater" not in item_name else 30
-            current_mana = self.character_data.get("Aspect1_Mana", 10)
-            max_mana = self.get_max_mana_for_level(level)
-            new_mana = min(max_mana, current_mana + effect_value)
-            mana_restored = new_mana - current_mana
-            self.character_data["Aspect1_Mana"] = new_mana
-
-            inventory[item_name] -= 1
-            if inventory[item_name] <= 0:
-                del inventory[item_name]
-            self.character_data["Inventory"] = inventory
-
-            return True, f"Restored {mana_restored} MP!"
-
-        elif "Full Restore" in item_name:
-            max_hp = self.get_max_hp_for_level(level)
-            max_mana = self.get_max_mana_for_level(level)
-
-            hp_restored = max_hp - self.character_data.get("Hit_Points", 100)
-            mana_restored = max_mana - self.character_data.get("Aspect1_Mana", 50)
-
-            self.character_data["Hit_Points"] = max_hp
-            self.character_data["Aspect1_Mana"] = max_mana
-
-            inventory[item_name] -= 1
-            if inventory[item_name] <= 0:
-                del inventory[item_name]
-            self.character_data["Inventory"] = inventory
-
-            return True, f"Fully restored! +{hp_restored} HP, +{mana_restored} MP!"
-
-        return False, "Cannot use this item!"
+        """Use an item from inventory - MOVED TO INVENTORY SYSTEM"""
+        # This method has been moved to inventory_system.py
+        # Use the InventoryManager for item usage
+        from inventory_system import InventoryManager
+        inventory_manager = InventoryManager(self)
+        return inventory_manager.use_item_from_inventory(item_name)
 
     def get_character_summary(self):
         """Get a summary of the character for display purposes"""

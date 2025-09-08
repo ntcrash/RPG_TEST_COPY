@@ -189,6 +189,23 @@ class EnhancedCombatIntegration:
         if not self.game_manager.character_manager.character_data:
             return
 
+        # Import crafting materials function
+        from crafting_system import get_random_crafting_material
+
+        # Check for crafting material drop first (50% chance for better testing)
+        if random.randint(1, 100) <= 50:
+            crafting_material = get_random_crafting_material(enemy_level, from_treasure=False)
+            if crafting_material:
+                # Add crafting material to inventory using new system
+                from inventory_system import InventoryManager
+                inventory_manager = InventoryManager(self.game_manager.character_manager)
+                inventory_manager.add_item(crafting_material, 1)
+
+                self.sound_manager.play_sound("item_pickup")
+                reward_msg = f"Found {crafting_material}!"
+                self.combat_manager.add_combat_log(reward_msg, (255, 215, 0))  # Gold color for crafting materials
+                return
+
         # Tier items by enemy level and type
         basic_items = ["Health Potion", "Mana Potion"]
         good_items = ["Greater Health Potion", "Greater Mana Potion"]
@@ -224,11 +241,10 @@ class EnhancedCombatIntegration:
 
         item_name = random.choice(possible_items)
 
-        # Add to inventory
-        char_data = self.game_manager.character_manager.character_data
-        inventory = char_data.get("Inventory", {})
-        inventory[item_name] = inventory.get(item_name, 0) + 1
-        char_data["Inventory"] = inventory
+        # Add to inventory using new system
+        from inventory_system import InventoryManager
+        inventory_manager = InventoryManager(self.game_manager.character_manager)
+        inventory_manager.add_item(item_name, 1)
 
         # Play item reward sound
         if item_name in equipment_items:

@@ -10,7 +10,7 @@ from tile_map import EnhancedTileMap
 from ui_components import *
 from game_data import CharacterManager, EnemyManager, create_sample_files
 from character_creation import CharacterCreation
-from store_system import StoreIntegration
+# Store system now imported from inventory_system.py
 from enhanced_combat_integration import integrate_enhanced_combat_with_game_states, setup_enhanced_audio_system
 from rest_system import RestManager, EnhancedRestArea
 from level_system import LevelManager, WorldLevelGenerator, LevelSelectScreen
@@ -31,6 +31,7 @@ class GameState:
     HELP = 9
     LEVEL_SELECT = 10
     SETTINGS = 11
+    CRAFTING = 12
 
 
 def is_too_close(x, y, positions, min_distance=20):
@@ -91,6 +92,10 @@ class EnhancedGameManager:
         # Initialize rest system
         self.rest_manager = RestManager(self.character_manager)
 
+        # Initialize crafting system
+        from crafting_system import CraftingIntegration
+        self.crafting_integration = CraftingIntegration(self)
+
         # Initialize visual systems
         self.ui_renderer = UIRenderer(self.WIDTH, self.HEIGHT)
         self.particles = ParticleSystem()
@@ -128,6 +133,7 @@ class EnhancedGameManager:
         self.shops = []
         self.rests = []
         self.trees = []  # New list for trees
+        self.crafting_nodes = []  # New list for crafting material nodes
 
         # Combat system variables (for legacy compatibility)
         self.current_enemy = None
@@ -161,6 +167,7 @@ class EnhancedGameManager:
         setup_enhanced_audio_system(self)
 
         # Initialize store integration
+        from inventory_system import StoreIntegration
         self.store_integration = StoreIntegration(self)
 
         # Initialize settings integration
@@ -209,6 +216,7 @@ class EnhancedGameManager:
         self.shops.clear()
         self.rests.clear()
         self.trees.clear()  # Clear trees too
+        self.crafting_nodes.clear()  # Clear crafting nodes too
 
         if not self.current_level_content:
             self.setup_world_objects()  # Fallback
@@ -275,6 +283,10 @@ class EnhancedGameManager:
 
         # Create trees for environmental decoration
         self.create_trees(enemy_positions + treasure_positions)
+
+        # Create crafting material nodes
+        all_positions = enemy_positions + treasure_positions + [(tree.x, tree.y) for tree in self.trees]
+        self.create_crafting_nodes(all_positions)
 
         # Create rest areas - multiple rest areas for higher levels
         world_width, world_height = self.tile_map.get_world_pixel_size()
@@ -353,6 +365,61 @@ class EnhancedGameManager:
 
         print(f"Created {len(self.trees)} trees of types: {set(tree.tree_type for tree in self.trees)}")
 
+    def create_crafting_nodes(self, existing_positions):
+        """Create harvestable crafting material nodes"""
+        from crafting_system import CraftingNode
+
+        # Determine number of crafting nodes based on level
+        current_level = self.level_manager.get_current_level()
+        if current_level:
+            node_count = random.randint(8, 15)
+        else:
+            node_count = random.randint(8, 12)
+
+        node_positions = []
+        max_attempts = 1000
+        attempts = 0
+
+        while len(node_positions) < node_count and attempts < max_attempts:
+            attempts += 1
+            x = random.randint(40, 760)
+            y = random.randint(40, 560)
+
+            # Check distance from all existing objects
+            all_positions = existing_positions + node_positions
+            if not is_too_close(x, y, all_positions, min_distance=35):
+                node_positions.append((x, y))
+
+        # Create crafting nodes with varied materials
+        common_materials = ["Iron Ore", "Wood", "Leather", "Cloth", "Stone"]
+        uncommon_materials = ["Silver Ore", "Mithril Shard", "Crystal Fragment", "Dragon Scale"]
+        rare_materials = ["Gold Ore", "Phoenix Feather", "Void Crystal"]
+
+        for x, y in node_positions:
+            # 70% common, 20% uncommon, 8% rare, 2% legendary
+            roll = random.randint(1, 100)
+            if roll <= 70:
+                material = random.choice(common_materials)
+            elif roll <= 90:
+                material = random.choice(uncommon_materials)
+            elif roll <= 98:
+                material = random.choice(rare_materials)
+            else:
+                material = random.choice(["Starfire Essence", "Time Crystal"])
+
+            # Longer respawn time for rarer materials
+            if material in rare_materials:
+                respawn_time = 1200  # 20 minutes
+            elif material in uncommon_materials:
+                respawn_time = 900  # 15 minutes
+            else:
+                respawn_time = 600  # 10 minutes
+
+            crafting_node = CraftingNode(x, y, material, respawn_time)
+            self.crafting_nodes.append(crafting_node)
+
+        print(f"Created {len(self.crafting_nodes)} crafting material nodes")
+
     def setup_world_objects(self):
         """Setup game world objects based on map (fallback method)"""
         # Clear existing objects
@@ -404,6 +471,10 @@ class EnhancedGameManager:
 
         # Create trees (fallback version with default settings)
         self.create_trees(enemy_positions + treasure_positions)
+
+        # Create crafting nodes (fallback)
+        all_positions = enemy_positions + treasure_positions + [(tree.x, tree.y) for tree in self.trees]
+        self.create_crafting_nodes(all_positions)
 
         # Create rest areas - single rest area in bottom-right
         world_width, world_height = self.tile_map.get_world_pixel_size()
@@ -514,6 +585,13 @@ class EnhancedGameManager:
         tree_collision = self.check_tree_collision(player_rect)
         if tree_collision:
             return "tree", tree_collision
+
+        # Check crafting node collisions
+        for node in self.crafting_nodes:
+            if node.active:
+                node_rect = pygame.Rect(node.x, node.y, node.width, node.height)
+                if player_rect.colliderect(node_rect):
+                    return "crafting_node", node
 
         # Check rest area collisions first (highest priority for UX)
         for rest_area in self.rests:
@@ -642,15 +720,81 @@ class EnhancedGameManager:
             elif key == pygame.K_l:  # Level select shortcut
                 self.level_select_screen = LevelSelectScreen(self.level_manager, self.WIDTH, self.HEIGHT)
                 self.current_state = GameState.LEVEL_SELECT
+            elif key == pygame.K_r:  # Crafting shortcut
+                self.crafting_integration.crafting_manager.crafting_active = True
+                self.current_state = GameState.CRAFTING
             elif key == pygame.K_F1:  # Key to toggle instructions
                 self.show_instructions = not self.show_instructions
 
         elif self.current_state == GameState.INVENTORY:
             if key == pygame.K_ESCAPE or key == pygame.K_i:
                 self.current_state = GameState.GAME_BOARD
+            elif key == pygame.K_UP:
+                if hasattr(self, 'inventory_items') and self.inventory_items:
+                    self.selected_inventory_item = (self.selected_inventory_item - 1) % len(self.inventory_items)
+            elif key == pygame.K_DOWN:
+                if hasattr(self, 'inventory_items') and self.inventory_items:
+                    self.selected_inventory_item = (self.selected_inventory_item + 1) % len(self.inventory_items)
+            elif key == pygame.K_e:
+                # Equip selected item
+                if hasattr(self, 'inventory_items') and self.inventory_items and hasattr(self,
+                                                                                         'selected_inventory_item'):
+                    item_name = list(self.inventory_items.keys())[
+                        self.selected_inventory_item] if self.selected_inventory_item < len(
+                        self.inventory_items) else None
+                    if item_name:
+                        from inventory_system import InventoryManager
+                        inventory_manager = InventoryManager(self.character_manager)
+                        if inventory_manager.is_equipment(item_name):
+                            success, message = inventory_manager.equip_item(item_name)
+                            print(message)
+            elif key == pygame.K_u:
+                # Use selected item
+                if hasattr(self, 'inventory_items') and self.inventory_items and hasattr(self,
+                                                                                         'selected_inventory_item'):
+                    item_name = list(self.inventory_items.keys())[
+                        self.selected_inventory_item] if self.selected_inventory_item < len(
+                        self.inventory_items) else None
+                    if item_name and ("Potion" in item_name or "Restore" in item_name):
+                        success, message = self.character_manager.use_item_from_inventory(item_name)
+                        print(message)
 
         elif self.current_state == GameState.CHARACTER_SHEET:
             if key == pygame.K_ESCAPE or key == pygame.K_c:
+                self.current_state = GameState.GAME_BOARD
+            elif key == pygame.K_UP:
+                if hasattr(self, 'equipment_slots') and self.equipment_slots:
+                    self.selected_equipment_slot = (self.selected_equipment_slot - 1) % len(self.equipment_slots)
+            elif key == pygame.K_DOWN:
+                if hasattr(self, 'equipment_slots') and self.equipment_slots:
+                    self.selected_equipment_slot = (self.selected_equipment_slot + 1) % len(self.equipment_slots)
+            elif key == pygame.K_q:
+                # Unequip selected slot
+                if hasattr(self, 'equipment_slots') and self.equipment_slots and hasattr(self,
+                                                                                         'selected_equipment_slot'):
+                    slot_name = list(self.equipment_slots.keys())[
+                        self.selected_equipment_slot] if self.selected_equipment_slot < len(
+                        self.equipment_slots) else None
+                    if slot_name:
+                        from inventory_system import InventoryManager
+                        inventory_manager = InventoryManager(self.character_manager)
+                        success, message = inventory_manager.unequip_item(slot_name)
+                        print(message)
+
+        elif self.current_state == GameState.CRAFTING:
+            if hasattr(self, 'crafting_integration') and self.crafting_integration:
+                # Handle crafting input and get result message
+                key_events = [pygame.event.Event(pygame.KEYDOWN, key=key)]
+                keys_pressed = pygame.key.get_pressed()
+                result = self.crafting_integration.handle_crafting_input(keys_pressed, key_events)
+
+                if result and "Closed crafting" in result:
+                    self.current_state = GameState.GAME_BOARD
+                elif result:
+                    # Could display the result message (crafted item, etc)
+                    print(result)
+            else:
+                # Fallback if crafting system not available
                 self.current_state = GameState.GAME_BOARD
 
         elif self.current_state == GameState.STORE:
@@ -810,6 +954,10 @@ class EnhancedGameManager:
         if hasattr(self, 'store_integration') and self.store_integration:
             self.store_integration.update()
 
+        # Update crafting nodes
+        for crafting_node in self.crafting_nodes:
+            crafting_node.update()
+
         if self.current_state == GameState.GAME_BOARD:
             # Store previous player position for collision rollback
             prev_x = self.animated_player.x
@@ -884,16 +1032,62 @@ class EnhancedGameManager:
 
             elif collision_type == "treasure":
                 collision_obj.active = False
-                # Add credits to player
-                credits_gained = collision_obj.value
-                if self.character_manager.character_data:
-                    current_credits = self.character_manager.character_data.get("Credits", 0)
-                    self.character_manager.character_data["Credits"] = current_credits + credits_gained
 
-                    # Add visual feedback at player world position
-                    damage_text = DamageText(0, 0, f"+{credits_gained} Credits!", GOLD)
-                    damage_text.world_pos = (self.animated_player.x, self.animated_player.y)
+                if self.character_manager.character_data:
+                    # 25% chance to get crafting material instead of credits
+                    from crafting_system import get_random_crafting_material
+
+                    if random.randint(1, 100) <= 25:
+                        # Give crafting material
+                        crafting_material = get_random_crafting_material(from_treasure=True)
+                        if crafting_material:
+                            from inventory_system import InventoryManager
+                            inventory_manager = InventoryManager(self.character_manager)
+                            inventory_manager.add_item(crafting_material, 1)
+
+                            # Add visual feedback
+                            damage_text = DamageText(0, 0, f"Found {crafting_material}!", (255, 215, 0))
+                            damage_text.world_pos = (self.animated_player.x, self.animated_player.y)
+                            self.damage_texts.append(damage_text)
+
+                            # Play crafting material sound
+                            if hasattr(self, 'combat_integration') and self.combat_integration:
+                                self.combat_integration.play_world_sound("item_pickup")
+                    else:
+                        # Give credits as normal
+                        credits_gained = collision_obj.value
+                        current_credits = self.character_manager.character_data.get("Credits", 0)
+                        self.character_manager.character_data["Credits"] = current_credits + credits_gained
+
+                        # Add visual feedback at player world position
+                        damage_text = DamageText(0, 0, f"+{credits_gained} Credits!", GOLD)
+                        damage_text.world_pos = (self.animated_player.x, self.animated_player.y)
+                        self.damage_texts.append(damage_text)
+
+                        # Play coin pickup sound
+                        if hasattr(self, 'combat_integration') and self.combat_integration:
+                            self.combat_integration.play_world_sound("coin_pickup")
+
+                    # Save character
+                    self.character_manager.save_character()
+
+            elif collision_type == "crafting_node":
+                # Harvest crafting material
+                material = collision_obj.harvest()
+                if material and self.character_manager.character_data:
+                    # Use the new inventory system
+                    from inventory_system import InventoryManager
+                    inventory_manager = InventoryManager(self.character_manager)
+                    inventory_manager.add_item(material, 1)
+
+                    # Add visual feedback
+                    damage_text = DamageText(0, 0, f"Harvested {material}!", (255, 215, 0))
+                    damage_text.world_pos = (self.animated_player.x, self.animated_player.y - 20)
                     self.damage_texts.append(damage_text)
+
+                    # Play harvest sound
+                    if hasattr(self, 'combat_integration') and self.combat_integration:
+                        self.combat_integration.play_world_sound("item_pickup")
 
                     # Save character
                     self.character_manager.save_character()
@@ -996,6 +1190,10 @@ class EnhancedGameManager:
         for i, rest_area in enumerate(self.rests):
             rest_area.draw(self.screen, self.camera.x, self.camera.y)
 
+        # Draw crafting nodes
+        for crafting_node in self.crafting_nodes:
+            crafting_node.draw(self.screen, self.camera, self.animation_timer)
+
         # Draw animated player at correct screen position
         screen_x, screen_y = self.camera.world_to_screen(self.animated_player.x, self.animated_player.y)
         self.animated_player.draw_at_screen_position(self.screen, screen_x, screen_y)
@@ -1013,7 +1211,7 @@ class EnhancedGameManager:
                 "Walk into objects to interact",
                 "Rest areas: Restore HP/MP (3min cooldown)",
                 "Trees block your path - walk around them",
-                "I: Inventory  C: Character  H: Help  L: Level Select",
+                "I: Inventory  C: Character  H: Help  L: Level Select  R: Crafting",
                 "F1: Toggle this panel  ESC: Main Menu"
             ]
             self.ui_renderer.draw_instructions_panel(self.screen, instructions)
@@ -1100,7 +1298,7 @@ class EnhancedGameManager:
                 self.screen.blit(instruction, instruction_rect)
 
     def draw_inventory_screen(self):
-        """Draw the inventory screen"""
+        """Draw the enhanced inventory screen with equipment options"""
         self.screen.fill(MENU_BG)
 
         title = self.ui_renderer.large_font.render("INVENTORY", True, WHITE)
@@ -1113,26 +1311,115 @@ class EnhancedGameManager:
             self.screen.blit(no_char_text, no_char_rect)
             return
 
-        inventory = self.character_manager.character_data.get("Inventory", {})
+        from inventory_system import InventoryManager
+        inventory_manager = InventoryManager(self.character_manager)
+        inventory = inventory_manager.get_inventory()
+
+        # Update inventory items for navigation
+        self.inventory_items = inventory
+        if not hasattr(self, 'selected_inventory_item'):
+            self.selected_inventory_item = 0
+        if not hasattr(self, 'inventory_scroll_offset'):
+            self.inventory_scroll_offset = 0
+        # Keep selection within bounds
+        if self.inventory_items and self.selected_inventory_item >= len(self.inventory_items):
+            self.selected_inventory_item = len(self.inventory_items) - 1
+
+        # Update scroll offset based on selection
+        max_visible_items = 12  # Number of items visible on screen at once
+        if self.selected_inventory_item < self.inventory_scroll_offset:
+            self.inventory_scroll_offset = self.selected_inventory_item
+        elif self.selected_inventory_item >= self.inventory_scroll_offset + max_visible_items:
+            self.inventory_scroll_offset = self.selected_inventory_item - max_visible_items + 1
 
         if not inventory:
             empty_text = self.ui_renderer.font.render("Your inventory is empty!", True, WHITE)
             empty_rect = empty_text.get_rect(center=(self.WIDTH // 2, self.HEIGHT // 2))
             self.screen.blit(empty_text, empty_rect)
         else:
+            # Column headers
+            item_header = self.ui_renderer.font.render("ITEM", True, MENU_SELECTED)
+            quantity_header = self.ui_renderer.font.render("QTY", True, MENU_SELECTED)
+            stats_header = self.ui_renderer.font.render("STATS", True, MENU_SELECTED)
+            action_header = self.ui_renderer.font.render("ACTION", True, MENU_SELECTED)
+
+            self.screen.blit(item_header, (50, 90))
+            self.screen.blit(quantity_header, (200, 90))
+            self.screen.blit(stats_header, (250, 90))
+            self.screen.blit(action_header, (500, 90))
+
+            # Draw separator line
+            pygame.draw.line(self.screen, MENU_ACCENT, (50, 110), (650, 110), 2)
+
             y_pos = 120
-            for item_name, quantity in inventory.items():
-                item_text = self.ui_renderer.font.render(f"{item_name} x{quantity}", True, WHITE)
-                self.screen.blit(item_text, (100, y_pos))
-                y_pos += 30
+            max_visible_items = 12
+            scroll_offset = getattr(self, 'inventory_scroll_offset', 0)
+
+            # Convert inventory to list for slicing
+            inventory_list = list(inventory.items())
+            visible_items = inventory_list[scroll_offset:scroll_offset + max_visible_items]
+
+            for display_index, (item_name, quantity) in enumerate(visible_items):
+                actual_index = scroll_offset + display_index
+                item_info = inventory_manager.get_item_info(item_name)
+
+                # Highlight selected item
+                if hasattr(self, 'selected_inventory_item') and actual_index == self.selected_inventory_item:
+                    highlight_rect = pygame.Rect(45, y_pos - 3, 600, 30)
+                    pygame.draw.rect(self.screen, MENU_HIGHLIGHT, highlight_rect)
+
+                # Item name
+                item_color = MENU_SELECTED if (hasattr(self,
+                                                       'selected_inventory_item') and actual_index == self.selected_inventory_item) else WHITE
+                item_text = self.ui_renderer.font.render(f"{item_name}", True, item_color)
+                self.screen.blit(item_text, (50, y_pos))
+
+                # Quantity
+                qty_text = self.ui_renderer.font.render(f"x{quantity}", True, WHITE)
+                self.screen.blit(qty_text, (200, y_pos))
+
+                # Stats (for equipment)
+                if inventory_manager.is_equipment(item_name):
+                    stats_text = self.ui_renderer.small_font.render(item_info["stats"], True, LIGHT_BLUE)
+                    self.screen.blit(stats_text, (250, y_pos))
+
+                    # Action button for equipment
+                    action_text = self.ui_renderer.small_font.render("[E] Equip", True, GREEN)
+                    self.screen.blit(action_text, (500, y_pos))
+                else:
+                    # For consumables, show "[U] Use" option
+                    if "Potion" in item_name or "Restore" in item_name:
+                        action_text = self.ui_renderer.small_font.render("[U] Use", True, YELLOW)
+                        self.screen.blit(action_text, (500, y_pos))
+
+                y_pos += 35
+
+            # Show scroll indicators
+            if scroll_offset > 0:
+                up_arrow = self.ui_renderer.small_font.render("▲ More items above", True, LIGHT_BLUE)
+                self.screen.blit(up_arrow, (450, 90))
+
+            if scroll_offset + max_visible_items < len(inventory_list):
+                down_arrow = self.ui_renderer.small_font.render("▼ More items below", True, LIGHT_BLUE)
+                self.screen.blit(down_arrow, (450, y_pos + 10))
 
         # Instructions
-        instruction = self.ui_renderer.small_font.render("Press ESC or I to return", True, MENU_TEXT)
-        instruction_rect = instruction.get_rect(center=(self.WIDTH // 2, self.HEIGHT - 50))
-        self.screen.blit(instruction, instruction_rect)
+        instructions = [
+            "ESC/I: Return to game",
+            "↑↓: Navigate items",
+            "E: Equip selected item (equipment only)",
+            "U: Use selected item (consumables only)"
+        ]
+
+        instruction_y = self.HEIGHT - 80
+        for instruction in instructions:
+            instruction_surface = self.ui_renderer.small_font.render(instruction, True, MENU_TEXT)
+            instruction_rect = instruction_surface.get_rect(center=(self.WIDTH // 2, instruction_y))
+            self.screen.blit(instruction_surface, instruction_rect)
+            instruction_y += 20
 
     def draw_character_sheet(self):
-        """Draw the character sheet screen"""
+        """Draw the enhanced character sheet with equipment details"""
         self.screen.fill(MENU_BG)
 
         title = self.ui_renderer.large_font.render("CHARACTER SHEET", True, WHITE)
@@ -1145,7 +1432,19 @@ class EnhancedGameManager:
             self.screen.blit(no_char_text, no_char_rect)
             return
 
-        # Character info
+        from inventory_system import InventoryManager
+        inventory_manager = InventoryManager(self.character_manager)
+        equipped_items = inventory_manager.get_equipped_items()
+
+        # Update equipment slots for navigation
+        self.equipment_slots = equipped_items
+        if not hasattr(self, 'selected_equipment_slot'):
+            self.selected_equipment_slot = 0
+        # Keep selection within bounds
+        if self.equipment_slots and self.selected_equipment_slot >= len(self.equipment_slots):
+            self.selected_equipment_slot = len(self.equipment_slots) - 1
+
+        # Left column - Character info and stats
         char_info = [
             f"Name: {self.character_manager.character_data.get('Name', 'Unknown')}",
             f"Race: {self.character_manager.character_data.get('Race', 'Human')}",
@@ -1155,15 +1454,23 @@ class EnhancedGameManager:
             f"XP: {self.character_manager.character_data.get('Experience_Points', 0)}",
             f"Credits: {self.character_manager.character_data.get('Credits', 0)}",
             "",
-            "STATS:",
-            f"Strength: {self.character_manager.get_total_stat('strength')}",
-            f"Dexterity: {self.character_manager.get_total_stat('dexterity')}",
-            f"Constitution: {self.character_manager.get_total_stat('constitution')}",
-            f"Intelligence: {self.character_manager.get_total_stat('intelligence')}",
-            f"Wisdom: {self.character_manager.get_total_stat('wisdom')}",
-            f"Charisma: {self.character_manager.get_total_stat('charisma')}",
-            f"Armor Class: {self.character_manager.get_armor_class()}"
+            "CORE STATS:"
         ]
+
+        # Add stats with base/bonus breakdown
+        stats = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']
+        for stat in stats:
+            base_stat = self.character_manager.get_base_stat(stat)
+            equipment_bonus = inventory_manager.get_equipment_stat_bonus(stat)
+            total_stat = base_stat + equipment_bonus
+
+            if equipment_bonus > 0:
+                stat_line = f"{stat.capitalize()}: {total_stat} ({base_stat}+{equipment_bonus})"
+                char_info.append(stat_line)
+            else:
+                char_info.append(f"{stat.capitalize()}: {total_stat}")
+
+        char_info.append(f"Armor Class: {self.character_manager.get_armor_class()}")
 
         y_pos = 100
         for info in char_info:
@@ -1171,7 +1478,7 @@ class EnhancedGameManager:
                 y_pos += 15
                 continue
 
-            if info == "STATS:":
+            if info == "CORE STATS:":
                 color = MENU_SELECTED
                 font_to_use = self.ui_renderer.font
             else:
@@ -1179,13 +1486,67 @@ class EnhancedGameManager:
                 font_to_use = self.ui_renderer.small_font
 
             text = font_to_use.render(info, True, color)
-            self.screen.blit(text, (100, y_pos))
-            y_pos += 25
+            self.screen.blit(text, (50, y_pos))
+            y_pos += 22
+
+        # Right column - Equipment
+        equipment_title = self.ui_renderer.font.render("EQUIPPED ITEMS:", True, MENU_SELECTED)
+        self.screen.blit(equipment_title, (400, 100))
+
+        equip_y = 130
+        slot_names = {
+            "Weapon1": "Main Hand",
+            "Weapon2": "Off Hand",
+            "Weapon3": "Extra Weapon",
+            "Armor_Slot_1": "Armor",
+            "Armor_Slot_2": "Extra Armor"
+        }
+
+        for slot_index, (slot, item_name) in enumerate(equipped_items.items()):
+            slot_display = slot_names.get(slot, slot)
+
+            # Highlight selected equipment slot
+            if hasattr(self, 'selected_equipment_slot') and slot_index == self.selected_equipment_slot:
+                highlight_rect = pygame.Rect(395, equip_y - 3, 300, 30)
+                pygame.draw.rect(self.screen, MENU_HIGHLIGHT, highlight_rect)
+
+            slot_color = MENU_SELECTED if (hasattr(self,
+                                                   'selected_equipment_slot') and slot_index == self.selected_equipment_slot) else LIGHT_BLUE
+            item_color = MENU_SELECTED if (hasattr(self,
+                                                   'selected_equipment_slot') and slot_index == self.selected_equipment_slot) else WHITE
+
+            slot_text = self.ui_renderer.small_font.render(f"{slot_display}:", True, slot_color)
+            self.screen.blit(slot_text, (400, equip_y))
+
+            item_text = self.ui_renderer.small_font.render(item_name, True, item_color)
+            self.screen.blit(item_text, (520, equip_y))
+
+            # Show item stats
+            item_info = inventory_manager.get_item_info(item_name)
+            if item_info.get("stats"):
+                stats_text = self.ui_renderer.small_font.render(f"({item_info['stats']})", True, GREEN)
+                self.screen.blit(stats_text, (400, equip_y + 15))
+                equip_y += 40
+            else:
+                equip_y += 25
+
+        # Show unequip instructions
+        if equipped_items:
+            unequip_text = self.ui_renderer.small_font.render("[Q] Unequip selected slot", True, YELLOW)
+            self.screen.blit(unequip_text, (400, equip_y + 20))
 
         # Instructions
-        instruction = self.ui_renderer.small_font.render("Press ESC or C to return", True, MENU_TEXT)
-        instruction_rect = instruction.get_rect(center=(self.WIDTH // 2, self.HEIGHT - 50))
-        self.screen.blit(instruction, instruction_rect)
+        instructions = [
+            "ESC/C: Return to game",
+            "Q: Unequip item from slot"
+        ]
+
+        instruction_y = self.HEIGHT - 60
+        for instruction in instructions:
+            instruction_surface = self.ui_renderer.small_font.render(instruction, True, MENU_TEXT)
+            instruction_rect = instruction_surface.get_rect(center=(self.WIDTH // 2, instruction_y))
+            self.screen.blit(instruction_surface, instruction_rect)
+            instruction_y += 20
 
     def draw_help_screen(self):
         """Draw help screen"""
@@ -1247,6 +1608,13 @@ class EnhancedGameManager:
             self.ui_renderer.draw_enhanced_menu(self.screen, "MAGITECH RPG", menu_options,
                                                 self.selected_option, "Choose your destiny!",
                                                 self.animation_timer)
+
+        elif self.current_state == GameState.CRAFTING:
+            # Draw game board as background
+            self.draw_game_board()
+            # Draw crafting interface overlay
+            if hasattr(self, 'crafting_integration') and self.crafting_integration:
+                self.crafting_integration.draw_crafting_interface(self.screen)
 
         elif self.current_state == GameState.CHARACTER_SELECT:
             self.draw_character_select_screen()

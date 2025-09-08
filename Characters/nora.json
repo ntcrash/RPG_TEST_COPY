@@ -4,10 +4,10 @@
     "Type": "True Mage",
     "Level": 2,
     "Hit_Points": 85,
-    "Credits": 498,
-    "Experience_Points": 178,
+    "Credits": 602,
+    "Experience_Points": 246,
     "Aspect1": "fire_level_1",
-    "Aspect1_Mana": 82,
+    "Aspect1_Mana": 84,
     "Weapon1": "Spell Pistol",
     "Weapon2": "",
     "Weapon3": "Basic Staff",
@@ -15,7 +15,9 @@
     "Armor_Slot_2": "",
     "Inventory": {
         "Greater Health Potion": 1,
-        "Health Potion": 2
+        "Health Potion": 2,
+        "Mithril Shard": 1,
+        "Leather": 1
     },
     "strength": 15,
     "dexterity": 12,

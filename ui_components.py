@@ -14,6 +14,7 @@ ORANGE = (255, 165, 0)
 GOLD = (255, 215, 0)
 SILVER = (192, 192, 192)
 YELLOW = (255, 255, 0)
+CYAN = (0, 255, 255)
 
 # Enhanced UI Colors
 DARK_BLUE = (25, 25, 55)
