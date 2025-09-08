@@ -52,6 +52,120 @@ class InventoryManager:
             return {}
         return self.character_manager.character_data.get("Inventory", {})
 
+    def get_item_info(self, item_name):
+        """Get detailed information about an item"""
+        equipment_info = {
+            # Weapons
+            "Enhanced Spell Blade": {"type": "weapon", "stats": "+2 Str, +1 Dex, +5 Weapon Dmg", "bonuses": {"strength": 2, "dexterity": 1}},
+            "Mystic Staff": {"type": "weapon", "stats": "+3 Int, +1 Wis, +3 Magic Dmg", "bonuses": {"intelligence": 3, "wisdom": 1}},
+            "Warrior's Sword": {"type": "weapon", "stats": "+3 Str, +1 Con, +7 Weapon Dmg", "bonuses": {"strength": 3, "constitution": 1}},
+            "Iron Sword": {"type": "weapon", "stats": "+1 Str, +3 Weapon Dmg", "bonuses": {"strength": 1}},
+            "Silver Blade": {"type": "weapon", "stats": "+2 Str, +1 Dex, +4 Weapon Dmg", "bonuses": {"strength": 2, "dexterity": 1}},
+            "Mithril Staff": {"type": "weapon", "stats": "+2 Int, +2 Wis, +4 Magic Dmg", "bonuses": {"intelligence": 2, "wisdom": 2}},
+            "Dragon Slayer": {"type": "weapon", "stats": "+4 Str, +2 Con, +8 Weapon Dmg", "bonuses": {"strength": 4, "constitution": 2}},
+            "Basic Staff": {"type": "weapon", "stats": "+1 Int, +1 Wis, +1 Magic Dmg", "bonuses": {"intelligence": 1, "wisdom": 1}},
+
+            # Armor
+            "Mystic Armor": {"type": "armor", "stats": "+2 Con, +1 Int, +5 AC", "bonuses": {"constitution": 2, "intelligence": 1}},
+            "Plate Mail": {"type": "armor", "stats": "+3 Con, +1 Str, +7 AC", "bonuses": {"constitution": 3, "strength": 1}},
+            "Leather Armor": {"type": "armor", "stats": "+2 Dex, +1 Con, +3 AC", "bonuses": {"dexterity": 2, "constitution": 1}},
+            "Iron Chainmail": {"type": "armor", "stats": "+2 Con, +1 Str, +4 AC", "bonuses": {"constitution": 2, "strength": 1}},
+            "Mithril Plate": {"type": "armor", "stats": "+3 Con, +1 Int, +6 AC", "bonuses": {"constitution": 3, "intelligence": 1}},
+            "Phoenix Robes": {"type": "armor", "stats": "+3 Int, +2 Wis, +4 AC", "bonuses": {"intelligence": 3, "wisdom": 2}},
+            "Basic Armor": {"type": "armor", "stats": "+1 Con, +2 AC", "bonuses": {"constitution": 1}},
+            "Spell_Armor": {"type": "armor", "stats": "+1 Int, +1 Con, +3 AC", "bonuses": {"intelligence": 1, "constitution": 1}},
+
+            # Accessories
+            "Ring of Strength": {"type": "accessory", "stats": "+2 Strength", "bonuses": {"strength": 2}},
+            "Amulet of Intelligence": {"type": "accessory", "stats": "+2 Intelligence", "bonuses": {"intelligence": 2}},
+            "Boots of Dexterity": {"type": "accessory", "stats": "+2 Dexterity", "bonuses": {"dexterity": 2}},
+            "Belt of Constitution": {"type": "accessory", "stats": "+2 Constitution", "bonuses": {"constitution": 2}},
+            "Crown of Wisdom": {"type": "accessory", "stats": "+2 Wisdom", "bonuses": {"wisdom": 2}},
+            "Pendant of Charisma": {"type": "accessory", "stats": "+2 Charisma", "bonuses": {"charisma": 2}},
+            "Crystal Ring": {"type": "accessory", "stats": "+1 Int, +1 Wis", "bonuses": {"intelligence": 1, "wisdom": 1}},
+            "Gold Amulet": {"type": "accessory", "stats": "+2 Con, +1 Str", "bonuses": {"constitution": 2, "strength": 1}},
+            "Void Pendant": {"type": "accessory", "stats": "+3 Int, +2 Wis", "bonuses": {"intelligence": 3, "wisdom": 2}}
+        }
+
+        return equipment_info.get(item_name, {"type": "consumable", "stats": "Consumable item", "bonuses": {}})
+
+    def is_equipment(self, item_name):
+        """Check if an item is equipment (weapon, armor, accessory)"""
+        item_info = self.get_item_info(item_name)
+        return item_info["type"] in ["weapon", "armor", "accessory"]
+
+    def get_equipped_items(self):
+        """Get all currently equipped items"""
+        if not self.character_manager.character_data:
+            return {}
+
+        equipped = {
+            "Weapon1": self.character_manager.character_data.get("Weapon1", ""),
+            "Weapon2": self.character_manager.character_data.get("Weapon2", ""),
+            "Weapon3": self.character_manager.character_data.get("Weapon3", ""),
+            "Armor_Slot_1": self.character_manager.character_data.get("Armor_Slot_1", ""),
+            "Armor_Slot_2": self.character_manager.character_data.get("Armor_Slot_2", "")
+        }
+
+        # Remove empty slots
+        return {slot: item for slot, item in equipped.items() if item and item != "Hands"}
+
+    def equip_item(self, item_name):
+        """Equip an item to the appropriate slot"""
+        if not self.character_manager.character_data:
+            return False, "No character loaded!"
+
+        if self.get_item_quantity(item_name) <= 0:
+            return False, "Item not in inventory!"
+
+        item_info = self.get_item_info(item_name)
+        item_type = item_info["type"]
+
+        if item_type == "weapon":
+            # Find first available weapon slot
+            for slot in ["Weapon1", "Weapon2", "Weapon3"]:
+                current_item = self.character_manager.character_data.get(slot, "")
+                if not current_item or current_item == "Hands":
+                    self.character_manager.character_data[slot] = item_name
+                    self.character_manager.save_character()
+                    return True, f"Equipped {item_name} to {slot}!"
+            return False, "All weapon slots are full!"
+
+        elif item_type == "armor":
+            # Find first available armor slot
+            for slot in ["Armor_Slot_1", "Armor_Slot_2"]:
+                current_item = self.character_manager.character_data.get(slot, "")
+                if not current_item:
+                    self.character_manager.character_data[slot] = item_name
+                    self.character_manager.save_character()
+                    return True, f"Equipped {item_name} to {slot}!"
+            return False, "All armor slots are full!"
+
+        elif item_type == "accessory":
+            # Accessories are automatically "equipped" if owned (legacy system)
+            return True, f"{item_name} is equipped automatically!"
+
+        else:
+            return False, "This item cannot be equipped!"
+
+    def unequip_item(self, slot_name):
+        """Unequip an item from a specific slot"""
+        if not self.character_manager.character_data:
+            return False, "No character loaded!"
+
+        current_item = self.character_manager.character_data.get(slot_name, "")
+        if not current_item or current_item == "Hands":
+            return False, "No item equipped in this slot!"
+
+        # Clear the slot
+        if slot_name.startswith("Weapon"):
+            self.character_manager.character_data[slot_name] = "Hands"
+        else:
+            self.character_manager.character_data[slot_name] = ""
+
+        self.character_manager.save_character()
+        return True, f"Unequipped {current_item} from {slot_name}!"
+
     def get_equipment_stat_bonus(self, stat_name):
         """Calculate stat bonus from equipped items"""
         if not self.character_manager.character_data:
@@ -111,8 +225,7 @@ class InventoryManager:
         # Check inventory for accessories (assumes they're equipped if owned)
         for item_name, quantity in inventory.items():
             if quantity > 0 and item_name in equipment_bonuses:
-                if item_name.startswith(
-                        ("Ring", "Amulet", "Boots", "Belt", "Crown", "Pendant", "Crystal", "Gold", "Void")):
+                if item_name.startswith(("Ring", "Amulet", "Boots", "Belt", "Crown", "Pendant", "Crystal", "Gold", "Void")):
                     bonus = equipment_bonuses[item_name].get(stat_name.lower(), 0)
                     total_bonus += bonus
 
@@ -512,8 +625,7 @@ class EnhancedStoreManager:
             if self.mode == "buy":
                 # Buy mode - show store items
                 # Check if affordable
-                current_credits = self.character_manager.character_data.get("Credits",
-                                                                            0) if self.character_manager.character_data else 0
+                current_credits = self.character_manager.character_data.get("Credits", 0) if self.character_manager.character_data else 0
                 affordable = current_credits >= item.price
 
                 name_color = GREEN if affordable else RED
@@ -525,8 +637,7 @@ class EnhancedStoreManager:
                 screen.blit(desc_text, (panel_x + 20, item_y + 15))
             else:
                 # Sell mode - show player items
-                name_text = self.font.render(f"{item['name']} (x{item['quantity']}) - {item['price']} credits", True,
-                                             GREEN)
+                name_text = self.font.render(f"{item['name']} (x{item['quantity']}) - {item['price']} credits", True, GREEN)
                 screen.blit(name_text, (panel_x + 20, item_y))
 
                 # Description

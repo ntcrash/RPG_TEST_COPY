@@ -729,10 +729,57 @@ class EnhancedGameManager:
         elif self.current_state == GameState.INVENTORY:
             if key == pygame.K_ESCAPE or key == pygame.K_i:
                 self.current_state = GameState.GAME_BOARD
+            elif key == pygame.K_UP:
+                if hasattr(self, 'inventory_items') and self.inventory_items:
+                    self.selected_inventory_item = (self.selected_inventory_item - 1) % len(self.inventory_items)
+            elif key == pygame.K_DOWN:
+                if hasattr(self, 'inventory_items') and self.inventory_items:
+                    self.selected_inventory_item = (self.selected_inventory_item + 1) % len(self.inventory_items)
+            elif key == pygame.K_e:
+                # Equip selected item
+                if hasattr(self, 'inventory_items') and self.inventory_items and hasattr(self,
+                                                                                         'selected_inventory_item'):
+                    item_name = list(self.inventory_items.keys())[
+                        self.selected_inventory_item] if self.selected_inventory_item < len(
+                        self.inventory_items) else None
+                    if item_name:
+                        from inventory_system import InventoryManager
+                        inventory_manager = InventoryManager(self.character_manager)
+                        if inventory_manager.is_equipment(item_name):
+                            success, message = inventory_manager.equip_item(item_name)
+                            print(message)
+            elif key == pygame.K_u:
+                # Use selected item
+                if hasattr(self, 'inventory_items') and self.inventory_items and hasattr(self,
+                                                                                         'selected_inventory_item'):
+                    item_name = list(self.inventory_items.keys())[
+                        self.selected_inventory_item] if self.selected_inventory_item < len(
+                        self.inventory_items) else None
+                    if item_name and ("Potion" in item_name or "Restore" in item_name):
+                        success, message = self.character_manager.use_item_from_inventory(item_name)
+                        print(message)
 
         elif self.current_state == GameState.CHARACTER_SHEET:
             if key == pygame.K_ESCAPE or key == pygame.K_c:
                 self.current_state = GameState.GAME_BOARD
+            elif key == pygame.K_UP:
+                if hasattr(self, 'equipment_slots') and self.equipment_slots:
+                    self.selected_equipment_slot = (self.selected_equipment_slot - 1) % len(self.equipment_slots)
+            elif key == pygame.K_DOWN:
+                if hasattr(self, 'equipment_slots') and self.equipment_slots:
+                    self.selected_equipment_slot = (self.selected_equipment_slot + 1) % len(self.equipment_slots)
+            elif key == pygame.K_q:
+                # Unequip selected slot
+                if hasattr(self, 'equipment_slots') and self.equipment_slots and hasattr(self,
+                                                                                         'selected_equipment_slot'):
+                    slot_name = list(self.equipment_slots.keys())[
+                        self.selected_equipment_slot] if self.selected_equipment_slot < len(
+                        self.equipment_slots) else None
+                    if slot_name:
+                        from inventory_system import InventoryManager
+                        inventory_manager = InventoryManager(self.character_manager)
+                        success, message = inventory_manager.unequip_item(slot_name)
+                        print(message)
 
         elif self.current_state == GameState.CRAFTING:
             if hasattr(self, 'crafting_integration') and self.crafting_integration:
@@ -1251,7 +1298,7 @@ class EnhancedGameManager:
                 self.screen.blit(instruction, instruction_rect)
 
     def draw_inventory_screen(self):
-        """Draw the inventory screen"""
+        """Draw the enhanced inventory screen with equipment options"""
         self.screen.fill(MENU_BG)
 
         title = self.ui_renderer.large_font.render("INVENTORY", True, WHITE)
@@ -1264,26 +1311,94 @@ class EnhancedGameManager:
             self.screen.blit(no_char_text, no_char_rect)
             return
 
-        inventory = self.character_manager.character_data.get("Inventory", {})
+        from inventory_system import InventoryManager
+        inventory_manager = InventoryManager(self.character_manager)
+        inventory = inventory_manager.get_inventory()
+
+        # Update inventory items for navigation
+        self.inventory_items = inventory
+        if not hasattr(self, 'selected_inventory_item'):
+            self.selected_inventory_item = 0
+        # Keep selection within bounds
+        if self.inventory_items and self.selected_inventory_item >= len(self.inventory_items):
+            self.selected_inventory_item = len(self.inventory_items) - 1
 
         if not inventory:
             empty_text = self.ui_renderer.font.render("Your inventory is empty!", True, WHITE)
             empty_rect = empty_text.get_rect(center=(self.WIDTH // 2, self.HEIGHT // 2))
             self.screen.blit(empty_text, empty_rect)
         else:
+            # Column headers
+            item_header = self.ui_renderer.font.render("ITEM", True, MENU_SELECTED)
+            quantity_header = self.ui_renderer.font.render("QTY", True, MENU_SELECTED)
+            stats_header = self.ui_renderer.font.render("STATS", True, MENU_SELECTED)
+            action_header = self.ui_renderer.font.render("ACTION", True, MENU_SELECTED)
+
+            self.screen.blit(item_header, (50, 90))
+            self.screen.blit(quantity_header, (200, 90))
+            self.screen.blit(stats_header, (250, 90))
+            self.screen.blit(action_header, (500, 90))
+
+            # Draw separator line
+            pygame.draw.line(self.screen, MENU_ACCENT, (50, 110), (650, 110), 2)
+
             y_pos = 120
-            for item_name, quantity in inventory.items():
-                item_text = self.ui_renderer.font.render(f"{item_name} x{quantity}", True, WHITE)
-                self.screen.blit(item_text, (100, y_pos))
-                y_pos += 30
+            for item_index, (item_name, quantity) in enumerate(inventory.items()):
+                item_info = inventory_manager.get_item_info(item_name)
+
+                # Highlight selected item
+                if hasattr(self, 'selected_inventory_item') and item_index == self.selected_inventory_item:
+                    highlight_rect = pygame.Rect(45, y_pos - 3, 600, 30)
+                    pygame.draw.rect(self.screen, MENU_HIGHLIGHT, highlight_rect)
+
+                # Item name
+                item_color = MENU_SELECTED if (hasattr(self,
+                                                       'selected_inventory_item') and item_index == self.selected_inventory_item) else WHITE
+                item_text = self.ui_renderer.font.render(f"{item_name}", True, item_color)
+                self.screen.blit(item_text, (50, y_pos))
+
+                # Quantity
+                qty_text = self.ui_renderer.font.render(f"x{quantity}", True, WHITE)
+                self.screen.blit(qty_text, (200, y_pos))
+
+                # Stats (for equipment)
+                if inventory_manager.is_equipment(item_name):
+                    stats_text = self.ui_renderer.small_font.render(item_info["stats"], True, LIGHT_BLUE)
+                    self.screen.blit(stats_text, (250, y_pos))
+
+                    # Action button for equipment
+                    action_text = self.ui_renderer.small_font.render("[E] Equip", True, GREEN)
+                    self.screen.blit(action_text, (500, y_pos))
+                else:
+                    # For consumables, show "[U] Use" option
+                    if "Potion" in item_name or "Restore" in item_name:
+                        action_text = self.ui_renderer.small_font.render("[U] Use", True, YELLOW)
+                        self.screen.blit(action_text, (500, y_pos))
+
+                y_pos += 35
+
+                # Prevent overflow
+                if y_pos > self.HEIGHT - 150:
+                    overflow_text = self.ui_renderer.small_font.render("... (scroll down for more)", True, GRAY)
+                    self.screen.blit(overflow_text, (50, y_pos))
+                    break
 
         # Instructions
-        instruction = self.ui_renderer.small_font.render("Press ESC or I to return", True, MENU_TEXT)
-        instruction_rect = instruction.get_rect(center=(self.WIDTH // 2, self.HEIGHT - 50))
-        self.screen.blit(instruction, instruction_rect)
+        instructions = [
+            "ESC/I: Return to game",
+            "E: Equip selected item (equipment only)",
+            "U: Use selected item (consumables only)"
+        ]
+
+        instruction_y = self.HEIGHT - 80
+        for instruction in instructions:
+            instruction_surface = self.ui_renderer.small_font.render(instruction, True, MENU_TEXT)
+            instruction_rect = instruction_surface.get_rect(center=(self.WIDTH // 2, instruction_y))
+            self.screen.blit(instruction_surface, instruction_rect)
+            instruction_y += 20
 
     def draw_character_sheet(self):
-        """Draw the character sheet screen"""
+        """Draw the enhanced character sheet with equipment details"""
         self.screen.fill(MENU_BG)
 
         title = self.ui_renderer.large_font.render("CHARACTER SHEET", True, WHITE)
@@ -1296,7 +1411,19 @@ class EnhancedGameManager:
             self.screen.blit(no_char_text, no_char_rect)
             return
 
-        # Character info
+        from inventory_system import InventoryManager
+        inventory_manager = InventoryManager(self.character_manager)
+        equipped_items = inventory_manager.get_equipped_items()
+
+        # Update equipment slots for navigation
+        self.equipment_slots = equipped_items
+        if not hasattr(self, 'selected_equipment_slot'):
+            self.selected_equipment_slot = 0
+        # Keep selection within bounds
+        if self.equipment_slots and self.selected_equipment_slot >= len(self.equipment_slots):
+            self.selected_equipment_slot = len(self.equipment_slots) - 1
+
+        # Left column - Character info and stats
         char_info = [
             f"Name: {self.character_manager.character_data.get('Name', 'Unknown')}",
             f"Race: {self.character_manager.character_data.get('Race', 'Human')}",
@@ -1306,15 +1433,23 @@ class EnhancedGameManager:
             f"XP: {self.character_manager.character_data.get('Experience_Points', 0)}",
             f"Credits: {self.character_manager.character_data.get('Credits', 0)}",
             "",
-            "STATS:",
-            f"Strength: {self.character_manager.get_total_stat('strength')}",
-            f"Dexterity: {self.character_manager.get_total_stat('dexterity')}",
-            f"Constitution: {self.character_manager.get_total_stat('constitution')}",
-            f"Intelligence: {self.character_manager.get_total_stat('intelligence')}",
-            f"Wisdom: {self.character_manager.get_total_stat('wisdom')}",
-            f"Charisma: {self.character_manager.get_total_stat('charisma')}",
-            f"Armor Class: {self.character_manager.get_armor_class()}"
+            "CORE STATS:"
         ]
+
+        # Add stats with base/bonus breakdown
+        stats = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']
+        for stat in stats:
+            base_stat = self.character_manager.get_base_stat(stat)
+            equipment_bonus = inventory_manager.get_equipment_stat_bonus(stat)
+            total_stat = base_stat + equipment_bonus
+
+            if equipment_bonus > 0:
+                stat_line = f"{stat.capitalize()}: {total_stat} ({base_stat}+{equipment_bonus})"
+                char_info.append(stat_line)
+            else:
+                char_info.append(f"{stat.capitalize()}: {total_stat}")
+
+        char_info.append(f"Armor Class: {self.character_manager.get_armor_class()}")
 
         y_pos = 100
         for info in char_info:
@@ -1322,7 +1457,7 @@ class EnhancedGameManager:
                 y_pos += 15
                 continue
 
-            if info == "STATS:":
+            if info == "CORE STATS:":
                 color = MENU_SELECTED
                 font_to_use = self.ui_renderer.font
             else:
@@ -1330,13 +1465,67 @@ class EnhancedGameManager:
                 font_to_use = self.ui_renderer.small_font
 
             text = font_to_use.render(info, True, color)
-            self.screen.blit(text, (100, y_pos))
-            y_pos += 25
+            self.screen.blit(text, (50, y_pos))
+            y_pos += 22
+
+        # Right column - Equipment
+        equipment_title = self.ui_renderer.font.render("EQUIPPED ITEMS:", True, MENU_SELECTED)
+        self.screen.blit(equipment_title, (400, 100))
+
+        equip_y = 130
+        slot_names = {
+            "Weapon1": "Main Hand",
+            "Weapon2": "Off Hand",
+            "Weapon3": "Extra Weapon",
+            "Armor_Slot_1": "Armor",
+            "Armor_Slot_2": "Extra Armor"
+        }
+
+        for slot_index, (slot, item_name) in enumerate(equipped_items.items()):
+            slot_display = slot_names.get(slot, slot)
+
+            # Highlight selected equipment slot
+            if hasattr(self, 'selected_equipment_slot') and slot_index == self.selected_equipment_slot:
+                highlight_rect = pygame.Rect(395, equip_y - 3, 300, 30)
+                pygame.draw.rect(self.screen, MENU_HIGHLIGHT, highlight_rect)
+
+            slot_color = MENU_SELECTED if (hasattr(self,
+                                                   'selected_equipment_slot') and slot_index == self.selected_equipment_slot) else LIGHT_BLUE
+            item_color = MENU_SELECTED if (hasattr(self,
+                                                   'selected_equipment_slot') and slot_index == self.selected_equipment_slot) else WHITE
+
+            slot_text = self.ui_renderer.small_font.render(f"{slot_display}:", True, slot_color)
+            self.screen.blit(slot_text, (400, equip_y))
+
+            item_text = self.ui_renderer.small_font.render(item_name, True, item_color)
+            self.screen.blit(item_text, (520, equip_y))
+
+            # Show item stats
+            item_info = inventory_manager.get_item_info(item_name)
+            if item_info.get("stats"):
+                stats_text = self.ui_renderer.small_font.render(f"({item_info['stats']})", True, GREEN)
+                self.screen.blit(stats_text, (400, equip_y + 15))
+                equip_y += 40
+            else:
+                equip_y += 25
+
+        # Show unequip instructions
+        if equipped_items:
+            unequip_text = self.ui_renderer.small_font.render("[Q] Unequip selected slot", True, YELLOW)
+            self.screen.blit(unequip_text, (400, equip_y + 20))
 
         # Instructions
-        instruction = self.ui_renderer.small_font.render("Press ESC or C to return", True, MENU_TEXT)
-        instruction_rect = instruction.get_rect(center=(self.WIDTH // 2, self.HEIGHT - 50))
-        self.screen.blit(instruction, instruction_rect)
+        instructions = [
+            "ESC/C: Return to game",
+            "Q: Unequip item from slot"
+        ]
+
+        instruction_y = self.HEIGHT - 60
+        for instruction in instructions:
+            instruction_surface = self.ui_renderer.small_font.render(instruction, True, MENU_TEXT)
+            instruction_rect = instruction_surface.get_rect(center=(self.WIDTH // 2, instruction_y))
+            self.screen.blit(instruction_surface, instruction_rect)
+            instruction_y += 20
 
     def draw_help_screen(self):
         """Draw help screen"""
