@@ -9,6 +9,53 @@ All notable changes to this project will be documented in this file.
 - Dying needs to take credits
 - Fix Main Game sound
 
+## 09/07/2025 - v1.5.x
+09/07/2025 - v1.2.0 - CRAFTING UPDATE
+- Added
+🔨 Complete Crafting System
+
+New crafting_system.py module with comprehensive crafting mechanics
+30+ crafting materials across 5 tiers (Common to Legendary)
+20+ crafting recipes for consumables, weapons, armor, and accessories
+Material drops from enemies and treasures based on level and type
+Boss enemies have increased drop rates for rare materials
+Treasure chests provide different material loot tables
+
+⚗️ Crafting Features
+
+Recipe categories: Consumables, Weapons, Armor, Accessories
+Level requirements for advanced recipes
+Material tier system (Common, Uncommon, Rare, Epic, Legendary)
+Visual crafting UI with category filtering
+Recipe availability based on player level and materials
+Real-time inventory checking for craftable items
+
+🎮 Crafting Integration
+
+Press 'F' to open crafting menu
+Arrow keys to navigate recipes
+Left/Right arrows to change categories
+Enter/Space to craft selected item
+Materials automatically added to inventory from combat and treasures
+Floating text notifications for material drops
+Sound effects for successful crafting and material collection
+
+📦 Material Drop System
+
+Dynamic drop rates based on enemy level
+Elite enemies: 2x drop rate multiplier
+Boss enemies: Better tier materials
+Treasure scaling: Higher value = better materials
+Quantity varies by material tier (Common: 1-3, Rare: 1)
+
+- Changed
+🔧 Enhanced Loot System
+
+Enemies now drop both items and crafting materials
+Treasures provide credits and crafting materials
+Combat rewards include material notifications
+Updated floating text system for multi-line drops
+
 ## 09/05/2025 - v1.4.1
 ### - Fixed
 🔧 **Difficulty Mode System** - Fixed difficulty multiplier not being applied to enemy HP and stats

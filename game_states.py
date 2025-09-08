@@ -10,7 +10,7 @@ from tile_map import EnhancedTileMap
 from ui_components import *
 from game_data import CharacterManager, EnemyManager, create_sample_files
 from character_creation import CharacterCreation
-from store_system import StoreIntegration
+# Store system now imported from inventory_system.py
 from enhanced_combat_integration import integrate_enhanced_combat_with_game_states, setup_enhanced_audio_system
 from rest_system import RestManager, EnhancedRestArea
 from level_system import LevelManager, WorldLevelGenerator, LevelSelectScreen
@@ -31,6 +31,7 @@ class GameState:
     HELP = 9
     LEVEL_SELECT = 10
     SETTINGS = 11
+    CRAFTING = 12
 
 
 def is_too_close(x, y, positions, min_distance=20):
@@ -91,6 +92,10 @@ class EnhancedGameManager:
         # Initialize rest system
         self.rest_manager = RestManager(self.character_manager)
 
+        # Initialize crafting system
+        from crafting_system import CraftingIntegration
+        self.crafting_integration = CraftingIntegration(self)
+
         # Initialize visual systems
         self.ui_renderer = UIRenderer(self.WIDTH, self.HEIGHT)
         self.particles = ParticleSystem()
@@ -128,6 +133,7 @@ class EnhancedGameManager:
         self.shops = []
         self.rests = []
         self.trees = []  # New list for trees
+        self.crafting_nodes = []  # New list for crafting material nodes
 
         # Combat system variables (for legacy compatibility)
         self.current_enemy = None
@@ -161,6 +167,7 @@ class EnhancedGameManager:
         setup_enhanced_audio_system(self)
 
         # Initialize store integration
+        from inventory_system import StoreIntegration
         self.store_integration = StoreIntegration(self)
 
         # Initialize settings integration
@@ -209,6 +216,7 @@ class EnhancedGameManager:
         self.shops.clear()
         self.rests.clear()
         self.trees.clear()  # Clear trees too
+        self.crafting_nodes.clear()  # Clear crafting nodes too
 
         if not self.current_level_content:
             self.setup_world_objects()  # Fallback
@@ -275,6 +283,10 @@ class EnhancedGameManager:
 
         # Create trees for environmental decoration
         self.create_trees(enemy_positions + treasure_positions)
+
+        # Create crafting material nodes
+        all_positions = enemy_positions + treasure_positions + [(tree.x, tree.y) for tree in self.trees]
+        self.create_crafting_nodes(all_positions)
 
         # Create rest areas - multiple rest areas for higher levels
         world_width, world_height = self.tile_map.get_world_pixel_size()
@@ -353,6 +365,61 @@ class EnhancedGameManager:
 
         print(f"Created {len(self.trees)} trees of types: {set(tree.tree_type for tree in self.trees)}")
 
+    def create_crafting_nodes(self, existing_positions):
+        """Create harvestable crafting material nodes"""
+        from crafting_system import CraftingNode
+
+        # Determine number of crafting nodes based on level
+        current_level = self.level_manager.get_current_level()
+        if current_level:
+            node_count = random.randint(8, 15)
+        else:
+            node_count = random.randint(8, 12)
+
+        node_positions = []
+        max_attempts = 1000
+        attempts = 0
+
+        while len(node_positions) < node_count and attempts < max_attempts:
+            attempts += 1
+            x = random.randint(40, 760)
+            y = random.randint(40, 560)
+
+            # Check distance from all existing objects
+            all_positions = existing_positions + node_positions
+            if not is_too_close(x, y, all_positions, min_distance=35):
+                node_positions.append((x, y))
+
+        # Create crafting nodes with varied materials
+        common_materials = ["Iron Ore", "Wood", "Leather", "Cloth", "Stone"]
+        uncommon_materials = ["Silver Ore", "Mithril Shard", "Crystal Fragment", "Dragon Scale"]
+        rare_materials = ["Gold Ore", "Phoenix Feather", "Void Crystal"]
+
+        for x, y in node_positions:
+            # 70% common, 20% uncommon, 8% rare, 2% legendary
+            roll = random.randint(1, 100)
+            if roll <= 70:
+                material = random.choice(common_materials)
+            elif roll <= 90:
+                material = random.choice(uncommon_materials)
+            elif roll <= 98:
+                material = random.choice(rare_materials)
+            else:
+                material = random.choice(["Starfire Essence", "Time Crystal"])
+
+            # Longer respawn time for rarer materials
+            if material in rare_materials:
+                respawn_time = 1200  # 20 minutes
+            elif material in uncommon_materials:
+                respawn_time = 900  # 15 minutes
+            else:
+                respawn_time = 600  # 10 minutes
+
+            crafting_node = CraftingNode(x, y, material, respawn_time)
+            self.crafting_nodes.append(crafting_node)
+
+        print(f"Created {len(self.crafting_nodes)} crafting material nodes")
+
     def setup_world_objects(self):
         """Setup game world objects based on map (fallback method)"""
         # Clear existing objects
@@ -404,6 +471,10 @@ class EnhancedGameManager:
 
         # Create trees (fallback version with default settings)
         self.create_trees(enemy_positions + treasure_positions)
+
+        # Create crafting nodes (fallback)
+        all_positions = enemy_positions + treasure_positions + [(tree.x, tree.y) for tree in self.trees]
+        self.create_crafting_nodes(all_positions)
 
         # Create rest areas - single rest area in bottom-right
         world_width, world_height = self.tile_map.get_world_pixel_size()
@@ -514,6 +585,13 @@ class EnhancedGameManager:
         tree_collision = self.check_tree_collision(player_rect)
         if tree_collision:
             return "tree", tree_collision
+
+        # Check crafting node collisions
+        for node in self.crafting_nodes:
+            if node.active:
+                node_rect = pygame.Rect(node.x, node.y, node.width, node.height)
+                if player_rect.colliderect(node_rect):
+                    return "crafting_node", node
 
         # Check rest area collisions first (highest priority for UX)
         for rest_area in self.rests:
@@ -642,6 +720,9 @@ class EnhancedGameManager:
             elif key == pygame.K_l:  # Level select shortcut
                 self.level_select_screen = LevelSelectScreen(self.level_manager, self.WIDTH, self.HEIGHT)
                 self.current_state = GameState.LEVEL_SELECT
+            elif key == pygame.K_r:  # Crafting shortcut
+                self.crafting_integration.crafting_manager.crafting_active = True
+                self.current_state = GameState.CRAFTING
             elif key == pygame.K_F1:  # Key to toggle instructions
                 self.show_instructions = not self.show_instructions
 
@@ -651,6 +732,22 @@ class EnhancedGameManager:
 
         elif self.current_state == GameState.CHARACTER_SHEET:
             if key == pygame.K_ESCAPE or key == pygame.K_c:
+                self.current_state = GameState.GAME_BOARD
+
+        elif self.current_state == GameState.CRAFTING:
+            if hasattr(self, 'crafting_integration') and self.crafting_integration:
+                # Handle crafting input and get result message
+                key_events = [pygame.event.Event(pygame.KEYDOWN, key=key)]
+                keys_pressed = pygame.key.get_pressed()
+                result = self.crafting_integration.handle_crafting_input(keys_pressed, key_events)
+
+                if result and "Closed crafting" in result:
+                    self.current_state = GameState.GAME_BOARD
+                elif result:
+                    # Could display the result message (crafted item, etc)
+                    print(result)
+            else:
+                # Fallback if crafting system not available
                 self.current_state = GameState.GAME_BOARD
 
         elif self.current_state == GameState.STORE:
@@ -810,6 +907,10 @@ class EnhancedGameManager:
         if hasattr(self, 'store_integration') and self.store_integration:
             self.store_integration.update()
 
+        # Update crafting nodes
+        for crafting_node in self.crafting_nodes:
+            crafting_node.update()
+
         if self.current_state == GameState.GAME_BOARD:
             # Store previous player position for collision rollback
             prev_x = self.animated_player.x
@@ -884,16 +985,62 @@ class EnhancedGameManager:
 
             elif collision_type == "treasure":
                 collision_obj.active = False
-                # Add credits to player
-                credits_gained = collision_obj.value
-                if self.character_manager.character_data:
-                    current_credits = self.character_manager.character_data.get("Credits", 0)
-                    self.character_manager.character_data["Credits"] = current_credits + credits_gained
 
-                    # Add visual feedback at player world position
-                    damage_text = DamageText(0, 0, f"+{credits_gained} Credits!", GOLD)
-                    damage_text.world_pos = (self.animated_player.x, self.animated_player.y)
+                if self.character_manager.character_data:
+                    # 25% chance to get crafting material instead of credits
+                    from crafting_system import get_random_crafting_material
+
+                    if random.randint(1, 100) <= 25:
+                        # Give crafting material
+                        crafting_material = get_random_crafting_material(from_treasure=True)
+                        if crafting_material:
+                            from inventory_system import InventoryManager
+                            inventory_manager = InventoryManager(self.character_manager)
+                            inventory_manager.add_item(crafting_material, 1)
+
+                            # Add visual feedback
+                            damage_text = DamageText(0, 0, f"Found {crafting_material}!", (255, 215, 0))
+                            damage_text.world_pos = (self.animated_player.x, self.animated_player.y)
+                            self.damage_texts.append(damage_text)
+
+                            # Play crafting material sound
+                            if hasattr(self, 'combat_integration') and self.combat_integration:
+                                self.combat_integration.play_world_sound("item_pickup")
+                    else:
+                        # Give credits as normal
+                        credits_gained = collision_obj.value
+                        current_credits = self.character_manager.character_data.get("Credits", 0)
+                        self.character_manager.character_data["Credits"] = current_credits + credits_gained
+
+                        # Add visual feedback at player world position
+                        damage_text = DamageText(0, 0, f"+{credits_gained} Credits!", GOLD)
+                        damage_text.world_pos = (self.animated_player.x, self.animated_player.y)
+                        self.damage_texts.append(damage_text)
+
+                        # Play coin pickup sound
+                        if hasattr(self, 'combat_integration') and self.combat_integration:
+                            self.combat_integration.play_world_sound("coin_pickup")
+
+                    # Save character
+                    self.character_manager.save_character()
+
+            elif collision_type == "crafting_node":
+                # Harvest crafting material
+                material = collision_obj.harvest()
+                if material and self.character_manager.character_data:
+                    # Use the new inventory system
+                    from inventory_system import InventoryManager
+                    inventory_manager = InventoryManager(self.character_manager)
+                    inventory_manager.add_item(material, 1)
+
+                    # Add visual feedback
+                    damage_text = DamageText(0, 0, f"Harvested {material}!", (255, 215, 0))
+                    damage_text.world_pos = (self.animated_player.x, self.animated_player.y - 20)
                     self.damage_texts.append(damage_text)
+
+                    # Play harvest sound
+                    if hasattr(self, 'combat_integration') and self.combat_integration:
+                        self.combat_integration.play_world_sound("item_pickup")
 
                     # Save character
                     self.character_manager.save_character()
@@ -996,6 +1143,10 @@ class EnhancedGameManager:
         for i, rest_area in enumerate(self.rests):
             rest_area.draw(self.screen, self.camera.x, self.camera.y)
 
+        # Draw crafting nodes
+        for crafting_node in self.crafting_nodes:
+            crafting_node.draw(self.screen, self.camera, self.animation_timer)
+
         # Draw animated player at correct screen position
         screen_x, screen_y = self.camera.world_to_screen(self.animated_player.x, self.animated_player.y)
         self.animated_player.draw_at_screen_position(self.screen, screen_x, screen_y)
@@ -1013,7 +1164,7 @@ class EnhancedGameManager:
                 "Walk into objects to interact",
                 "Rest areas: Restore HP/MP (3min cooldown)",
                 "Trees block your path - walk around them",
-                "I: Inventory  C: Character  H: Help  L: Level Select",
+                "I: Inventory  C: Character  H: Help  L: Level Select  R: Crafting",
                 "F1: Toggle this panel  ESC: Main Menu"
             ]
             self.ui_renderer.draw_instructions_panel(self.screen, instructions)
@@ -1247,6 +1398,13 @@ class EnhancedGameManager:
             self.ui_renderer.draw_enhanced_menu(self.screen, "MAGITECH RPG", menu_options,
                                                 self.selected_option, "Choose your destiny!",
                                                 self.animation_timer)
+
+        elif self.current_state == GameState.CRAFTING:
+            # Draw game board as background
+            self.draw_game_board()
+            # Draw crafting interface overlay
+            if hasattr(self, 'crafting_integration') and self.crafting_integration:
+                self.crafting_integration.draw_crafting_interface(self.screen)
 
         elif self.current_state == GameState.CHARACTER_SELECT:
             self.draw_character_select_screen()
