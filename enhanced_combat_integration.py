@@ -50,6 +50,10 @@ class EnhancedCombatIntegration:
         # Play dramatic combat entry sound
         self.sound_manager.play_sound("menu_select")
 
+        # Reset victory/defeat processing flags for new combat
+        self.victory_processed = False
+        self.defeat_processed = False
+
         # Start the enhanced combat system
         self.combat_manager.start_combat(enemy_data)
         self.in_combat = True
@@ -84,12 +88,18 @@ class EnhancedCombatIntegration:
         result = self.combat_manager.update()
 
         if result == "victory":
-            self.handle_victory()
-            self.end_combat("victory")
+            # Prevent multiple victory calls
+            if not hasattr(self, 'victory_processed') or not self.victory_processed:
+                self.victory_processed = True
+                self.handle_victory()
+                self.end_combat("victory")
             return "victory"
         elif result == "defeat":
-            self.handle_defeat()
-            self.end_combat("defeat")
+            # Prevent multiple defeat calls
+            if not hasattr(self, 'defeat_processed') or not self.defeat_processed:
+                self.defeat_processed = True
+                self.handle_defeat()
+                self.end_combat("defeat")
             return "defeat"
 
         return "continue"
@@ -102,9 +112,9 @@ class EnhancedCombatIntegration:
         enemy_level = self.combat_manager.current_enemy.get("Level", 1)
         enemy_name = self.combat_manager.current_enemy.get("Name", "Enemy")
 
-        # Calculate rewards based on enemy level and type
-        base_xp = 50
-        base_credits = 75
+        # Calculate rewards based on enemy level and type (more balanced)
+        base_xp = 25  # Reduced from 50
+        base_credits = 40  # Reduced from 75
 
         # Bonus for elite/boss enemies
         if "Elite" in enemy_name:
@@ -114,8 +124,8 @@ class EnhancedCombatIntegration:
             base_xp *= 2.0
             base_credits *= 2.0
 
-        xp_gained = int(base_xp + (enemy_level * 25) + random.randint(-10, 20))
-        credits_gained = int(base_credits + (enemy_level * 30) + random.randint(-20, 30))
+        xp_gained = int(base_xp + (enemy_level * 10) + random.randint(-5, 10))  # Reduced multiplier and randomness
+        credits_gained = int(base_credits + (enemy_level * 15) + random.randint(-10, 15))  # Reduced multiplier
 
         # Apply rewards
         char_data = self.game_manager.character_manager.character_data

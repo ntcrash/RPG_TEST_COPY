@@ -14,7 +14,6 @@ ORANGE = (255, 165, 0)
 GOLD = (255, 215, 0)
 SILVER = (192, 192, 192)
 YELLOW = (255, 255, 0)
-CYAN = (0, 255, 255)
 
 # Enhanced UI Colors
 DARK_BLUE = (25, 25, 55)
@@ -376,8 +375,8 @@ class UIRenderer:
         if not character_manager or not character_manager.character_data:
             return
 
-        # Create semi-transparent surface
-        overlay = pygame.Surface((280, 120), pygame.SRCALPHA)
+        # Create semi-transparent surface (expanded height for XP bar)
+        overlay = pygame.Surface((280, 140), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 128))  # Semi-transparent black background
 
         # Get character data
@@ -386,11 +385,23 @@ class UIRenderer:
         level = char_data.get("Level", 1)
         current_hp = char_data.get("Hit_Points", 100)
         current_mana = char_data.get("Aspect1_Mana", 50)
+        current_xp = char_data.get("Experience_Points", 0)
         credits = char_data.get("Credits", 0)
 
-        # Calculate max HP and mana
+        # Calculate max HP and mana, and XP for next level
         max_hp = character_manager.get_max_hp_for_level(level)
         max_mana = character_manager.get_max_mana_for_level(level)
+
+        # Calculate XP needed for next level using same logic as character manager
+        if level < 50:
+            next_level_xp = self._get_xp_for_level(level + 1)
+            current_level_xp = self._get_xp_for_level(level)
+            xp_needed = next_level_xp - current_level_xp
+            xp_progress = current_xp - current_level_xp
+        else:
+            # Max level
+            xp_needed = 1
+            xp_progress = 1
 
         # Draw text info
         y_pos = 10
@@ -451,8 +462,55 @@ class UIRenderer:
         mana_text_rect = mana_value_surface.get_rect(center=(145, y_pos + 8))
         overlay.blit(mana_value_surface, mana_text_rect)
 
+        # XP Bar
+        y_pos += 20
+        xp_text = self.small_font.render("XP:", True, WHITE)
+        overlay.blit(xp_text, (10, y_pos))
+
+        # XP bar background
+        xp_bg_rect = pygame.Rect(45, y_pos + 2, 200, 12)
+        pygame.draw.rect(overlay, (64, 64, 64), xp_bg_rect)  # Gray background
+
+        # XP bar fill
+        if xp_needed > 0:
+            xp_ratio = max(0, min(1, xp_progress / xp_needed))
+            xp_fill_width = int(200 * xp_ratio)
+            if xp_fill_width > 0:
+                xp_fill_rect = pygame.Rect(45, y_pos + 2, xp_fill_width, 12)
+                pygame.draw.rect(overlay, (255, 215, 0), xp_fill_rect)  # Gold color
+
+        # XP text on bar
+        if level < 50:
+            xp_value_text = f"{max(0, xp_progress)}/{xp_needed}"
+        else:
+            xp_value_text = "MAX"
+        xp_value_surface = self.small_font.render(xp_value_text, True, WHITE)
+        xp_text_rect = xp_value_surface.get_rect(center=(145, y_pos + 8))
+        overlay.blit(xp_value_surface, xp_text_rect)
+
         # Blit the overlay to the main screen
         screen.blit(overlay, (10, 10))
+
+    def _get_xp_for_level(self, target_level):
+        """Calculate minimum XP required for a specific level"""
+        if target_level <= 1:
+            return 0
+        elif target_level == 2:
+            return 100
+        elif target_level == 3:
+            return 250
+        elif target_level == 4:
+            return 450
+        elif target_level == 5:
+            return 700
+        elif target_level == 6:
+            return 1000
+        else:
+            # For levels 6+: exponential growth (level * level * 50)
+            total_xp = 1000  # XP needed for level 6
+            for level in range(6, target_level):
+                total_xp += (level + 1) * (level + 1) * 50
+            return total_xp
 
     def draw_ui_overlay(self, screen, player_data):
         """Draw UI overlay with player stats (legacy method - kept for compatibility)"""

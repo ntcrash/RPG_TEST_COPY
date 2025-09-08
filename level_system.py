@@ -39,15 +39,38 @@ class WorldLevel:
 class LevelManager:
     """Manages world levels and progression"""
 
-    def __init__(self):
+    def __init__(self, character_name=None):
         self.current_world = 1
         self.current_level = 1
         self.levels = {}
         self.unlocked_levels = set()
-        self.progression_file = "progression.json"
+        self.character_name = character_name
+
+        # Make progression file character-specific
+        # Ensure Characters directory exists
+        os.makedirs("SaveProgression", exist_ok=True)
+        if character_name:
+            self.progression_file = f"SaveProgression/progression_{character_name.replace(' ', '_').replace('.json', '')}.json"
+        else:
+            self.progression_file = "SaveProgression/progression_default.json"
 
         self.initialize_levels()
         self.load_progression()
+
+    def set_character(self, character_name):
+        """Update character name and reload progression for character-specific progress"""
+        if character_name != self.character_name:
+            self.character_name = character_name
+            if character_name:
+                self.progression_file = f"SaveProgression/progression_{character_name.replace(' ', '_').replace('.json', '')}.json"
+            else:
+                self.progression_file = "SaveProgression/progression_default.json"
+
+            # Reset and reload progression for the new character
+            self.current_world = 1
+            self.current_level = 1
+            self.unlocked_levels = set()
+            self.load_progression()
 
     def initialize_levels(self):
         """Initialize all available levels"""
@@ -56,7 +79,8 @@ class LevelManager:
             (1, 1, "Green Fields", "Peaceful grasslands perfect for beginners", 1, 1.0, 1.0, ["tutorial"]),
             (1, 2, "Dark Woods", "Mysterious forest with stronger enemies", 3, 1.3, 1.2, ["dense_trees"]),
             (
-            1, 3, "Ancient Ruins", "Old structures hiding dangerous secrets", 5, 1.6, 1.4, ["ruins", "treasure_bonus"]),
+                1, 3, "Ancient Ruins", "Old structures hiding dangerous secrets", 5, 1.6, 1.4,
+                ["ruins", "treasure_bonus"]),
             (1, 4, "Dragon's Lair", "The lair of an ancient fire dragon", 8, 2.0, 1.8, ["boss_level", "fire_theme"]),
 
             # World 2 - Ice Kingdom

@@ -84,8 +84,11 @@ class EnhancedGameManager:
         self.character_manager = CharacterManager()
         self.enemy_manager = EnemyManager()
 
-        # Initialize level system
-        self.level_manager = LevelManager()
+        # Initialize level system with character-specific progression
+        character_name = None
+        if hasattr(self, 'character_manager') and self.character_manager.character_data:
+            character_name = self.character_manager.character_data.get('Name')
+        self.level_manager = LevelManager(character_name=character_name)
         self.world_generator = WorldLevelGenerator(self.level_manager)
         self.level_select_screen = None
 
@@ -304,13 +307,21 @@ class EnhancedGameManager:
 
         all_object_positions = enemy_positions + treasure_positions
 
+        # Ensure at least one rest area is always created
+        rests_created = 0
         for i in range(min(rest_area_count, len(rest_positions))):
             rest_x, rest_y = rest_positions[i]
 
-            # Ensure rest area doesn't conflict with other objects
-            if not is_too_close(rest_x, rest_y, all_object_positions, min_distance=60):
+            # For the first rest area, create it regardless of proximity to ensure at least one exists
+            if i == 0 or not is_too_close(rest_x, rest_y, all_object_positions, min_distance=60):
                 rest_area = EnhancedRestArea(rest_x, rest_y, self.rest_manager)
                 self.rests.append(rest_area)
+                rests_created += 1
+
+        # Fallback: If no rest areas were created (shouldn't happen now), force create one at bottom-right
+        if rests_created == 0:
+            fallback_rest = EnhancedRestArea(world_width - 120, world_height - 120, self.rest_manager)
+            self.rests.append(fallback_rest)
 
     def create_trees(self, existing_positions):
         """Create trees for environmental decoration"""
@@ -681,6 +692,9 @@ class EnhancedGameManager:
                 else:
                     char_path = os.path.join("Characters", selected_char)
                     if self.character_manager.load_character(char_path):
+                        # Update level manager with character-specific progression
+                        character_name = self.character_manager.character_data.get('Name')
+                        self.level_manager.set_character(character_name)
                         self.current_state = GameState.GAME_BOARD
                     else:
                         print(f"Failed to load character: {selected_char}")
@@ -696,6 +710,9 @@ class EnhancedGameManager:
                     # Save character and start game
                     char_file = self.character_creator.save_character()
                     if char_file and self.character_manager.load_character(char_file):
+                        # Update level manager with character-specific progression
+                        character_name = self.character_manager.character_data.get('Name')
+                        self.level_manager.set_character(character_name)
                         self.current_state = GameState.GAME_BOARD
                     else:
                         print("Failed to create character")
