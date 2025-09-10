@@ -1,7 +1,7 @@
 import pygame
 import random
 import math
-from ui_components import *
+from Code.ui_components import *
 
 
 class CombatText:

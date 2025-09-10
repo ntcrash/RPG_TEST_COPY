@@ -1,6 +1,6 @@
 import pygame
 import random
-from ui_components import *
+from Code.ui_components import *
 
 
 class StoreItem:

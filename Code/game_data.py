@@ -1,6 +1,7 @@
 import json
 import os
 import random
+from pathlib import Path
 
 
 def roll_dice(num, sides):
@@ -42,7 +43,7 @@ class CharacterManager:
         }
 
         # Ensure Characters directory exists
-        os.makedirs("Characters", exist_ok=True)
+        os.makedirs("../Characters", exist_ok=True)
         char_file = "Characters/test_hero.json"
 
         with open(char_file, 'w') as f:
@@ -79,7 +80,14 @@ class CharacterManager:
 
     def get_character_list(self):
         """Get list of available characters"""
-        chars_dir = "Characters"
+        # chars_dir = "../Characters"
+        # Get the directory where your script is located
+        script_dir = Path(__file__).parent
+
+        # Build paths
+        chars_dir = script_dir.parent / 'Characters'
+        # demon_file = enemies_dir / 'demon_level_1.json'
+
         if os.path.exists(chars_dir):
             chars = [f for f in os.listdir(chars_dir) if f.endswith('.json')]
             chars.append("New Character")
@@ -153,7 +161,7 @@ class CharacterManager:
         """Calculate stat bonus from equipped items - MOVED TO INVENTORY SYSTEM"""
         # This method has been moved to inventory_system.py
         # Use the InventoryManager for equipment stat calculations
-        from inventory_system import InventoryManager
+        from Code.inventory_system import InventoryManager
         inventory_manager = InventoryManager(self)
         return inventory_manager.get_equipment_stat_bonus(stat_name)
 
@@ -272,7 +280,7 @@ class CharacterManager:
         """Use an item from inventory - MOVED TO INVENTORY SYSTEM"""
         # This method has been moved to inventory_system.py
         # Use the InventoryManager for item usage
-        from inventory_system import InventoryManager
+        from Code.inventory_system import InventoryManager
         inventory_manager = InventoryManager(self)
         return inventory_manager.use_item_from_inventory(item_name)
 
@@ -592,7 +600,16 @@ def create_sample_files():
             print(f"Created directory: {directory}")
 
     # Create sample enemy file
-    enemy_file = "Enemies/demon_level_1.json"
+    # enemy_file = "../Enemies/demon_level_1.json"
+
+    # Get the directory where your script is located
+    script_dir = Path(__file__).parent
+
+    # Build paths
+    enemies_dir = script_dir.parent / 'Enemies'
+    sounds_dir = script_dir.parent / 'Sounds'
+    enemy_file = enemies_dir / 'demon_level_1.json'
+
     if not os.path.exists(enemy_file):
         sample_enemy = {
             "Name": "Fire Demon",
@@ -680,7 +697,16 @@ def create_sample_files():
             print(f"Created sample book file: {book_info['file']}")
 
     # Create game configuration file
-    config_file = "game_config.json"
+    # config_file = "../assets/game_config.json"
+
+    # Get the directory where your script is located
+    script_dir = Path(__file__).parent
+
+    # Build paths
+    config_dir = script_dir.parent / 'assets'
+    config_file = config_dir / 'game_config.json'
+
+
     if not os.path.exists(config_file):
         game_config = {
             "version": "1.1.1",

@@ -6,7 +6,7 @@ Handles crafting materials, recipes, and the crafting interface
 import pygame
 import json
 import random
-from ui_components import *
+from Code.ui_components import *
 
 
 class CraftingMaterial:
@@ -285,7 +285,7 @@ class CraftingIntegration:
 class CraftingNode:
     """Harvestable crafting material node on the world map"""
 
-    def __init__(self, x, y, material_name, respawn_time=300):
+    def __init__(self, x, y, material_name, respawn_time=3000):
         import math
         self.x = x
         self.y = y
@@ -294,7 +294,8 @@ class CraftingNode:
         self.material_name = material_name
         self.active = True
         self.respawn_timer = 0
-        self.max_respawn_time = respawn_time  # 5 minutes at 15 FPS
+        # self.max_respawn_time = respawn_time  # 5 minutes at 15 FPS
+        self.max_respawn_time = 3000  # 5 minutes at 15 FPS
 
         # Material colors based on type
         material_colors = {
@@ -355,17 +356,17 @@ class CraftingNode:
                 pulse_intensity = 2.0
 
             pulse = int(3 * abs(math.sin(animation_timer * 0.1 * pulse_intensity)))
-            node_size = 12 + pulse
+            node_size = 10 + pulse
 
             # Draw outer glow
             pygame.draw.circle(screen, self.color,
-                             (int(screen_x + 12), int(screen_y + 12)), node_size + 2)
+                             (int(screen_x + 10), int(screen_y + 10)), node_size + 2)
             # Draw inner core
             pygame.draw.circle(screen, WHITE,
-                             (int(screen_x + 12), int(screen_y + 12)), node_size - 3)
+                             (int(screen_x + 10), int(screen_y + 10)), node_size - 3)
             # Draw center dot
             pygame.draw.circle(screen, self.color,
-                             (int(screen_x + 12), int(screen_y + 12)), 3)
+                             (int(screen_x + 10), int(screen_y + 10)), 3)
 
 
 def get_random_crafting_material(enemy_level=1, from_treasure=False):

@@ -1,6 +1,14 @@
+from pathlib import Path
 import pygame
 from pygame.locals import *
 import random
+
+# Get the directory where your script is located
+script_dir = Path(__file__).parent
+
+# Build paths
+assets_dir = script_dir.parent / 'assets'
+map_file = assets_dir / 'map.txt'
 
 
 class EnhancedTileMap(pygame.sprite.Sprite):
@@ -161,8 +169,8 @@ class EnhancedTileMap(pygame.sprite.Sprite):
         zelda_map_data = [
             # Row 0-5: Top area with trees and flowers
             "GGGGtTtGGGFfFGGtTtGGGGGFfFGGtTt",
-            "GGtTtGGGGGFfFGGGGGtTtGGGFfFGGG",
-            "GtTtGGFfFGGGGGGGtTtGGGGGFfFGGt",
+            "GGtTtGGGGGFfFGGGGGtTtGGGPpPGGG",
+            "GtTtGGGpGGGGGGGGtTtGGGGGFfFGGt",
             "GGGGGFfFGGGGGGGGGGGGtTtGGFfFGG",
             "GGGGGGGGGpppppppppppppGGGGGGGG",
             "GGGFfFGGGpGGGGGGGGGGpGGGFfFGGG",
@@ -171,16 +179,16 @@ class EnhancedTileMap(pygame.sprite.Sprite):
             "GGGGGGGGGpGGtTtGGGGGpGGGGGGGGG",
             "GtTtGGGGGpGGGGGGGGGGpGGGtTtGGG",
             "GGGGGGGGGppppppp+pppppGGGGGGGG",
-            "GGGFfFGGGGGGGGGGpGGGGGGGGFfFGG",
+            "GGGFfFGGGGGGGGGGpGGGGGGGGGfPGG",
             "GGGGGGGGGGGtTtGGpGGtTtGGGGGGGG",
             "GGtTtGGGGGGGGGGGpGGGGGGGGtTtGG",
 
             # Row 12-17: Lower middle with more paths
             "GGGGGGGGGGGGGGGGpGGGGGGGGGGGGG",
-            "GGGGGFfFGGGGGGGGpGGGGGGGFfFGGG",
+            "GGGGGFfFGGGGGGGGpGGGGGGGFpGGGG",
             "GGGGGGGGGpppppppppppppGGGGGGGG",
             "GGtTtGGGGpGGGGGGGGGGpGGGGtTtGG",
-            "GGGGGGGGGpGGGFfFGGGGpGGGGGGGGG",
+            "GGGGGGGGGpGGGGfpGGGGpGGGGGGGGG",
             "GGGGGGGGGpGGGGGGGGGGpGGGGGGGGG",
 
             # Row 18-23: Bottom area
@@ -188,7 +196,7 @@ class EnhancedTileMap(pygame.sprite.Sprite):
             "GGGGGGGGGpGGGGGGGGGGpGGGGGGGGG",
             "GGGGGGGGGpppppppppppppGGGGGGGG",
             "GGtTtGGGGGGGGGGGGGGGGGGGGtTtGG",
-            "GGGGGGGGGGGGFfFGGFfFGGGGGGGGGG",
+            "GGGGGGGGGGGGGPFGGGGGGGGGGGGGGG",
             "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGG"
         ]
 
@@ -207,7 +215,7 @@ class EnhancedTileMap(pygame.sprite.Sprite):
             normalized_lines.append('G' * self.map_width)
 
         # Save the map
-        with open("map.txt", 'w') as f:
+        with open(f"{map_file}", 'w') as f:
             for line in normalized_lines:
                 f.write(line + '\n')
 

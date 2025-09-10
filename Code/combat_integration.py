@@ -5,13 +5,13 @@ Integrates the advanced combat system with the main game
 
 import pygame
 import random
-from combat_system import CombatManager
+from Code.combat_system import CombatManager
 from game_data import CharacterManager
-from ui_components import *
+from Code.ui_components import *
 
 
 class GameState:
-    """Game state constants - duplicate from game_states.py for integration"""
+    """Game state constants - duplicate from main.py for integration"""
     OPENING = 0
     MAIN_MENU = 1
     CHARACTER_SELECT = 2
@@ -298,7 +298,7 @@ def integrate_combat_with_game_states(game_manager):
 """
 To integrate this combat system with your existing game:
 
-1. Import the integration at the top of game_states.py:
+1. Import the integration at the top of main.py:
    from combat_integration import integrate_combat_with_game_states
 
 2. In EnhancedGameManager.__init__(), after all other initialization, add:

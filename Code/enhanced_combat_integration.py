@@ -6,13 +6,13 @@ Integrates the enhanced combat system with sound and animation support
 import pygame
 import random
 import os
-from enhanced_combat_system import EnhancedCombatManager, SoundManager
-from game_data import CharacterManager
-from ui_components import *
+from Code.enhanced_combat_system import EnhancedCombatManager, SoundManager
+from Code.game_data import CharacterManager
+from Code.ui_components import *
 
 
 class GameState:
-    """Game state constants - duplicate from game_states.py for integration"""
+    """Game state constants - duplicate from main.py for integration"""
     OPENING = 0
     MAIN_MENU = 1
     CHARACTER_SELECT = 2
@@ -280,7 +280,7 @@ class EnhancedCombatIntegration:
 
         # Play world music if available
         try:
-            if os.path.exists("Sounds/world_music.ogg"):
+            if os.path.exists("../Sounds/world_music.ogg"):
                 self.sound_manager.play_music("Sounds/world_music.ogg")
         except Exception as e:
             print(f"Could not load world music: {e}")
@@ -385,7 +385,7 @@ class EnhancedCombatIntegration:
 
 def create_sound_directories():
     """Create sound directories and placeholder files"""
-    sound_dir = "Sounds"
+    sound_dir = "../Sounds"
     if not os.path.exists(sound_dir):
         os.makedirs(sound_dir)
         print(f"Created {sound_dir} directory")
@@ -557,7 +557,7 @@ def setup_enhanced_audio_system(game_manager):
                 pass
         elif game_manager.current_state == GameState.GAME_BOARD:
             try:
-                if os.path.exists("Sounds/world_music.ogg"):
+                if os.path.exists("../Sounds/world_music.ogg"):
                     sound_manager.play_music("Sounds/world_music.ogg")
             except:
                 pass

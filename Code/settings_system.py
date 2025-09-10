@@ -1,14 +1,14 @@
 import pygame
 import json
 import os
-from ui_components import *
+from Code.ui_components import *
 
 
 class GameSettings:
     """Game settings management class"""
 
     def __init__(self):
-        self.settings_file = "game_settings.json"
+        self.settings_file = "../assets/game_settings.json"
 
         # Default settings
         self.defaults = {

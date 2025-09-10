@@ -3,7 +3,7 @@ import random
 import string
 import os
 import json
-from ui_components import *
+from Code.ui_components import *
 
 
 class CharacterCreation:
@@ -269,7 +269,7 @@ class CharacterCreation:
         character_data = self.create_character_data()
 
         # Ensure Characters directory exists
-        os.makedirs("Characters", exist_ok=True)
+        os.makedirs("../Characters", exist_ok=True)
 
         # Create filename from character name
         safe_name = "".join(c for c in self.character_name if c.isalnum() or c in [" ", "-", "'"])

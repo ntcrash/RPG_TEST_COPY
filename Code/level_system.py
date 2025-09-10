@@ -2,7 +2,7 @@ import pygame
 import json
 import os
 import random
-from ui_components import *
+from Code.ui_components import *
 
 
 class WorldLevel:
@@ -48,7 +48,7 @@ class LevelManager:
 
         # Make progression file character-specific
         # Ensure Characters directory exists
-        os.makedirs("SaveProgression", exist_ok=True)
+        os.makedirs("../SaveProgression", exist_ok=True)
         if character_name:
             self.progression_file = f"SaveProgression/progression_{character_name.replace(' ', '_').replace('.json', '')}.json"
         else:

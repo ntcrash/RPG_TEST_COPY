@@ -1,20 +1,18 @@
-import pygame
 import sys
-import math
-import random
 import os
 
 # Import our custom modules
-from animated_player import AnimatedPlayer
-from tile_map import EnhancedTileMap
-from ui_components import *
-from game_data import CharacterManager, EnemyManager, create_sample_files
-from character_creation import CharacterCreation
+from Code.animated_player import AnimatedPlayer
+from Code.tile_map import EnhancedTileMap
+from Code.ui_components import *
+from Code.game_data import CharacterManager, EnemyManager, create_sample_files
+from Code.character_creation import CharacterCreation
 # Store system now imported from inventory_system.py
-from enhanced_combat_integration import integrate_enhanced_combat_with_game_states, setup_enhanced_audio_system
-from rest_system import RestManager, EnhancedRestArea
-from level_system import LevelManager, WorldLevelGenerator, LevelSelectScreen
-from settings_system import SettingsIntegration
+from Code.enhanced_combat_integration import integrate_enhanced_combat_with_game_states, setup_enhanced_audio_system
+from Code.rest_system import RestManager, EnhancedRestArea
+from Code.level_system import LevelManager, WorldLevelGenerator, LevelSelectScreen
+from Code.settings_system import SettingsIntegration
+from Code.inventory_system import StoreIntegration
 
 
 class GameState:
@@ -96,7 +94,7 @@ class EnhancedGameManager:
         self.rest_manager = RestManager(self.character_manager)
 
         # Initialize crafting system
-        from crafting_system import CraftingIntegration
+        from Code.crafting_system import CraftingIntegration
         self.crafting_integration = CraftingIntegration(self)
 
         # Initialize visual systems
@@ -170,7 +168,6 @@ class EnhancedGameManager:
         setup_enhanced_audio_system(self)
 
         # Initialize store integration
-        from inventory_system import StoreIntegration
         self.store_integration = StoreIntegration(self)
 
         # Initialize settings integration
@@ -186,7 +183,7 @@ class EnhancedGameManager:
 
     def load_map_data(self):
         """Load map data and create tiles"""
-        self.map_tiles = self.tile_map.load_map_from_file("map.txt")
+        self.map_tiles = self.tile_map.load_map_from_file("assets/map.txt")
 
     def setup_world_for_current_level(self):
         """Setup game world based on current level"""
@@ -378,7 +375,7 @@ class EnhancedGameManager:
 
     def create_crafting_nodes(self, existing_positions):
         """Create harvestable crafting material nodes"""
-        from crafting_system import CraftingNode
+        from Code.crafting_system import CraftingNode
 
         # Determine number of crafting nodes based on level
         current_level = self.level_manager.get_current_level()
@@ -760,7 +757,7 @@ class EnhancedGameManager:
                         self.selected_inventory_item] if self.selected_inventory_item < len(
                         self.inventory_items) else None
                     if item_name:
-                        from inventory_system import InventoryManager
+                        from Code.inventory_system import InventoryManager
                         inventory_manager = InventoryManager(self.character_manager)
                         if inventory_manager.is_equipment(item_name):
                             success, message = inventory_manager.equip_item(item_name)
@@ -793,7 +790,7 @@ class EnhancedGameManager:
                         self.selected_equipment_slot] if self.selected_equipment_slot < len(
                         self.equipment_slots) else None
                     if slot_name:
-                        from inventory_system import InventoryManager
+                        from Code.inventory_system import InventoryManager
                         inventory_manager = InventoryManager(self.character_manager)
                         success, message = inventory_manager.unequip_item(slot_name)
                         print(message)
@@ -1052,13 +1049,13 @@ class EnhancedGameManager:
 
                 if self.character_manager.character_data:
                     # 25% chance to get crafting material instead of credits
-                    from crafting_system import get_random_crafting_material
+                    from Code.crafting_system import get_random_crafting_material
 
                     if random.randint(1, 100) <= 25:
                         # Give crafting material
                         crafting_material = get_random_crafting_material(from_treasure=True)
                         if crafting_material:
-                            from inventory_system import InventoryManager
+                            from Code.inventory_system import InventoryManager
                             inventory_manager = InventoryManager(self.character_manager)
                             inventory_manager.add_item(crafting_material, 1)
 
@@ -1093,7 +1090,7 @@ class EnhancedGameManager:
                 material = collision_obj.harvest()
                 if material and self.character_manager.character_data:
                     # Use the new inventory system
-                    from inventory_system import InventoryManager
+                    from Code.inventory_system import InventoryManager
                     inventory_manager = InventoryManager(self.character_manager)
                     inventory_manager.add_item(material, 1)
 
@@ -1125,7 +1122,7 @@ class EnhancedGameManager:
         self.particles.draw(self.screen)
 
         # Title with glow effect
-        title_surface = self.ui_renderer.title_font.render("MAGITECH RPG - MULTI-LEVEL EDITION", True, MENU_SELECTED)
+        title_surface = self.ui_renderer.title_font.render("MAGITECH RPG", True, MENU_SELECTED)
         title_rect = title_surface.get_rect(center=(self.WIDTH // 2, 150))
         self.screen.blit(title_surface, title_rect)
 
@@ -1328,7 +1325,7 @@ class EnhancedGameManager:
             self.screen.blit(no_char_text, no_char_rect)
             return
 
-        from inventory_system import InventoryManager
+        from Code.inventory_system import InventoryManager
         inventory_manager = InventoryManager(self.character_manager)
         inventory = inventory_manager.get_inventory()
 
@@ -1449,7 +1446,7 @@ class EnhancedGameManager:
             self.screen.blit(no_char_text, no_char_rect)
             return
 
-        from inventory_system import InventoryManager
+        from Code.inventory_system import InventoryManager
         inventory_manager = InventoryManager(self.character_manager)
         equipped_items = inventory_manager.get_equipped_items()
 

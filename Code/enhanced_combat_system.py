@@ -1,8 +1,18 @@
+from pathlib import Path
+
 import pygame
 import random
 import math
 import os
-from ui_components import *
+from Code.ui_components import *
+
+# Get the directory where your script is located
+script_dir = Path(__file__).parent
+
+# Build paths
+sounds_dir = script_dir.parent / 'Sounds'
+# demon_file = enemies_dir / 'demon_level_1.json'
+# f"{sounds_dir}/sword_hit.wav"
 
 
 class Spell:
@@ -158,30 +168,30 @@ class SoundManager:
 
         sound_files = {
             # Combat sounds
-            "sword_hit": "Sounds/sword_hit.wav",
-            "sword_miss": "Sounds/sword_miss.wav",
-            "spell_cast": "Sounds/spell_cast.wav",
-            "fireball": "Sounds/fireball.wav",
-            "heal": "Sounds/heal.wav",
-            "enemy_hit": "Sounds/enemy_hit.wav",
-            "enemy_death": "Sounds/enemy_death.wav",
-            "player_hurt": "Sounds/player_hurt.wav",
-            "critical_hit": "Sounds/critical_hit.wav",
-            "magic_missile": "Sounds/magic_missile.wav",
-            "potion_drink": "Sounds/potion_drink.wav",
-            "run_away": "Sounds/run_away.wav",
-            "victory": "Sounds/victory.wav",
-            "defeat": "Sounds/defeat.wav",
+            "sword_hit": f"{sounds_dir}/sword_hit.wav",
+            "sword_miss": f"{sounds_dir}/sword_miss.wav",
+            "spell_cast": f"{sounds_dir}/spell_cast.wav",
+            "fireball": f"{sounds_dir}/fireball.wav",
+            "heal": f"{sounds_dir}/heal.wav",
+            "enemy_hit": f"{sounds_dir}/enemy_hit.wav",
+            "enemy_death": f"{sounds_dir}/enemy_death.wav",
+            "player_hurt": f"{sounds_dir}/player_hurt.wav",
+            "critical_hit": f"{sounds_dir}/critical_hit.wav",
+            "magic_missile": f"{sounds_dir}/magic_missile.wav",
+            "potion_drink": f"{sounds_dir}/potion_drink.wav",
+            "run_away": f"{sounds_dir}/run_away.wav",
+            "victory": f"{sounds_dir}/victory.wav",
+            "defeat": f"{sounds_dir}/defeat.wav",
 
             # UI sounds
-            "menu_select": "Sounds/menu_select.wav",
-            "menu_move": "Sounds/menu_move.wav",
-            "item_pickup": "Sounds/item_pickup.wav",
-            "coin_pickup": "Sounds/coin_pickup.wav",
+            "menu_select": f"{sounds_dir}/menu_select.wav",
+            "menu_move": f"{sounds_dir}/menu_move.wav",
+            "item_pickup": f"{sounds_dir}/item_pickup.wav",
+            "coin_pickup": f"{sounds_dir}/coin_pickup.wav",
 
             # Environmental sounds
-            "footstep": "Sounds/footstep.wav",
-            "door_open": "Sounds/door_open.wav",
+            "footstep": f"{sounds_dir}/footstep.wav",
+            "door_open": f"{sounds_dir}/door_open.wav",
         }
 
         for sound_name, file_path in sound_files.items():
@@ -570,7 +580,7 @@ class EnhancedCombatManager:
 
         # Play combat music if available
         if not self.combat_music_playing:
-            self.sound_manager.play_music("Sounds/battle_music.ogg")
+            self.sound_manager.play_music(f"{sounds_dir}/battle_music.ogg")
             self.combat_music_playing = True
 
         # Play combat start sound

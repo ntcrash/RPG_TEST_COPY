@@ -5,7 +5,7 @@ Handles inventory operations, item usage, equipment bonuses, and store transacti
 
 import pygame
 import random
-from ui_components import *
+from Code.ui_components import *
 
 
 class InventoryManager:
