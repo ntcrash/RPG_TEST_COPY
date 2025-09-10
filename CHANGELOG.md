@@ -2,15 +2,16 @@
 All notable changes to this project will be documented in this file.
 
 ## - ToDo
-- Add settings control screen. Using game_config.json
-- Add crafting
-- Add crafting loot
-- finish adding levels correctly
 - Dying needs to take credits
 - Fix Main Game sound
 
+## 09/08/2025 v1.6
+### - Fixed v.1.6.1
+- Bug fixes, rest area, xp bar, xp when clearing world, combat increase. progression fixed to single player.
+- Cleaned up file system, renamed game_states.py to main.py
+
 ## 09/07/2025 - v1.5.x
-09/07/2025 - v1.2.0 - CRAFTING UPDATE
+09/07/2025 - v1.5.2 - CRAFTING UPDATE
 - Added
 🔨 Complete Crafting System
 
