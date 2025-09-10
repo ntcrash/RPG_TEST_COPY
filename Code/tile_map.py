@@ -116,8 +116,6 @@ class EnhancedTileMap(pygame.sprite.Sprite):
             'o': (120, 24, 24, 24),  # Round path
 
             # Decorative elements
-            'F': (0, 48, 24, 24),  # Flowers (white)
-            'f': (24, 48, 24, 24),  # Flowers (pink)
             'T': (72, 48, 24, 24),  # Tree trunk
             't': (96, 48, 24, 24),  # Tree leaves
             'B': (120, 48, 24, 24),  # Bush
@@ -167,37 +165,37 @@ class EnhancedTileMap(pygame.sprite.Sprite):
     def create_zelda_style_map(self):
         """Create a Zelda-style map similar to the reference image"""
         zelda_map_data = [
-            # Row 0-5: Top area with trees and flowers
-            "GGGGtTtGGGFfFGGtTtGGGGGFfFGGtTt",
-            "GGtTtGGGGGFfFGGGGGtTtGGGPpPGGG",
-            "GtTtGGGpGGGGGGGGtTtGGGGGFfFGGt",
-            "GGGGGFfFGGGGGGGGGGGGtTtGGFfFGG",
+            # Row 0-5: Top area with trees
+            "GGGGtTtGGGGGGGGtTtGGGGGGGGGGtTt",
+            "GGtTtGGGGGGGGGGGGGtTtGGGPpPGGG",
+            "GtTtGGGpGGGGGGGGtTtGGGGGGGGGGt",
+            "GGGGGGGGGGGGGGGGGGGGtTtGGGGGGG",
             "GGGGGGGGGpppppppppppppGGGGGGGG",
-            "GGGFfFGGGpGGGGGGGGGGpGGGFfFGGG",
+            "GGGGGGGGGpGGGGGGGGGGpGGGGGGGGG",
 
             # Row 6-11: Middle area with main path
             "GGGGGGGGGpGGtTtGGGGGpGGGGGGGGG",
             "GtTtGGGGGpGGGGGGGGGGpGGGtTtGGG",
             "GGGGGGGGGppppppp+pppppGGGGGGGG",
-            "GGGFfFGGGGGGGGGGpGGGGGGGGGfPGG",
+            "GGGGGGGGGGGGGGGGpGGGGGGGGGGPGG",
             "GGGGGGGGGGGtTtGGpGGtTtGGGGGGGG",
             "GGtTtGGGGGGGGGGGpGGGGGGGGtTtGG",
 
-            # Row 12-17: Lower middle with more paths
+            # Row 12-17: Lower middle with diagonal paths to bottom-right
             "GGGGGGGGGGGGGGGGpGGGGGGGGGGGGG",
-            "GGGGGFfFGGGGGGGGpGGGGGGGFpGGGG",
+            "GGGGGGGGGGGGGGGGpGGGGGGGGpGGGG",
             "GGGGGGGGGpppppppppppppGGGGGGGG",
             "GGtTtGGGGpGGGGGGGGGGpGGGGtTtGG",
-            "GGGGGGGGGpGGGGfpGGGGpGGGGGGGGG",
+            "GGGGGGGGGpGGGGGpppppppGGGGGGGG",
             "GGGGGGGGGpGGGGGGGGGGpGGGGGGGGG",
 
-            # Row 18-23: Bottom area
-            "GGGFfFGGGpGGtTtGGGGGpGGGFfFGGG",
+            # Row 18-23: Bottom area with clear path to rest/shop area
+            "GGGGGGGGGpGGtTtGGGGGpGGtTtGGGG",
             "GGGGGGGGGpGGGGGGGGGGpGGGGGGGGG",
-            "GGGGGGGGGpppppppppppppGGGGGGGG",
+            "GGGGGGGGGpppppppppppppppppppGG",
             "GGtTtGGGGGGGGGGGGGGGGGGGGtTtGG",
-            "GGGGGGGGGGGGGPFGGGGGGGGGGGGGGG",
-            "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGG"
+            "GGGGGGGGGGGGGPppppppppppppppGG",
+            "GGGGGGGGGGGGGGGGGGGGGGGGGGGGpG"
         ]
 
         # Ensure all lines have the same length

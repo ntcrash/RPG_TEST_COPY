@@ -134,7 +134,11 @@ class EnhancedGameManager:
         self.shops = []
         self.rests = []
         self.trees = []  # New list for trees
-        self.crafting_nodes = []  # New list for crafting material nodes
+        self.rocks = []  # New list for rock objects
+        self.metals = []  # New list for metal vein objects
+        self.streams = []  # New list for stream objects
+        self.brushes = []  # New list for brush objects
+        self.dungeons = []  # New list for boss dungeons
 
         # Combat system variables (for legacy compatibility)
         self.current_enemy = None
@@ -216,7 +220,10 @@ class EnhancedGameManager:
         self.shops.clear()
         self.rests.clear()
         self.trees.clear()  # Clear trees too
-        self.crafting_nodes.clear()  # Clear crafting nodes too
+        self.rocks.clear()  # Clear rocks
+        self.metals.clear()  # Clear metal veins
+        self.streams.clear()  # Clear streams
+        self.brushes.clear()  # Clear brushes
 
         if not self.current_level_content:
             self.setup_world_objects()  # Fallback
@@ -284,41 +291,20 @@ class EnhancedGameManager:
         # Create trees for environmental decoration
         self.create_trees(enemy_positions + treasure_positions)
 
-        # Create crafting material nodes
+        # Create interactive map objects (rocks, metal, streams, brushes)
         all_positions = enemy_positions + treasure_positions + [(tree.x, tree.y) for tree in self.trees]
-        self.create_crafting_nodes(all_positions)
+        self.create_map_objects(all_positions)
 
-        # Create rest areas - multiple rest areas for higher levels
+        # Create rest area - always at far bottom right
         world_width, world_height = self.tile_map.get_world_pixel_size()
-        current_level = self.level_manager.get_current_level()
 
-        # Number of rest areas based on world difficulty
-        rest_area_count = 1 + (current_level.world - 1) if current_level else 1
-        rest_positions = [
-            (world_width - 120, world_height - 120),  # Bottom-right (always)
-            (80, world_height - 120),  # Bottom-left
-            (world_width - 120, 80),  # Top-right
-            (80, 80),  # Top-left
-            (world_width // 2, world_height // 2),  # Center
-        ]
+        # Force rest area at far bottom right corner with minimal offset
+        rest_x = world_width - 60  # Much closer to edge
+        rest_y = world_height - 60
 
-        all_object_positions = enemy_positions + treasure_positions
-
-        # Ensure at least one rest area is always created
-        rests_created = 0
-        for i in range(min(rest_area_count, len(rest_positions))):
-            rest_x, rest_y = rest_positions[i]
-
-            # For the first rest area, create it regardless of proximity to ensure at least one exists
-            if i == 0 or not is_too_close(rest_x, rest_y, all_object_positions, min_distance=60):
-                rest_area = EnhancedRestArea(rest_x, rest_y, self.rest_manager)
-                self.rests.append(rest_area)
-                rests_created += 1
-
-        # Fallback: If no rest areas were created (shouldn't happen now), force create one at bottom-right
-        if rests_created == 0:
-            fallback_rest = EnhancedRestArea(world_width - 120, world_height - 120, self.rest_manager)
-            self.rests.append(fallback_rest)
+        # Always create rest area at far bottom right regardless of conflicts
+        rest_area = EnhancedRestArea(rest_x, rest_y, self.rest_manager)
+        self.rests.append(rest_area)
 
     def create_trees(self, existing_positions):
         """Create trees for environmental decoration"""
@@ -327,23 +313,23 @@ class EnhancedGameManager:
         # Determine tree count and types based on world theme
         if current_level:
             if current_level.world == 1:  # Grassland
-                tree_count = random.randint(15, 25)
+                tree_count = random.randint(8, 12)
                 tree_types = ["normal", "oak", "normal", "oak", "normal"]
             elif current_level.world == 2:  # Ice world
-                tree_count = random.randint(8, 15)
+                tree_count = random.randint(4, 8)
                 tree_types = ["pine", "pine", "pine"]  # Mostly pine trees for ice world
             elif current_level.world == 3:  # Shadow realm
-                tree_count = random.randint(12, 20)
+                tree_count = random.randint(6, 10)
                 tree_types = ["normal", "oak"]  # Darker looking trees
             elif current_level.world == 4:  # Elemental chaos
-                tree_count = random.randint(5, 12)
+                tree_count = random.randint(3, 6)
                 tree_types = ["normal", "pine", "oak"]  # Mixed types
             else:  # Cosmic world
-                tree_count = random.randint(3, 8)
+                tree_count = random.randint(2, 4)
                 tree_types = ["oak", "normal"]  # Fewer, more mystical trees
         else:
             # Default fallback
-            tree_count = random.randint(12, 20)
+            tree_count = random.randint(6, 10)
             tree_types = ["normal", "oak", "pine"]
 
         tree_positions = []
@@ -373,60 +359,93 @@ class EnhancedGameManager:
 
         print(f"Created {len(self.trees)} trees of types: {set(tree.tree_type for tree in self.trees)}")
 
-    def create_crafting_nodes(self, existing_positions):
-        """Create harvestable crafting material nodes"""
-        from Code.crafting_system import CraftingNode
+    def create_map_objects(self, existing_positions):
+        """Create interactive map objects (rocks, metal, streams, brushes)"""
+        from Code.ui_components import Rock, Metal, Stream, Brush
 
-        # Determine number of crafting nodes based on level
+        # Determine number of objects based on level
         current_level = self.level_manager.get_current_level()
         if current_level:
-            node_count = random.randint(8, 15)
+            total_objects = random.randint(6, 10)
         else:
-            node_count = random.randint(8, 12)
+            total_objects = random.randint(5, 8)
 
-        node_positions = []
+        object_positions = []
         max_attempts = 1000
         attempts = 0
 
-        while len(node_positions) < node_count and attempts < max_attempts:
+        while len(object_positions) < total_objects and attempts < max_attempts:
             attempts += 1
             x = random.randint(40, 760)
             y = random.randint(40, 560)
 
             # Check distance from all existing objects
-            all_positions = existing_positions + node_positions
-            if not is_too_close(x, y, all_positions, min_distance=35):
-                node_positions.append((x, y))
+            all_positions = existing_positions + object_positions
+            if not is_too_close(x, y, all_positions, min_distance=40):
+                object_positions.append((x, y))
 
-        # Create crafting nodes with varied materials
-        common_materials = ["Iron Ore", "Wood", "Leather", "Cloth", "Stone"]
-        uncommon_materials = ["Silver Ore", "Mithril Shard", "Crystal Fragment", "Dragon Scale"]
-        rare_materials = ["Gold Ore", "Phoenix Feather", "Void Crystal"]
+        # Create different types of map objects
+        rock_count = int(total_objects * 0.4)  # 40% rocks
+        metal_count = int(total_objects * 0.2)  # 20% metal veins
+        stream_count = int(total_objects * 0.2)  # 20% streams
+        brush_count = total_objects - rock_count - metal_count - stream_count  # Remaining as brushes
 
-        for x, y in node_positions:
-            # 70% common, 20% uncommon, 8% rare, 2% legendary
-            roll = random.randint(1, 100)
-            if roll <= 70:
-                material = random.choice(common_materials)
-            elif roll <= 90:
-                material = random.choice(uncommon_materials)
-            elif roll <= 98:
-                material = random.choice(rare_materials)
-            else:
-                material = random.choice(["Starfire Essence", "Time Crystal"])
+        object_index = 0
 
-            # Longer respawn time for rarer materials
-            if material in rare_materials:
-                respawn_time = 1200  # 20 minutes
-            elif material in uncommon_materials:
-                respawn_time = 900  # 15 minutes
-            else:
-                respawn_time = 600  # 10 minutes
+        # Create rocks
+        for i in range(rock_count):
+            if object_index < len(object_positions):
+                x, y = object_positions[object_index]
+                # Different rock types based on rarity
+                roll = random.randint(1, 100)
+                if roll <= 10:  # 10% gold
+                    rock_type = "gold"
+                elif roll <= 25:  # 15% silver
+                    rock_type = "silver"
+                elif roll <= 50:  # 25% iron
+                    rock_type = "iron"
+                else:  # 50% stone
+                    rock_type = "stone"
 
-            crafting_node = CraftingNode(x, y, material, respawn_time)
-            self.crafting_nodes.append(crafting_node)
+                rock = Rock(x, y, rock_type)
+                self.rocks.append(rock)
+                object_index += 1
 
-        print(f"Created {len(self.crafting_nodes)} crafting material nodes")
+        # Create metal veins
+        for i in range(metal_count):
+            if object_index < len(object_positions):
+                x, y = object_positions[object_index]
+                # Rare metals
+                roll = random.randint(1, 100)
+                if roll <= 20:  # 20% mithril
+                    metal_type = "mithril"
+                elif roll <= 35:  # 15% adamantine
+                    metal_type = "adamantine"
+                else:  # 65% iron
+                    metal_type = "iron"
+
+                metal = Metal(x, y, metal_type)
+                self.metals.append(metal)
+                object_index += 1
+
+        # Create streams
+        for i in range(stream_count):
+            if object_index < len(object_positions):
+                x, y = object_positions[object_index]
+                stream = Stream(x, y)
+                self.streams.append(stream)
+                object_index += 1
+
+        # Create brushes
+        for i in range(brush_count):
+            if object_index < len(object_positions):
+                x, y = object_positions[object_index]
+                brush = Brush(x, y)
+                self.brushes.append(brush)
+                object_index += 1
+
+        print(
+            f"Created {len(self.rocks)} rocks, {len(self.metals)} metal veins, {len(self.streams)} streams, {len(self.brushes)} brushes")
 
     def setup_world_objects(self):
         """Setup game world objects based on map (fallback method)"""
@@ -480,9 +499,9 @@ class EnhancedGameManager:
         # Create trees (fallback version with default settings)
         self.create_trees(enemy_positions + treasure_positions)
 
-        # Create crafting nodes (fallback)
+        # Create map objects (fallback)
         all_positions = enemy_positions + treasure_positions + [(tree.x, tree.y) for tree in self.trees]
-        self.create_crafting_nodes(all_positions)
+        self.create_map_objects(all_positions)
 
         # Create rest areas - single rest area in bottom-right
         world_width, world_height = self.tile_map.get_world_pixel_size()
@@ -503,18 +522,14 @@ class EnhancedGameManager:
                 too_close_to_existing = True
                 break
 
-        # Create the rest area regardless of conflicts (move conflicting objects if needed)
-        if too_close_to_existing:
-            # Move any conflicting enemies or treasures
-            for enemy in self.enemies[:]:
-                if math.dist((rest_x, rest_y), (enemy.x, enemy.y)) < 50:
-                    enemy.x = max(50, enemy.x - 80)  # Move enemy left
+        # Create map objects (fallback)
+        all_positions = enemy_positions + treasure_positions + [(tree.x, tree.y) for tree in self.trees]
+        self.create_map_objects(all_positions)
 
-            for treasure in self.treasures[:]:
-                if math.dist((rest_x, rest_y), (treasure.x, treasure.y)) < 40:
-                    treasure.x = max(50, treasure.x - 60)  # Move treasure left
-
-        # Create the single rest area
+        # Create rest area at far bottom right
+        world_width, world_height = self.tile_map.get_world_pixel_size()
+        rest_x = world_width - 60
+        rest_y = world_height - 60
         rest_area = EnhancedRestArea(rest_x, rest_y, self.rest_manager)
         self.rests.append(rest_area)
 
@@ -526,36 +541,209 @@ class EnhancedGameManager:
                     return tree
         return None
 
+    def check_map_object_collision(self, player_rect):
+        """Check if player is colliding with any map objects (rocks, metal, streams, brushes)"""
+        # Check rocks
+        for rock in self.rocks:
+            if rock.active and rock.is_blocking():
+                if player_rect.colliderect(rock.get_rect()):
+                    return "rock", rock
+
+        # Check metal veins
+        for metal in self.metals:
+            if metal.active and metal.is_blocking():
+                if player_rect.colliderect(metal.get_rect()):
+                    return "metal", metal
+
+        # Check streams
+        for stream in self.streams:
+            if stream.active and stream.is_blocking():
+                if player_rect.colliderect(stream.get_rect()):
+                    return "stream", stream
+
+        # Check brushes
+        for brush in self.brushes:
+            if brush.active and brush.is_blocking():
+                if player_rect.colliderect(brush.get_rect()):
+                    return "brush", brush
+
+        return None, None
+
+    def check_interactive_objects(self, player_rect):
+        """Check for interactive objects near player for spacebar interaction"""
+        interact_distance = 50  # Distance for interaction
+        player_center_x = player_rect.centerx
+        player_center_y = player_rect.centery
+
+        # Check rocks
+        for rock in self.rocks:
+            if rock.active and rock.can_harvest():
+                rock_center_x = rock.x + rock.width // 2
+                rock_center_y = rock.y + rock.height // 2
+                distance = math.sqrt((player_center_x - rock_center_x) ** 2 + (player_center_y - rock_center_y) ** 2)
+                if distance <= interact_distance:
+                    return "rock", rock
+
+        # Check metal veins
+        for metal in self.metals:
+            if metal.active and metal.can_harvest():
+                metal_center_x = metal.x + metal.width // 2
+                metal_center_y = metal.y + metal.height // 2
+                distance = math.sqrt((player_center_x - metal_center_x) ** 2 + (player_center_y - metal_center_y) ** 2)
+                if distance <= interact_distance:
+                    return "metal", metal
+
+        # Check streams
+        for stream in self.streams:
+            if stream.active and stream.can_harvest():
+                stream_center_x = stream.x + stream.width // 2
+                stream_center_y = stream.y + stream.height // 2
+                distance = math.sqrt(
+                    (player_center_x - stream_center_x) ** 2 + (player_center_y - stream_center_y) ** 2)
+                if distance <= interact_distance:
+                    return "stream", stream
+
+        # Check brushes
+        for brush in self.brushes:
+            if brush.active and brush.can_harvest():
+                brush_center_x = brush.x + brush.width // 2
+                brush_center_y = brush.y + brush.height // 2
+                distance = math.sqrt((player_center_x - brush_center_x) ** 2 + (player_center_y - brush_center_y) ** 2)
+                if distance <= interact_distance:
+                    return "brush", brush
+
+        # Check trees
+        for tree in self.trees:
+            if tree.active and tree.can_harvest():
+                tree_center_x = tree.x + tree.width // 2
+                tree_center_y = tree.y + tree.height // 2
+                distance = math.sqrt((player_center_x - tree_center_x) ** 2 + (player_center_y - tree_center_y) ** 2)
+                if distance <= interact_distance:
+                    return "tree", tree
+
+        # Check dungeons
+        for dungeon in self.dungeons:
+            if dungeon.active and dungeon.can_interact():
+                dungeon_center_x = dungeon.x + dungeon.width // 2
+                dungeon_center_y = dungeon.y + dungeon.height // 2
+                distance = math.sqrt(
+                    (player_center_x - dungeon_center_x) ** 2 + (player_center_y - dungeon_center_y) ** 2)
+                if distance <= interact_distance:
+                    return "dungeon", dungeon
+
+        return None, None
+
+    def handle_map_object_interaction(self):
+        """Handle spacebar interaction with map objects"""
+        player_rect = pygame.Rect(self.animated_player.x, self.animated_player.y,
+                                  self.animated_player.display_width, self.animated_player.display_height)
+
+        # Check for interactive objects near player
+        obj_type, obj = self.check_interactive_objects(player_rect)
+
+        if obj and obj_type:
+            if obj_type == "dungeon":
+                # Enter boss dungeon
+                self.enter_boss_dungeon()
+            else:
+                # Harvest the object
+                material = obj.harvest()
+                if material:
+                    # Add material to inventory
+                    from Code.crafting_system import CraftingIntegration
+                    if hasattr(self, 'crafting_integration') and self.crafting_integration:
+                        success = self.crafting_integration.crafting_manager.add_crafting_material(material, 1)
+                        if success:
+                            # Visual feedback
+                            damage_text = DamageText(0, 0, f"Found {material}!", GREEN)
+                            damage_text.world_pos = (self.animated_player.x, self.animated_player.y - 40)
+                            self.damage_texts.append(damage_text)
+                            print(f"Harvested: {material}")
+                        else:
+                            print(f"Failed to add {material} to inventory")
+                    else:
+                        print(f"Would have harvested: {material}")
+
+    def enter_boss_dungeon(self):
+        """Enter boss dungeon and start boss fight"""
+        current_level = self.level_manager.get_current_level()
+        if not current_level:
+            return
+
+        # Get boss enemy from enemy manager
+        boss_enemy = self.enemy_manager.create_scaled_boss()
+        if boss_enemy:
+            # Start enhanced combat with boss
+            if hasattr(self, 'enhanced_combat_manager'):
+                self.enhanced_combat_manager.start_combat(boss_enemy)
+                self.current_state = GameState.ENHANCED_COMBAT
+
+                # Visual feedback
+                damage_text = DamageText(0, 0, "🐉 BOSS BATTLE BEGINS! 🐉", (255, 0, 0))
+                damage_text.world_pos = (self.animated_player.x, self.animated_player.y - 60)
+                self.damage_texts.append(damage_text)
+
+                print(f"Entering boss fight with {boss_enemy.get('Name', 'Unknown Boss')}!")
+            else:
+                print("Combat system not available!")
+        else:
+            print("No boss enemy available for this world!")
+
     def check_level_completion(self):
         """Check if current level is completed and handle progression"""
         # Level is completed when all enemies are defeated
         active_enemies = [enemy for enemy in self.enemies if enemy.active]
 
-        if len(active_enemies) == 0 and len(self.enemies) > 0:
-            # Level completed!
-            current_level = self.level_manager.get_current_level()
-            if current_level:
-                # Award completion bonus
-                if self.character_manager.character_data:
-                    completion_bonus = int(200 * current_level.loot_multiplier)
-                    self.character_manager.character_data["Credits"] += completion_bonus
-                    self.character_manager.character_data["Experience_Points"] += int(
-                        100 * current_level.enemy_multiplier)
+        if len(active_enemies) == 0 and len(self.enemies) > 0 and len(self.dungeons) == 0:
+            # All enemies defeated but no dungeon spawned yet - spawn boss dungeon!
+            from Code.ui_components import Dungeon
 
-                    # Visual feedback
-                    damage_text = DamageText(0, 0, f"Level Complete! +{completion_bonus} Credits!", GOLD)
-                    damage_text.world_pos = (self.animated_player.x, self.animated_player.y - 40)
-                    self.damage_texts.append(damage_text)
+            # Find a suitable location for the dungeon (center of map)
+            world_width, world_height = self.tile_map.get_world_pixel_size()
+            dungeon_x = world_width // 2 - 30
+            dungeon_y = world_height // 2 - 40
 
-                    # Check for level up
-                    self.character_manager.level_up_check()
-                    self.character_manager.save_character()
+            # Create and add dungeon
+            dungeon = Dungeon(dungeon_x, dungeon_y)
+            self.dungeons.append(dungeon)
 
-                # Unlock next level
-                self.level_manager.complete_current_level()
+            # Visual feedback for dungeon appearance
+            damage_text = DamageText(0, 0, "🏰 BOSS DUNGEON APPEARS! 🏰", (255, 215, 0))
+            damage_text.world_pos = (self.animated_player.x, self.animated_player.y - 60)
+            self.damage_texts.append(damage_text)
 
-                return True
+            print("Boss dungeon has appeared! Approach and press spacebar to enter.")
+            return False  # Don't complete level yet
 
+        return False
+
+    def complete_level_after_boss(self):
+        """Complete level after boss is defeated"""
+        current_level = self.level_manager.get_current_level()
+        if current_level:
+            # Award completion bonus
+            if self.character_manager.character_data:
+                completion_bonus = int(500 * current_level.loot_multiplier)  # Higher bonus for boss completion
+                self.character_manager.character_data["Credits"] += completion_bonus
+                self.character_manager.character_data["Experience_Points"] += int(
+                    200 * current_level.enemy_multiplier)
+
+                # Visual feedback
+                damage_text = DamageText(0, 0, f"BOSS DEFEATED! +{completion_bonus} Credits!", GOLD)
+                damage_text.world_pos = (self.animated_player.x, self.animated_player.y - 40)
+                self.damage_texts.append(damage_text)
+
+                # Check for level up
+                self.character_manager.level_up_check()
+                self.character_manager.save_character()
+
+            # Unlock next level
+            self.level_manager.complete_current_level()
+
+            # Remove dungeon
+            self.dungeons.clear()
+
+            return True
         return False
 
     def change_level(self, world, level):
@@ -594,12 +782,10 @@ class EnhancedGameManager:
         if tree_collision:
             return "tree", tree_collision
 
-        # Check crafting node collisions
-        for node in self.crafting_nodes:
-            if node.active:
-                node_rect = pygame.Rect(node.x, node.y, node.width, node.height)
-                if player_rect.colliderect(node_rect):
-                    return "crafting_node", node
+        # Check map object collisions (blocking movement)
+        map_object_type, map_object = self.check_map_object_collision(player_rect)
+        if map_object:
+            return map_object_type, map_object
 
         # Check rest area collisions first (highest priority for UX)
         for rest_area in self.rests:
@@ -739,6 +925,8 @@ class EnhancedGameManager:
                 self.current_state = GameState.CRAFTING
             elif key == pygame.K_F1:  # Key to toggle instructions
                 self.show_instructions = not self.show_instructions
+            elif key == pygame.K_SPACE:  # Spacebar interaction with map objects
+                self.handle_map_object_interaction()
 
         elif self.current_state == GameState.INVENTORY:
             if key == pygame.K_ESCAPE or key == pygame.K_i:
@@ -968,9 +1156,17 @@ class EnhancedGameManager:
         if hasattr(self, 'store_integration') and self.store_integration:
             self.store_integration.update()
 
-        # Update crafting nodes
-        for crafting_node in self.crafting_nodes:
-            crafting_node.update()
+        # Update map objects (respawn timers)
+        for rock in self.rocks:
+            rock.update()
+        for metal in self.metals:
+            metal.update()
+        for stream in self.streams:
+            stream.update()
+        for brush in self.brushes:
+            brush.update()
+        for tree in self.trees:
+            tree.update()
 
         if self.current_state == GameState.GAME_BOARD:
             # Store previous player position for collision rollback
@@ -1204,9 +1400,19 @@ class EnhancedGameManager:
         for i, rest_area in enumerate(self.rests):
             rest_area.draw(self.screen, self.camera.x, self.camera.y)
 
-        # Draw crafting nodes
-        for crafting_node in self.crafting_nodes:
-            crafting_node.draw(self.screen, self.camera, self.animation_timer)
+        # Draw map objects (rocks, metal, streams, brushes)
+        for rock in self.rocks:
+            rock.draw(self.screen, self.camera, self.animation_timer)
+        for metal in self.metals:
+            metal.draw(self.screen, self.camera, self.animation_timer)
+        for stream in self.streams:
+            stream.draw(self.screen, self.camera, self.animation_timer)
+        for brush in self.brushes:
+            brush.draw(self.screen, self.camera, self.animation_timer)
+
+        # Draw boss dungeons
+        for dungeon in self.dungeons:
+            dungeon.draw(self.screen, self.camera, self.animation_timer)
 
         # Draw animated player at correct screen position
         screen_x, screen_y = self.camera.world_to_screen(self.animated_player.x, self.animated_player.y)
@@ -1222,9 +1428,10 @@ class EnhancedGameManager:
         if self.show_instructions:
             instructions = [
                 "Arrow Keys: Move character",
-                "Walk into objects to interact",
+                "SPACEBAR: Harvest rocks, metal, streams, brushes, trees",
+                "SPACEBAR: Enter boss dungeon (when available)",
                 "Rest areas: Restore HP/MP (3min cooldown)",
-                "Trees block your path - walk around them",
+                "Trees and map objects block your path",
                 "I: Inventory  C: Character  H: Help  L: Level Select  R: Crafting",
                 "F1: Toggle this panel  ESC: Main Menu"
             ]

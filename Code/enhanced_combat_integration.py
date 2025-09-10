@@ -145,8 +145,16 @@ class EnhancedCombatIntegration:
         # Check for level up
         leveled_up = self.game_manager.character_manager.level_up_check()
 
-        # Enhanced victory message with sound
-        victory_msg = f"🎉 Victory! Gained {xp_gained} XP and {credits_gained} credits!"
+        # Check if this was a boss fight - complete level if so
+        enemy_tier = self.combat_manager.current_enemy.get("Tier", "")
+        if enemy_tier == "boss" or "BOSS" in enemy_name:
+            # This was a boss fight - complete the level!
+            self.game_manager.complete_level_after_boss()
+            victory_msg = f"🏆 BOSS DEFEATED! Level Complete! Gained {xp_gained} XP and {credits_gained} credits!"
+        else:
+            # Enhanced victory message with sound
+            victory_msg = f"🎉 Victory! Gained {xp_gained} XP and {credits_gained} credits!"
+
         if leveled_up:
             victory_msg += " ⭐ LEVEL UP! ⭐"
             # Play level up sound

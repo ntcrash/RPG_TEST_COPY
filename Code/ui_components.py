@@ -210,6 +210,10 @@ class Tree:
         self.height = 60
         self.tree_type = tree_type
         self.active = True
+        self.harvestable = True
+        self.respawn_timer = 0
+        self.max_respawn_time = 600  # 10 minutes
+        self.material = "Wood"
         self.collision_rect = pygame.Rect(x + 10, y + 35, 20, 25)  # Smaller collision for trunk only
 
         # Different tree types for visual variety
@@ -237,6 +241,25 @@ class Tree:
         """Check if this tree blocks player movement"""
         return True  # Trees block movement
 
+    def can_harvest(self):
+        """Check if tree can be harvested"""
+        return self.active and self.harvestable
+
+    def harvest(self):
+        """Harvest the tree for wood"""
+        if self.can_harvest():
+            self.harvestable = False
+            self.respawn_timer = self.max_respawn_time
+            return self.material
+        return None
+
+    def update(self):
+        """Update respawn timer"""
+        if not self.harvestable and self.respawn_timer > 0:
+            self.respawn_timer -= 1
+            if self.respawn_timer <= 0:
+                self.harvestable = True
+
     def draw(self, screen, camera, animation_timer=0):
         """Draw the tree with camera offset"""
         if not self.active:
@@ -260,7 +283,10 @@ class Tree:
             sway = int(2 * math.sin(animation_timer * 0.05 + self.x * 0.01))
             leaf_center_x += sway
 
-            pygame.draw.circle(screen, self.leaf_color,
+            # Change color based on harvestable status
+            current_leaf_color = self.leaf_color if self.harvestable else (50, 50, 50)
+
+            pygame.draw.circle(screen, current_leaf_color,
                                (leaf_center_x, leaf_center_y), self.leaf_radius)
             pygame.draw.circle(screen, BLACK,
                                (leaf_center_x, leaf_center_y), self.leaf_radius, 2)
@@ -283,11 +309,386 @@ class Tree:
         """Draw a subtle shadow beneath the tree"""
         screen_x, screen_y = camera.world_to_screen(self.x, self.y)
 
+
+class Rock:
+    """Rock object - impassable, interactive for mining materials"""
+
+    def __init__(self, x, y, rock_type="stone"):
+        self.x = x
+        self.y = y
+        self.width = 35
+        self.height = 35
+        self.rock_type = rock_type
+        self.active = True
+        self.harvestable = True
+        self.respawn_timer = 0
+        self.max_respawn_time = 900  # 15 minutes at 15 fps
+        self.collision_rect = pygame.Rect(x + 2, y + 2, 31, 31)
+
+        # Rock colors based on type
+        if rock_type == "iron":
+            self.color = (70, 70, 70)
+            self.material = "Iron Ore"
+        elif rock_type == "silver":
+            self.color = (192, 192, 192)
+            self.material = "Silver Ore"
+        elif rock_type == "gold":
+            self.color = (255, 215, 0)
+            self.material = "Gold Ore"
+        else:  # stone
+            self.color = (128, 128, 128)
+            self.material = "Stone"
+
+    def get_rect(self):
+        """Get collision rectangle"""
+        return self.collision_rect
+
+    def is_blocking(self):
+        """Check if this rock blocks movement"""
+        return True
+
+    def can_harvest(self):
+        """Check if rock can be harvested"""
+        return self.active and self.harvestable
+
+    def harvest(self):
+        """Harvest the rock for materials"""
+        if self.can_harvest():
+            self.harvestable = False
+            self.respawn_timer = self.max_respawn_time
+            return self.material
+        return None
+
+    def update(self):
+        """Update respawn timer"""
+        if not self.harvestable and self.respawn_timer > 0:
+            self.respawn_timer -= 1
+            if self.respawn_timer <= 0:
+                self.harvestable = True
+
+    def draw(self, screen, camera, animation_timer=0):
+        """Draw the rock"""
+        if not self.active:
+            return
+
+        screen_x, screen_y = camera.world_to_screen(self.x, self.y)
+
         if camera.is_visible(self.x, self.y, self.width, self.height):
-            # Shadow ellipse
-            shadow_rect = pygame.Rect(screen_x + 5, screen_y + self.height - 10,
-                                      self.width - 10, 8)
-            pygame.draw.ellipse(screen, (0, 0, 0, 50), shadow_rect)
+            # Draw rock shape
+            rock_rect = pygame.Rect(screen_x, screen_y, self.width, self.height)
+            color = self.color if self.harvestable else (50, 50, 50)
+            pygame.draw.ellipse(screen, color, rock_rect)
+            pygame.draw.ellipse(screen, BLACK, rock_rect, 2)
+
+            # Add some texture
+            if self.harvestable:
+                for i in range(3):
+                    dot_x = screen_x + 10 + i * 8
+                    dot_y = screen_y + 15
+                    # Clamp color values to valid range
+                    texture_color = (min(255, color[0] + 20), min(255, color[1] + 20), min(255, color[2] + 20))
+                    pygame.draw.circle(screen, texture_color, (dot_x, dot_y), 2)
+
+
+class Metal:
+    """Metal vein object - impassable, interactive for rare metals"""
+
+    def __init__(self, x, y, metal_type="iron"):
+        self.x = x
+        self.y = y
+        self.width = 30
+        self.height = 40
+        self.metal_type = metal_type
+        self.active = True
+        self.harvestable = True
+        self.respawn_timer = 0
+        self.max_respawn_time = 1200  # 20 minutes
+        self.collision_rect = pygame.Rect(x + 2, y + 2, 26, 36)
+
+        # Metal types and materials
+        if metal_type == "mithril":
+            self.color = (173, 216, 230)
+            self.material = "Mithril Shard"
+        elif metal_type == "adamantine":
+            self.color = (75, 0, 130)
+            self.material = "Adamantine"
+        else:  # iron
+            self.color = (105, 105, 105)
+            self.material = "Iron Ore"
+
+    def get_rect(self):
+        return self.collision_rect
+
+    def is_blocking(self):
+        return True
+
+    def can_harvest(self):
+        return self.active and self.harvestable
+
+    def harvest(self):
+        if self.can_harvest():
+            self.harvestable = False
+            self.respawn_timer = self.max_respawn_time
+            return self.material
+        return None
+
+    def update(self):
+        if not self.harvestable and self.respawn_timer > 0:
+            self.respawn_timer -= 1
+            if self.respawn_timer <= 0:
+                self.harvestable = True
+
+    def draw(self, screen, camera, animation_timer=0):
+        if not self.active:
+            return
+
+        screen_x, screen_y = camera.world_to_screen(self.x, self.y)
+
+        if camera.is_visible(self.x, self.y, self.width, self.height):
+            color = self.color if self.harvestable else (30, 30, 30)
+
+            # Draw metal vein as a jagged rectangle
+            points = [
+                (screen_x + 5, screen_y),
+                (screen_x + self.width - 3, screen_y + 8),
+                (screen_x + self.width, screen_y + self.height - 5),
+                (screen_x + 3, screen_y + self.height),
+                (screen_x, screen_y + 12)
+            ]
+            pygame.draw.polygon(screen, color, points)
+            pygame.draw.polygon(screen, BLACK, points, 2)
+
+            # Add metallic shine effect
+            if self.harvestable:
+                shine_color = (min(255, color[0] + 50), min(255, color[1] + 50), min(255, color[2] + 50))
+                shine_points = [
+                    (screen_x + 8, screen_y + 5),
+                    (screen_x + 15, screen_y + 3),
+                    (screen_x + 18, screen_y + 10),
+                    (screen_x + 12, screen_y + 12)
+                ]
+                pygame.draw.polygon(screen, shine_color, shine_points)
+
+
+class Stream:
+    """Stream object - impassable water, provides water-based materials"""
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.width = 45
+        self.height = 25
+        self.active = True
+        self.harvestable = True
+        self.respawn_timer = 0
+        self.max_respawn_time = 600  # 10 minutes
+        self.collision_rect = pygame.Rect(x, y, self.width, self.height)
+        self.material = "Crystal Fragment"  # Water crystals
+        self.flow_offset = random.randint(0, 100)
+
+    def get_rect(self):
+        return self.collision_rect
+
+    def is_blocking(self):
+        return True
+
+    def can_harvest(self):
+        return self.active and self.harvestable
+
+    def harvest(self):
+        if self.can_harvest():
+            self.harvestable = False
+            self.respawn_timer = self.max_respawn_time
+            return self.material
+        return None
+
+    def update(self):
+        if not self.harvestable and self.respawn_timer > 0:
+            self.respawn_timer -= 1
+            if self.respawn_timer <= 0:
+                self.harvestable = True
+
+    def draw(self, screen, camera, animation_timer=0):
+        if not self.active:
+            return
+
+        screen_x, screen_y = camera.world_to_screen(self.x, self.y)
+
+        if camera.is_visible(self.x, self.y, self.width, self.height):
+            # Animate water flow
+            flow = int(3 * math.sin((animation_timer + self.flow_offset) * 0.1))
+
+            base_color = (64, 164, 223) if self.harvestable else (30, 60, 90)
+
+            # Draw stream as wavy rectangle
+            stream_rect = pygame.Rect(screen_x, screen_y, self.width, self.height)
+            pygame.draw.rect(screen, base_color, stream_rect)
+
+            # Add wave lines
+            for i in range(3):
+                wave_y = screen_y + 8 + i * 6
+                wave_points = []
+                for w in range(0, self.width, 4):
+                    wave_x = screen_x + w
+                    wave_offset = int(2 * math.sin((w + animation_timer * 2 + self.flow_offset) * 0.3))
+                    wave_points.append((wave_x, wave_y + wave_offset))
+
+                if len(wave_points) > 1:
+                    pygame.draw.lines(screen, (100, 200, 255), False, wave_points, 2)
+
+            # Draw border
+            pygame.draw.rect(screen, BLACK, stream_rect, 2)
+
+
+class Brush:
+    """Brush object - impassable vegetation, provides random materials"""
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.width = 32
+        self.height = 32
+        self.active = True
+        self.harvestable = True
+        self.respawn_timer = 0
+        self.max_respawn_time = 750  # 12.5 minutes
+        self.collision_rect = pygame.Rect(x + 3, y + 3, 26, 26)
+        self.materials = ["Wood", "Cloth", "Leather", "Phoenix Feather", "Dragon Scale"]
+
+    def get_rect(self):
+        return self.collision_rect
+
+    def is_blocking(self):
+        return True
+
+    def can_harvest(self):
+        return self.active and self.harvestable
+
+    def harvest(self):
+        if self.can_harvest():
+            self.harvestable = False
+            self.respawn_timer = self.max_respawn_time
+            return random.choice(self.materials)  # Random material
+        return None
+
+    def update(self):
+        if not self.harvestable and self.respawn_timer > 0:
+            self.respawn_timer -= 1
+            if self.respawn_timer <= 0:
+                self.harvestable = True
+
+    def draw(self, screen, camera, animation_timer=0):
+        if not self.active:
+            return
+
+        screen_x, screen_y = camera.world_to_screen(self.x, self.y)
+
+        if camera.is_visible(self.x, self.y, self.width, self.height):
+            # Draw bush/brush
+            base_color = (34, 139, 34) if self.harvestable else (20, 70, 20)
+
+            # Draw multiple circles for bushy appearance
+            for i in range(4):
+                circle_x = screen_x + 8 + (i % 2) * 16
+                circle_y = screen_y + 8 + (i // 2) * 16
+                radius = 8 + int(2 * math.sin(animation_timer * 0.05 + i))
+
+                pygame.draw.circle(screen, base_color, (circle_x, circle_y), radius)
+                pygame.draw.circle(screen, BLACK, (circle_x, circle_y), radius, 1)
+
+            # Add some berries or details if harvestable
+            if self.harvestable:
+                for i in range(2):
+                    berry_x = screen_x + 12 + i * 8
+                    berry_y = screen_y + 10 + i * 12
+                    pygame.draw.circle(screen, RED, (berry_x, berry_y), 2)
+
+
+class Dungeon:
+    """Dungeon entrance that appears when all enemies are defeated"""
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.width = 60
+        self.height = 80
+        self.active = True
+        self.collision_rect = pygame.Rect(x + 5, y + 5, 50, 70)
+        self.animation_timer = 0
+
+    def get_rect(self):
+        """Get collision rectangle"""
+        return self.collision_rect
+
+    def is_blocking(self):
+        """Dungeon entrance is not blocking"""
+        return False
+
+    def can_interact(self):
+        """Check if player can interact with dungeon"""
+        return self.active
+
+    def draw(self, screen, camera, animation_timer=0):
+        """Draw the dungeon entrance with mystical effects"""
+        if not self.active:
+            return
+
+        screen_x, screen_y = camera.world_to_screen(self.x, self.y)
+
+        if camera.is_visible(self.x, self.y, self.width, self.height):
+            # Draw stone base
+            base_rect = pygame.Rect(screen_x, screen_y + 40, self.width, 40)
+            pygame.draw.rect(screen, (60, 60, 60), base_rect)
+            pygame.draw.rect(screen, BLACK, base_rect, 3)
+
+            # Draw mystical portal entrance
+            portal_center_x = screen_x + self.width // 2
+            portal_center_y = screen_y + 30
+
+            # Animated magical glow
+            glow_intensity = int(50 + 30 * math.sin(animation_timer * 0.1))
+            portal_color = (100 + glow_intensity, 50 + glow_intensity // 2, 200 + glow_intensity // 3)
+
+            # Draw portal circles (larger to smaller)
+            for i in range(3):
+                radius = 25 - i * 6 + int(3 * math.sin(animation_timer * 0.15 + i))
+                alpha_color = tuple(min(255, c) for c in portal_color)
+                pygame.draw.circle(screen, alpha_color, (portal_center_x, portal_center_y), radius)
+                if i == 0:
+                    pygame.draw.circle(screen, BLACK, (portal_center_x, portal_center_y), radius, 2)
+
+            # Draw stone archway
+            arch_points = [
+                (screen_x + 10, screen_y + 60),
+                (screen_x + 10, screen_y + 20),
+                (screen_x + 25, screen_y + 5),
+                (screen_x + 35, screen_y + 5),
+                (screen_x + 50, screen_y + 20),
+                (screen_x + 50, screen_y + 60)
+            ]
+            pygame.draw.lines(screen, (80, 80, 80), False, arch_points, 4)
+
+            # Draw mystical particles floating around
+            for i in range(5):
+                particle_angle = animation_timer * 0.08 + i * 1.26  # 1.26 ≈ 2π/5
+                particle_x = portal_center_x + int(35 * math.cos(particle_angle))
+                particle_y = portal_center_y + int(20 * math.sin(particle_angle))
+                particle_color = (150 + int(50 * math.sin(animation_timer * 0.12 + i)),
+                                  100 + int(30 * math.cos(animation_timer * 0.1 + i)),
+                                  255)
+                pygame.draw.circle(screen, particle_color, (particle_x, particle_y), 3)
+
+            # Draw "BOSS DUNGEON" text above
+            font = pygame.font.Font(None, 20)
+            text = font.render("BOSS DUNGEON", True, (255, 215, 0))  # Gold text
+            text_rect = text.get_rect(center=(portal_center_x, screen_y - 15))
+
+            # Text glow effect
+            glow_surface = font.render("BOSS DUNGEON", True, (100, 50, 0))
+            for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
+                screen.blit(glow_surface, (text_rect.x + dx, text_rect.y + dy))
+
+            screen.blit(text, text_rect)
 
 
 class UIRenderer:
