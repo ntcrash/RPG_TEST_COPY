@@ -208,14 +208,14 @@ class EnhancedCombatIntegration:
             return
 
         # Import crafting materials function
-        from crafting_system import get_random_crafting_material
+        from Code.crafting_system import get_random_crafting_material
 
         # Check for crafting material drop first (50% chance for better testing)
         if random.randint(1, 100) <= 50:
             crafting_material = get_random_crafting_material(enemy_level, from_treasure=False)
             if crafting_material:
                 # Add crafting material to inventory using new system
-                from inventory_system import InventoryManager
+                from Code.inventory_system import InventoryManager
                 inventory_manager = InventoryManager(self.game_manager.character_manager)
                 inventory_manager.add_item(crafting_material, 1)
 
@@ -260,7 +260,7 @@ class EnhancedCombatIntegration:
         item_name = random.choice(possible_items)
 
         # Add to inventory using new system
-        from inventory_system import InventoryManager
+        from Code.inventory_system import InventoryManager
         inventory_manager = InventoryManager(self.game_manager.character_manager)
         inventory_manager.add_item(item_name, 1)
 

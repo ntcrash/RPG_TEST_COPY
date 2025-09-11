@@ -62,7 +62,7 @@ class SpellManager:
                 Spell("Holy Light", 10, 8, 15, "damage", "Damages undead, heals living", 30, "blind", 2)
             ],
             "void": [
-                Spell("Shadow Bolt", 7, 12, 20, "damage", "Dark energy projectile"),
+                Spell("Void Bolt", 7, 12, 20, "damage", "Dark energy projectile"),
                 Spell("Drain Life", 12, 10, 18, "drain", "Damage enemy, heal self", 0, "", 0),
                 Spell("Soul Burn", 20, 25, 35, "damage", "Corrupting darkness", 25, "curse", 3)
             ]

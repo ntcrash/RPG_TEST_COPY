@@ -231,6 +231,7 @@ class EnhancedGameManager:
 
         # Create enemies based on level content
         enemy_count = self.current_level_content["enemy_count"]
+        # enemy_count = 1
         enemy_types = self.current_level_content["enemy_types"]
 
         enemy_positions = []
@@ -572,8 +573,19 @@ class EnhancedGameManager:
     def check_interactive_objects(self, player_rect):
         """Check for interactive objects near player for spacebar interaction"""
         interact_distance = 50  # Distance for interaction
+        dungeon_interact_distance = 80  # Larger distance for dungeons
         player_center_x = player_rect.centerx
         player_center_y = player_rect.centery
+
+        # Check dungeons FIRST (highest priority)
+        for dungeon in self.dungeons:
+            if dungeon.active and dungeon.can_interact():
+                dungeon_center_x = dungeon.x + dungeon.width // 2
+                dungeon_center_y = dungeon.y + dungeon.height // 2
+                distance = math.sqrt(
+                    (player_center_x - dungeon_center_x) ** 2 + (player_center_y - dungeon_center_y) ** 2)
+                if distance <= dungeon_interact_distance:
+                    return "dungeon", dungeon
 
         # Check rocks
         for rock in self.rocks:
@@ -621,16 +633,6 @@ class EnhancedGameManager:
                 if distance <= interact_distance:
                     return "tree", tree
 
-        # Check dungeons
-        for dungeon in self.dungeons:
-            if dungeon.active and dungeon.can_interact():
-                dungeon_center_x = dungeon.x + dungeon.width // 2
-                dungeon_center_y = dungeon.y + dungeon.height // 2
-                distance = math.sqrt(
-                    (player_center_x - dungeon_center_x) ** 2 + (player_center_y - dungeon_center_y) ** 2)
-                if distance <= interact_distance:
-                    return "dungeon", dungeon
-
         return None, None
 
     def handle_map_object_interaction(self):
@@ -674,9 +676,9 @@ class EnhancedGameManager:
         boss_enemy = self.enemy_manager.create_scaled_boss()
         if boss_enemy:
             # Start enhanced combat with boss
-            if hasattr(self, 'enhanced_combat_manager'):
-                self.enhanced_combat_manager.start_combat(boss_enemy)
-                self.current_state = GameState.ENHANCED_COMBAT
+            if hasattr(self, 'combat_integration') and self.combat_integration:
+                self.combat_integration.start_combat(boss_enemy)
+                self.current_state = GameState.FIGHT
 
                 # Visual feedback
                 damage_text = DamageText(0, 0, "🐉 BOSS BATTLE BEGINS! 🐉", (255, 0, 0))
@@ -702,6 +704,8 @@ class EnhancedGameManager:
             world_width, world_height = self.tile_map.get_world_pixel_size()
             dungeon_x = world_width // 2 - 30
             dungeon_y = world_height // 2 - 40
+
+            print(f"Boss dungeon spawning at center of world!")
 
             # Create and add dungeon
             dungeon = Dungeon(dungeon_x, dungeon_y)
