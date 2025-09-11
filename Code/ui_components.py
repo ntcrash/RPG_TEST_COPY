@@ -750,8 +750,17 @@ class UIRenderer:
         for i, option in enumerate(options):
             y_pos = start_y + i * option_height
 
-            # Option background
-            option_rect = pygame.Rect(self.width // 4, y_pos - 15, self.width // 2, 40)
+            # Option text (measure first to size rectangle properly)
+            display_name = option.replace(".json", "").replace("_", " ").title()
+            text_surface = self.font.render(display_name, True, WHITE)  # Temp color for measurement
+            text_width = text_surface.get_width()
+            text_height = text_surface.get_height()
+
+            # Option background - size to fit text with padding
+            padding = 20
+            option_width = max(text_width + padding * 2, self.width // 3)  # Minimum width, but expand for long text
+            option_rect = pygame.Rect((self.width - option_width) // 2, y_pos - 15, option_width,
+                                      max(40, text_height + 20))
 
             if i == selected_index:
                 # Animated selection
@@ -765,8 +774,7 @@ class UIRenderer:
                 pygame.draw.rect(screen, MENU_TEXT, option_rect, 1)
                 color = MENU_TEXT
 
-            # Option text
-            display_name = option.replace(".json", "").replace("_", " ").title()
+            # Render text with final color
             text_surface = self.font.render(display_name, True, color)
             text_rect = text_surface.get_rect(center=(self.width // 2, y_pos))
             screen.blit(text_surface, text_rect)
@@ -799,6 +807,7 @@ class UIRenderer:
             current_level_xp = self._get_xp_for_level(level)
             xp_needed = next_level_xp - current_level_xp
             xp_progress = current_xp - current_level_xp
+
         else:
             # Max level
             xp_needed = 1
@@ -885,7 +894,7 @@ class UIRenderer:
             xp_value_text = f"{max(0, xp_progress)}/{xp_needed}"
         else:
             xp_value_text = "MAX"
-        xp_value_surface = self.small_font.render(xp_value_text, True, WHITE)
+        xp_value_surface = self.small_font.render(xp_value_text, True, BLACK)
         xp_text_rect = xp_value_surface.get_rect(center=(145, y_pos + 8))
         overlay.blit(xp_value_surface, xp_text_rect)
 
@@ -893,25 +902,12 @@ class UIRenderer:
         screen.blit(overlay, (10, 10))
 
     def _get_xp_for_level(self, target_level):
-        """Calculate minimum XP required for a specific level"""
+        """Calculate minimum XP required for a specific level - matches game_data.py calculation"""
         if target_level <= 1:
             return 0
-        elif target_level == 2:
-            return 100
-        elif target_level == 3:
-            return 250
-        elif target_level == 4:
-            return 450
-        elif target_level == 5:
-            return 700
-        elif target_level == 6:
-            return 1000
         else:
-            # For levels 6+: exponential growth (level * level * 50)
-            total_xp = 1000  # XP needed for level 6
-            for level in range(6, target_level):
-                total_xp += (level + 1) * (level + 1) * 50
-            return total_xp
+            # Use same calculation as game_data.py: 150 XP per level
+            return (target_level - 1) * 150
 
     def draw_ui_overlay(self, screen, player_data):
         """Draw UI overlay with player stats (legacy method - kept for compatibility)"""

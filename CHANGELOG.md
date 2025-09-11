@@ -5,7 +5,22 @@ All notable changes to this project will be documented in this file.
 - Dying needs to take credits
 - Fix Main Game sound
 
-## 09/09/2025 - v1.7
+## 09/10/2025 - v1.7.3
+### 🎮 UI Square Outline Fixes ✅
+**Fixed menu item square outlines to properly fit all text content**
+- **File: `Code/ui_components.py`** - Enhanced `draw_enhanced_menu()` function to dynamically calculate rectangle width based on actual text dimensions instead of using fixed width
+- **File: `Code/inventory_system.py`** - Updated inventory item selection highlights to size rectangles based on item text content with proper padding
+- **File: `Code/enhanced_combat_system.py`** - Fixed spell selection menu highlights to accommodate varying spell name lengths with dynamic width calculation
+- **Result**: Menu items, inventory items, and spell selection now show perfectly fitted square outlines that expand to contain all text content
+
+### 🏰 Boss Dungeon System Final Fixes ✅
+**Resolved final combat system integration issues**
+- **File: `main.py`** - Fixed `enter_boss_dungeon()` method to use correct `combat_integration` attribute instead of non-existent `enhanced_combat_manager`
+- **File: `main.py`** - Corrected GameState reference from non-existent `ENHANCED_COMBAT` to proper `FIGHT` state
+- **Result**: Boss dungeon spacebar interaction now properly starts boss battles with visual "🐉 BOSS BATTLE BEGINS! 🐉" feedback
+
+
+## 09/09/2025 - v1.7.1
 ### 🌍 Interactive Map Objects System
 - **Tree Harvesting**: Trees now provide crafting materials when interacted with using spacebar
 - **Resource Nodes**: Rocks, metal veins, streams, and brushes all provide crafting materials

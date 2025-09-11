@@ -1472,11 +1472,11 @@ class EnhancedGameManager:
             level_text = f"Level: {current_level.get_display_name()}"
             difficulty_text = f"Difficulty: {current_level.get_difficulty_description()}"
 
-            level_surface = self.ui_renderer.small_font.render(level_text, True, WHITE)
+            level_surface = self.ui_renderer.small_font.render(level_text, True, MENU_SELECTED)
             difficulty_surface = self.ui_renderer.small_font.render(difficulty_text, True, MENU_SELECTED)
 
-            level_overlay.blit(level_surface, (10, 5))
-            level_overlay.blit(difficulty_surface, (10, 20))
+            level_overlay.blit(level_surface, (10, 24))
+            # level_overlay.blit(difficulty_surface, (10, 22))
 
             # Blit level overlay below main status overlay
             self.screen.blit(level_overlay, (10, 140))
