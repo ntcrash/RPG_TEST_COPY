@@ -643,8 +643,8 @@ class EnhancedCombatManager:
         else:
             return base_damage + str_bonus, False
 
-    def calculate_spell_damage(self, spell, caster_stats):
-        """Calculate spell damage with intelligence/wisdom modifiers"""
+    def calculate_spell_damage(self, spell, caster_stats, caster_level=1):
+        """Calculate spell damage with intelligence/wisdom modifiers and level scaling"""
         base_damage = random.randint(spell.damage_min, spell.damage_max)
 
         # Intelligence modifier for damage spells
@@ -653,19 +653,26 @@ class EnhancedCombatManager:
         # Wisdom modifier for healing spells
         wis_bonus = max(0, (caster_stats.get("wisdom", 10) - 10) // 2)
 
+        # Level bonus - scales magic damage with character level
+        level_bonus = max(0, (caster_level - 1) // 2)  # +1 damage every 2 levels
+
         if spell.spell_type == "heal":
-            return base_damage + wis_bonus, False
+            total_damage = base_damage + wis_bonus + level_bonus
+            return total_damage, False
         elif spell.spell_type == "drain":
-            return base_damage + int_bonus, False
+            total_damage = base_damage + int_bonus + level_bonus
+            return total_damage, False
         else:
-            # Critical hit chance for spells
-            crit_chance = max(3, int_bonus)
+            # Critical hit chance for spells (enhanced with level)
+            crit_chance = max(3, int_bonus + (caster_level // 5))  # Slight crit chance increase with level
             is_critical = random.randint(1, 100) <= crit_chance
 
             if is_critical:
-                return int((base_damage + int_bonus) * 1.5), True
+                total_damage = int((base_damage + int_bonus + level_bonus) * 1.5)
+                return total_damage, True
             else:
-                return base_damage + int_bonus, False
+                total_damage = base_damage + int_bonus + level_bonus
+                return total_damage, False
 
     def calculate_hit_chance(self, attacker_stats, defender_stats):
         """Calculate if attack hits based on stats"""
@@ -814,7 +821,9 @@ class EnhancedCombatManager:
         self.add_combat_animation(200 if spell.spell_type == "heal" else 400, 250, "spell_circle", 75)
 
         player_stats = self.get_player_stats()
-        damage, is_critical = self.calculate_spell_damage(spell, player_stats)
+        player_level = self.character_manager.character_data.get("Level",
+                                                                 1) if self.character_manager.character_data else 1
+        damage, is_critical = self.calculate_spell_damage(spell, player_stats, player_level)
 
         if spell.spell_type == "heal":
             # Healing spell effects

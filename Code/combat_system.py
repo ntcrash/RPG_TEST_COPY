@@ -249,8 +249,8 @@ class CombatManager:
         else:
             return base_damage + str_bonus, False
 
-    def calculate_spell_damage(self, spell, caster_stats):
-        """Calculate spell damage with intelligence/wisdom modifiers - ENHANCED VERSION"""
+    def calculate_spell_damage(self, spell, caster_stats, caster_level=1):
+        """Calculate spell damage with intelligence/wisdom modifiers and level scaling - ENHANCED VERSION"""
         base_damage = random.randint(spell.damage_min, spell.damage_max)
 
         # Intelligence modifier for damage spells
@@ -259,27 +259,31 @@ class CombatManager:
         # Wisdom modifier for healing spells
         wis_bonus = max(0, (caster_stats.get("wisdom", 10) - 10) // 2)
 
-        print(f"DEBUG: Spell base damage: {base_damage}, INT bonus: {int_bonus}, WIS bonus: {wis_bonus}")
+        # Level bonus - scales magic damage with character level
+        level_bonus = max(0, (caster_level - 1) // 2)  # +1 damage every 2 levels
+
+        print(
+            f"DEBUG: Spell base damage: {base_damage}, INT bonus: {int_bonus}, WIS bonus: {wis_bonus}, Level bonus: {level_bonus}")
 
         if spell.spell_type == "heal":
-            final_damage = base_damage + wis_bonus
+            final_damage = base_damage + wis_bonus + level_bonus
             print(f"DEBUG: Heal spell final: {final_damage}")
             return final_damage, False
         elif spell.spell_type == "drain":
-            final_damage = base_damage + int_bonus
+            final_damage = base_damage + int_bonus + level_bonus
             print(f"DEBUG: Drain spell final: {final_damage}")
             return final_damage, False
         else:
-            # Critical hit chance for spells based on intelligence
-            crit_chance = max(3, int_bonus)
+            # Critical hit chance for spells based on intelligence and level
+            crit_chance = max(3, int_bonus + (caster_level // 5))  # Slight crit chance increase with level
             is_critical = random.randint(1, 100) <= crit_chance
 
             if is_critical:
-                final_damage = int((base_damage + int_bonus) * 1.5)
+                final_damage = int((base_damage + int_bonus + level_bonus) * 1.5)
                 print(f"DEBUG: CRITICAL SPELL! Final damage: {final_damage}")
                 return final_damage, True
             else:
-                final_damage = base_damage + int_bonus
+                final_damage = base_damage + int_bonus + level_bonus
                 print(f"DEBUG: Normal spell damage: {final_damage}")
                 return final_damage, False
 
@@ -444,7 +448,7 @@ class CombatManager:
         enemy_stats = self.get_enemy_stats()
 
         if self.calculate_hit_chance(player_stats, enemy_stats):
-            damage, is_critical = self.calculate_damage(15, 30, player_stats, enemy_stats)
+            damage, is_critical = self.calculate_damage(25, 45, player_stats, enemy_stats)  # Increased damage
 
             # Apply damage
             self.current_enemy["Hit_Points"] -= damage

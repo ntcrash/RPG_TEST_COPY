@@ -19,6 +19,20 @@ All notable changes to this project will be documented in this file.
 - **File: `main.py`** - Corrected GameState reference from non-existent `ENHANCED_COMBAT` to proper `FIGHT` state
 - **Result**: Boss dungeon spacebar interaction now properly starts boss battles with visual "🐉 BOSS BATTLE BEGINS! 🐉" feedback
 
+### 📊 XP Bar System Fix ✅
+**Fixed XP progress bar not updating or showing incorrect progress**
+- **Problem**: Two different XP calculation systems were conflicting - character leveling used 150 XP per level, but XP bar used complex exponential system
+- **File: `Code/ui_components.py`** - Updated `_get_xp_for_level()` method to match the simple 150 XP per level system used in `Code/game_data.py`
+- **Result**: XP bar now correctly shows progress toward next level, updating properly after combat victories and other XP gains
+
+### 🔮 Magic Damage Level Scaling ✅
+**Enhanced magic damage to scale with both player stats and level**
+- **File: `Code/enhanced_combat_system.py`** - Enhanced `calculate_spell_damage()` method to include player level parameter and level-based damage bonus
+- **File: `Code/combat_system.py`** - Updated legacy combat system's spell damage calculation to include level scaling
+- **Mechanics**: Magic damage now receives +1 damage bonus every 2 character levels (level bonus = (level-1)/2)
+- **Critical Enhancement**: Spell critical hit chance now slightly increases with level (+1% every 5 levels)
+- **Result**: All magic spells (damage, healing, drain) become more powerful as the player progresses in level, in addition to existing Intelligence/Wisdom stat bonuses
+
 
 ## 09/09/2025 - v1.7.1
 ### 🌍 Interactive Map Objects System
