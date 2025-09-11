@@ -113,7 +113,7 @@ class CraftingManager:
         if not self.character_manager.character_data:
             return False
 
-        from inventory_system import InventoryManager
+        from Code.inventory_system import InventoryManager
         inventory_manager = InventoryManager(self.character_manager)
 
         for material_name, required_quantity in recipe.materials_required.items():
@@ -126,7 +126,7 @@ class CraftingManager:
         if not self.can_craft_recipe(recipe):
             return False, "Insufficient materials!"
 
-        from inventory_system import InventoryManager
+        from Code.inventory_system import InventoryManager
         inventory_manager = InventoryManager(self.character_manager)
 
         # Remove materials from inventory
@@ -146,7 +146,7 @@ class CraftingManager:
         if not self.character_manager.character_data:
             return False
 
-        from inventory_system import InventoryManager
+        from Code.inventory_system import InventoryManager
         inventory_manager = InventoryManager(self.character_manager)
         return inventory_manager.add_item(material_name, quantity)
 

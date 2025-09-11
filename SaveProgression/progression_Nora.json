@@ -1,5 +1,8 @@
 {
     "current_world": 1,
-    "current_level": 1,
-    "unlocked_levels": []
+    "current_level": 3,
+    "unlocked_levels": [
+        "1-2",
+        "1-3"
+    ]
 }

@@ -617,9 +617,23 @@ class EnhancedStoreManager:
             actual_index = i + self.scroll_offset
             item_y = items_y_start + i * 30
 
-            # Selection highlight
+            # Selection highlight - calculate width based on content
             if actual_index == self.selected_item:
-                highlight_rect = pygame.Rect(panel_x + 10, item_y - 3, panel_width - 20, 26)
+                # Measure the text to determine proper highlight width
+                if self.mode == "buy":
+                    sample_text = f"{item.name} - {item.price} credits"
+                else:
+                    sample_text = f"{item['name']} (x{item['quantity']}) - {item['price']} credits"
+
+                text_width = self.font.get_height() # Use font height as rough estimate
+                try:
+                    text_surface = self.font.render(sample_text, True, WHITE)
+                    text_width = text_surface.get_width()
+                except:
+                    text_width = len(sample_text) * 8  # Fallback estimate
+
+                highlight_width = min(text_width + 40, panel_width - 20)  # Add padding, cap at panel width
+                highlight_rect = pygame.Rect(panel_x + 10, item_y - 3, highlight_width, 26)
                 pygame.draw.rect(screen, MENU_HIGHLIGHT, highlight_rect)
 
             if self.mode == "buy":

@@ -5,7 +5,153 @@ All notable changes to this project will be documented in this file.
 - Dying needs to take credits
 - Fix Main Game sound
 
-## 09/08/2025 v1.6
+## 09/10/2025 - v1.7.3
+### 🎮 UI Square Outline Fixes ✅
+**Fixed menu item square outlines to properly fit all text content**
+- **File: `Code/ui_components.py`** - Enhanced `draw_enhanced_menu()` function to dynamically calculate rectangle width based on actual text dimensions instead of using fixed width
+- **File: `Code/inventory_system.py`** - Updated inventory item selection highlights to size rectangles based on item text content with proper padding
+- **File: `Code/enhanced_combat_system.py`** - Fixed spell selection menu highlights to accommodate varying spell name lengths with dynamic width calculation
+- **Result**: Menu items, inventory items, and spell selection now show perfectly fitted square outlines that expand to contain all text content
+
+### 🏰 Boss Dungeon System Final Fixes ✅
+**Resolved final combat system integration issues**
+- **File: `main.py`** - Fixed `enter_boss_dungeon()` method to use correct `combat_integration` attribute instead of non-existent `enhanced_combat_manager`
+- **File: `main.py`** - Corrected GameState reference from non-existent `ENHANCED_COMBAT` to proper `FIGHT` state
+- **Result**: Boss dungeon spacebar interaction now properly starts boss battles with visual "🐉 BOSS BATTLE BEGINS! 🐉" feedback
+
+### 📊 XP Bar System Fix ✅
+**Fixed XP progress bar not updating or showing incorrect progress**
+- **Problem**: Two different XP calculation systems were conflicting - character leveling used 150 XP per level, but XP bar used complex exponential system
+- **File: `Code/ui_components.py`** - Updated `_get_xp_for_level()` method to match the simple 150 XP per level system used in `Code/game_data.py`
+- **Result**: XP bar now correctly shows progress toward next level, updating properly after combat victories and other XP gains
+
+### 🔮 Magic Damage Level Scaling ✅
+**Enhanced magic damage to scale with both player stats and level**
+- **File: `Code/enhanced_combat_system.py`** - Enhanced `calculate_spell_damage()` method to include player level parameter and level-based damage bonus
+- **File: `Code/combat_system.py`** - Updated legacy combat system's spell damage calculation to include level scaling
+- **Mechanics**: Magic damage now receives +1 damage bonus every 2 character levels (level bonus = (level-1)/2)
+- **Critical Enhancement**: Spell critical hit chance now slightly increases with level (+1% every 5 levels)
+- **Result**: All magic spells (damage, healing, drain) become more powerful as the player progresses in level, in addition to existing Intelligence/Wisdom stat bonuses
+
+
+## 09/09/2025 - v1.7.1
+### 🌍 Interactive Map Objects System
+- **Tree Harvesting**: Trees now provide crafting materials when interacted with using spacebar
+- **Resource Nodes**: Rocks, metal veins, streams, and brushes all provide crafting materials
+- **Respawn Timers**: All harvestable objects respawn after being depleted
+- **Balanced World Generation**: Reduced spawn counts for better navigation (8 trees vs 20+, fewer resource nodes)
+- **World Aesthetics**: Removed flowers entirely, replaced with grass tiles for cleaner appearance
+- **Structured Paths**: Created walking paths from center toward shop and rest areas in bottom-right
+
+### 🏰 Boss Dungeon System
+- **Boss Dungeons**: Mystical portal dungeons now spawn when all enemies are defeated in a level
+- **Level Progression**: Players must defeat a boss to unlock the next level instead of auto-completing
+- **Boss Battles**: Challenging boss enemies scaled to current world and difficulty level
+- **Enhanced Rewards**: Boss victories provide 500 base credits vs 200 for regular completion
+
+### 📁 Files Modified:
+
+#### **main.py** (Extensive Changes):
+- Added `self.dungeons = []` list for boss dungeon tracking
+- Added `self.trees = []`, `self.rocks = []`, `self.metals = []`, `self.streams = []`, `self.brushes = []` lists
+- Modified `check_level_completion()` to spawn dungeons instead of completing immediately
+- Added `complete_level_after_boss()` method for post-boss level completion
+- Added `enter_boss_dungeon()` method to trigger boss fights
+- Enhanced `check_interactive_objects()` to detect all interactive objects (trees, rocks, metals, streams, brushes, dungeons)
+- Completely rewrote `handle_map_object_interaction()` to handle spacebar harvesting and dungeon entry
+- Added dungeon drawing in `draw_game_board()` method
+- Updated tree respawn timers in `update()` method
+- Updated help instructions to include harvesting and dungeon interaction
+- Enhanced collision detection for trees and other objects
+
+#### **Code/enhanced_combat_integration.py**:
+- Modified `handle_victory()` method to detect boss fights via "Tier" == "boss"
+- Added automatic level completion when boss enemies are defeated
+- Enhanced victory messages for boss defeats with special formatting
+- Boss victories now trigger `complete_level_after_boss()` automatically
+
+#### **Code/ui_components.py**:
+- Enhanced `Tree` class with harvesting mechanics, respawn timers, and material generation
+- Enhanced `Rock` class with interactive mining and material drops
+- Enhanced `Metal` class with vein harvesting and ore generation
+- Enhanced `Stream` class with water collection mechanics
+- Enhanced `Brush` class with foliage harvesting
+- Added comprehensive `Dungeon` class with mystical portal effects, animations, and boss fight integration
+
+#### **Code/tile_map.py**:
+- Modified world generation to reduce object spawn counts
+- Removed flower generation entirely
+- Enhanced path generation toward shop and rest areas
+- Improved object placement algorithms for better navigation
+
+### 🎮 Gameplay Changes:
+- **Interactive World**: All trees, rocks, metal veins, streams, and brushes can be harvested for crafting materials
+- **Spacebar Interaction**: Universal spacebar key for harvesting resources and entering dungeons
+- **Resource Management**: Objects respawn after depletion, creating sustainable resource gathering
+- **Level Progression**: Level completion now requires defeating a boss in a mystical dungeon
+- **Boss Dungeons**: Portal entrances appear in center of map with animated magical effects
+- **Enhanced Combat**: Boss enemies provide significantly higher XP and credit rewards
+- **Cleaner Navigation**: Reduced object density for easier movement and exploration
+
+### 🎨 Visual Enhancements:
+- **Animated Trees**: Swaying animation and color changes based on harvestable status
+- **Resource Nodes**: Visual feedback showing when objects can be harvested vs depleted
+- **Mystical Dungeons**: Animated portal entrances with glowing magical effects and floating particles
+- **"BOSS DUNGEON" Text**: Golden glow effects and mystical styling
+- **Special Victory Messages**: Boss defeats show trophy emojis and enhanced formatting
+- **World Aesthetics**: Cleaner grass-based terrain without flower clutter
+- **Structured Paths**: Clear walking routes toward important areas
+
+### 🔧 Technical Improvements:
+- **Modular Object System**: All interactive objects follow consistent patterns for harvesting and respawn
+- **Boss Enemy Integration**: Proper boss scaling using existing `create_scaled_boss()` method
+- **Enhanced Combat System**: Boss fight detection via enemy "Tier" property
+- **Dungeon Architecture**: Portal objects integrate seamlessly with existing interaction system
+- **Performance Optimization**: Reduced object counts improve game performance
+- **Material Integration**: All harvested materials connect to existing crafting system
+- **State Management**: Proper tracking of object states, respawn timers, and dungeon availability
+
+### 🎯 User Experience:
+- **Clear Progression**: Clear enemies → Enter dungeon → Defeat boss → Next level
+- **Resource Gathering**: Intuitive spacebar interaction for all harvestable objects
+- **Visual Feedback**: Console messages and visual effects for all player actions
+- **Balanced Difficulty**: Higher stakes and rewards for level completion
+- **Engaging Endgame**: More exciting conclusion to each level via boss battles
+- **Maintained Features**: All existing systems (crafting, shops, rest areas) continue to work seamlessly
+
+### 📋 Console Output Examples:
+```
+Harvested: Wood
+Harvested: Iron Ore  
+Harvested: Leather
+Boss dungeon has appeared! Approach and press spacebar to enter.
+🏰 BOSS DUNGEON APPEARS! 🏰
+🐉 BOSS BATTLE BEGINS! 🐉
+🏆 BOSS DEFEATED! Level Complete! Gained 500 XP and 750 credits!
+```
+- Spacebar interaction to enter boss dungeons
+- Boss enemies provide significantly higher XP and credit rewards
+- Visual feedback for dungeon appearance and boss victories
+
+### 🎨 Visual Enhancements:
+- Animated portal entrances with glowing magical effects
+- Floating mystical particles around dungeon portals
+- "BOSS DUNGEON" text with golden glow effects
+- Special boss victory messages with trophy emojis
+
+### 🔧 Technical Improvements:
+- Proper boss enemy scaling using existing `create_scaled_boss()` method
+- Integration with enhanced combat system for boss battles
+- Dungeon objects follow same interaction pattern as other map objects
+- Boss fight detection via enemy "Tier" property
+
+### 🎯 User Experience:
+- Clear progression system: Clear enemies → Enter dungeon → Defeat boss → Next level
+- Higher stakes and rewards for level completion
+- More engaging end-game for each level
+- Maintains all existing features (harvesting, crafting, shops, rest areas)
+
+## 09/08/2025 - v1.6
 ### - Fixed v.1.6.1
 - Bug fixes, rest area, xp bar, xp when clearing world, combat increase. progression fixed to single player.
 - Cleaned up file system, renamed game_states.py to main.py

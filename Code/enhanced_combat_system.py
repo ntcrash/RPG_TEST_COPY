@@ -11,6 +11,8 @@ script_dir = Path(__file__).parent
 
 # Build paths
 sounds_dir = script_dir.parent / 'Sounds'
+
+
 # demon_file = enemies_dir / 'demon_level_1.json'
 # f"{sounds_dir}/sword_hit.wav"
 
@@ -641,8 +643,8 @@ class EnhancedCombatManager:
         else:
             return base_damage + str_bonus, False
 
-    def calculate_spell_damage(self, spell, caster_stats):
-        """Calculate spell damage with intelligence/wisdom modifiers"""
+    def calculate_spell_damage(self, spell, caster_stats, caster_level=1):
+        """Calculate spell damage with intelligence/wisdom modifiers and level scaling"""
         base_damage = random.randint(spell.damage_min, spell.damage_max)
 
         # Intelligence modifier for damage spells
@@ -651,19 +653,26 @@ class EnhancedCombatManager:
         # Wisdom modifier for healing spells
         wis_bonus = max(0, (caster_stats.get("wisdom", 10) - 10) // 2)
 
+        # Level bonus - scales magic damage with character level
+        level_bonus = max(0, (caster_level - 1) // 2)  # +1 damage every 2 levels
+
         if spell.spell_type == "heal":
-            return base_damage + wis_bonus, False
+            total_damage = base_damage + wis_bonus + level_bonus
+            return total_damage, False
         elif spell.spell_type == "drain":
-            return base_damage + int_bonus, False
+            total_damage = base_damage + int_bonus + level_bonus
+            return total_damage, False
         else:
-            # Critical hit chance for spells
-            crit_chance = max(3, int_bonus)
+            # Critical hit chance for spells (enhanced with level)
+            crit_chance = max(3, int_bonus + (caster_level // 5))  # Slight crit chance increase with level
             is_critical = random.randint(1, 100) <= crit_chance
 
             if is_critical:
-                return int((base_damage + int_bonus) * 1.5), True
+                total_damage = int((base_damage + int_bonus + level_bonus) * 1.5)
+                return total_damage, True
             else:
-                return base_damage + int_bonus, False
+                total_damage = base_damage + int_bonus + level_bonus
+                return total_damage, False
 
     def calculate_hit_chance(self, attacker_stats, defender_stats):
         """Calculate if attack hits based on stats"""
@@ -812,7 +821,9 @@ class EnhancedCombatManager:
         self.add_combat_animation(200 if spell.spell_type == "heal" else 400, 250, "spell_circle", 75)
 
         player_stats = self.get_player_stats()
-        damage, is_critical = self.calculate_spell_damage(spell, player_stats)
+        player_level = self.character_manager.character_data.get("Level",
+                                                                 1) if self.character_manager.character_data else 1
+        damage, is_critical = self.calculate_spell_damage(spell, player_stats, player_level)
 
         if spell.spell_type == "heal":
             # Healing spell effects
@@ -1263,65 +1274,108 @@ class EnhancedCombatManager:
                 spells = self.spell_manager.get_spells_for_aspect(aspect, level)
                 current_mana = self.character_manager.character_data.get("Aspect1_Mana", 0)
 
-                # Enhanced spell menu background
+                # Pre-compute all spell surfaces and find widest entry
+                spell_entries = []
+                max_width = 0
+
+                for spell in spells:
+                    can_cast = current_mana >= spell.mana_cost
+
+                    # Spell icon based on type - simplified to avoid emoji width issues
+                    if "fire" in spell.name.lower() or "flame" in spell.name.lower():
+                        spell_prefix = "[Fire]"
+                    elif "heal" in spell.name.lower():
+                        spell_prefix = "[Heal]"
+                    elif "ice" in spell.name.lower() or "frost" in spell.name.lower():
+                        spell_prefix = "[Ice]"
+                    elif "lightning" in spell.name.lower():
+                        spell_prefix = "[Lightning]"
+                    else:
+                        spell_prefix = "[Magic]"
+
+                    # Create complete spell text and render surface
+                    spell_text = f"{spell_prefix} {spell.name} ({spell.mana_cost} MP)"
+                    color = WHITE if can_cast else GRAY
+                    text_surface = self.font.render(spell_text, True, color)
+
+                    # Store entry data
+                    entry = {
+                        'surface': text_surface,
+                        'width': text_surface.get_width(),
+                        'height': text_surface.get_height(),
+                        'can_cast': can_cast,
+                        'spell': spell
+                    }
+                    spell_entries.append(entry)
+                    max_width = max(max_width, entry['width'])
+
+                # Dynamic menu sizing based on content
+                padding = 20
+                menu_width = max_width + (padding * 4)  # Extra padding for comfort
                 menu_height = len(spells) * 45 + 80
-                menu_bg = pygame.Rect(40, 210, 400, menu_height)
+                menu_x = 40
+                menu_y = 210
+
+                # Enhanced spell menu background - dynamically sized
+                menu_bg = pygame.Rect(menu_x, menu_y, menu_width, menu_height)
                 pygame.draw.rect(screen, (20, 10, 30, 220), menu_bg)
                 pygame.draw.rect(screen, (100, 50, 150), menu_bg, 2)
 
-                spell_y = 220
+                spell_y = menu_y + 10
                 spell_title = self.font.render("Choose Spell:", True, PURPLE)
-                screen.blit(spell_title, (50, spell_y))
+                screen.blit(spell_title, (menu_x + 10, spell_y))
                 spell_y += 30
 
-                for i, spell in enumerate(spells):
-                    can_cast = current_mana >= spell.mana_cost
+                # Draw spell entries with properly sized highlights
+                text_x = menu_x + padding
 
-                    # Selection highlight
+                for i, entry in enumerate(spell_entries):
+                    current_y = spell_y + i * 45
+
+                    # Selection highlight - covers full text width
                     if i == self.selected_spell:
-                        highlight_rect = pygame.Rect(65, spell_y + i * 45 - 2, 350, 40)
-                        highlight_color = GREEN if can_cast else RED
+                        highlight_color = GREEN if entry['can_cast'] else RED
+                        highlight_rect = pygame.Rect(text_x - 5, current_y - 2, entry['width'] + 10,
+                                                     entry['height'] + 4)
                         pygame.draw.rect(screen, (30, 20, 30), highlight_rect)
                         pygame.draw.rect(screen, highlight_color, highlight_rect, 2)
+
+                        # Re-render text with highlight color for selected spell
                         color = highlight_color
+                        spell_prefix = "[Fire]" if "fire" in entry['spell'].name.lower() or "flame" in entry[
+                            'spell'].name.lower() else (
+                            "[Heal]" if "heal" in entry['spell'].name.lower() else (
+                                "[Ice]" if "ice" in entry['spell'].name.lower() or "frost" in entry[
+                                    'spell'].name.lower() else (
+                                    "[Lightning]" if "lightning" in entry['spell'].name.lower() else "[Magic]")))
+                        spell_text = f"{spell_prefix} {entry['spell'].name} ({entry['spell'].mana_cost} MP)"
+                        text_surface = self.font.render(spell_text, True, color)
+                        screen.blit(text_surface, (text_x, current_y))
                     else:
-                        color = WHITE if can_cast else GRAY
+                        # Use pre-computed surface
+                        screen.blit(entry['surface'], (text_x, current_y))
 
-                    # Spell icon based on type
-                    if "fire" in spell.name.lower() or "flame" in spell.name.lower():
-                        spell_icon = "🔥"
-                    elif "heal" in spell.name.lower():
-                        spell_icon = "💚"
-                    elif "ice" in spell.name.lower() or "frost" in spell.name.lower():
-                        spell_icon = "❄️"
-                    elif "lightning" in spell.name.lower():
-                        spell_icon = "⚡"
+                    # Show damage range with small font
+                    if entry['spell'].spell_type == "heal":
+                        damage_text = f"Heals {entry['spell'].damage_min}-{entry['spell'].damage_max}"
                     else:
-                        spell_icon = "✨"
-
-                    spell_text = f"{spell_icon} {spell.name} ({spell.mana_cost} MP)"
-                    text_surface = self.font.render(spell_text, True, color)
-                    screen.blit(text_surface, (70, spell_y + i * 45))
-
-                    # Show damage range
-                    if spell.spell_type == "heal":
-                        damage_text = f"Heals {spell.damage_min}-{spell.damage_max}"
-                    else:
-                        damage_text = f"Damage: {spell.damage_min}-{spell.damage_max}"
+                        damage_text = f"Damage: {entry['spell'].damage_min}-{entry['spell'].damage_max}"
 
                     damage_surface = self.small_font.render(damage_text, True, MENU_TEXT)
-                    screen.blit(damage_surface, (90, spell_y + i * 45 + 18))
+                    screen.blit(damage_surface, (text_x + 20, current_y + 18))
 
                     # Show spell description for selected spell
                     if i == self.selected_spell:
-                        desc_surface = self.small_font.render(spell.description, True, color)
-                        screen.blit(desc_surface, (90, spell_y + i * 45 + 32))
+                        desc_color = GREEN if entry['can_cast'] else RED
+                        desc_surface = self.small_font.render(entry['spell'].description, True, desc_color)
+                        screen.blit(desc_surface, (text_x + 20, current_y + 32))
 
                 # Instructions with enhanced styling
-                instruction_bg = pygame.Rect(40, spell_y + len(spells) * 45 + 10, 400, 25)
+                instruction_y = spell_y + len(spells) * 45 + 10
+                instruction_bg = pygame.Rect(menu_x, instruction_y, menu_width, 25)
                 pygame.draw.rect(screen, (40, 20, 40), instruction_bg)
                 instruction = self.small_font.render("ENTER: Cast  ESC: Back  ↑↓: Navigate", True, WHITE)
-                screen.blit(instruction, (50, spell_y + len(spells) * 45 + 15))
+                screen.blit(instruction, (menu_x + 10, instruction_y + 5))
 
         elif self.combat_phase == "select_item":
             # Draw item selection menu
