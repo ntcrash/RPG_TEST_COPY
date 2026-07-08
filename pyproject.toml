@@ -1,0 +1,58 @@
+# Magitech RPG — project tooling config
+#
+# This file currently holds only the Ruff linter configuration (roadmap P2 #10).
+# The game itself is not packaged/installed; it runs directly via
+# `python main.py` (pygame) or `python arcade_app.py` (Arcade). Dependencies
+# live in requirements.txt; dev-only tools live in requirements-dev.txt.
+
+[tool.ruff]
+# Match the runtime the README/requirements target.
+target-version = "py311"
+
+# Generous width: this is a large legacy codebase (main.py alone is ~1,950
+# lines). We are NOT enforcing a style reformat here — the goal is cheap,
+# high-signal detection of dead code and unused imports before larger
+# refactors, per ROADMAP.md P2 #10.
+line-length = 120
+
+# Never lint vendored, generated, or non-source content.
+extend-exclude = [
+    "venv",
+    "__pycache__",
+    "Books",
+    "assets",
+    "Images",
+    "Sounds",
+    "Characters",
+    "Enemies",
+    "SaveProgression",
+]
+
+[tool.ruff.lint]
+# Conservative, high-signal rule set:
+#   F   pyflakes      — unused imports (F401), unused/undefined names,
+#                       f-strings without placeholders, redefinitions, etc.
+#   E9  syntax errors — anything Ruff can't even parse (IOError/SyntaxError)
+#   B   flake8-bugbear (subset via B) — likely bugs (mutable defaults, etc.)
+# Style rules (E1/E2/E3/E7, W) are intentionally left OFF for now to avoid a
+# noisy reformat diff; they can be enabled in a dedicated style pass later.
+select = ["F", "E9", "B"]
+
+# Legacy-codebase pragmatics — silence patterns that are pervasive here and
+# not worth churning in this pass:
+ignore = [
+    "B008",  # function call in default argument (pygame Rect/Color defaults)
+    "B905",  # zip() without strict= (py3.10+ only; fine for this project)
+    # The whole codebase intentionally distributes its `pygame` binding via
+    # `from Code.ui_components import *` (the documented v2.0.5 backend switch),
+    # so F403/F405 fire on essentially every pygame call — ~484 findings of
+    # pure noise. Silence them so the report surfaces real dead code instead.
+    "F403",  # undefined-local-with-import-star (the star import itself)
+    "F405",  # name may be undefined, or defined from a star import
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests deliberately import modules for their side effects / patching.
+"tests/*" = ["F401", "F811"]
+# Package re-export shims may import names purely to re-expose them.
+"**/__init__.py" = ["F401"]

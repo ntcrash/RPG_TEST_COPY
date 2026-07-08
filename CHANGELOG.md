@@ -3,6 +3,16 @@ All notable changes to this project will be documented in this file.
 
 ## - ToDo
 - Replace 0-byte placeholder SFX (player_hurt, run_away, victory, menu_select, menu_move, door_open)
+- Fix the 43 Ruff findings surfaced by the new linter (13 unused imports, 12 unused variables, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only
+
+## 07/08/2026 - v2.1.2
+### 🧹 Added a Ruff linter config (roadmap P2 #10)
+**The codebase is large (`main.py` alone is ~1,950 lines) with no enforced style or dead-code check, so unused imports and stray dead code accumulated silently before every refactor.**
+- **New `pyproject.toml`** with a `[tool.ruff]` section — the project's first tooling config. Targets `py311`, `line-length = 120`, and excludes vendored/generated/content dirs (`venv`, `__pycache__`, `Books`, `assets`, `Images`, `Sounds`, `Characters`, `Enemies`, `SaveProgression`).
+- **High-signal, low-noise rule set**: `select = ["F", "E9", "B"]` (pyflakes dead-code/unused-import/undefined-name checks, syntax errors, and flake8-bugbear likely-bugs). Style rules (E1/E2/E3/E7, W) are deliberately left OFF so this is not a reformat diff.
+- **Silenced the star-import noise**: the whole game distributes its `pygame` binding via `from Code.ui_components import *` (the documented v2.0.5 backend switch), which makes `F403`/`F405` fire on essentially every pygame call — **484 of 527 raw findings were that pattern**. Ignoring `F403`/`F405` (plus `B008`/`B905`) drops the report to **43 real findings**: 13 unused imports, 12 unused variables, 13 unused loop control vars, 4 f-strings without placeholders, 1 redefinition. Per-file ignores relax `F401`/`F811` in `tests/` and `F401` in `__init__.py` re-export shims.
+- **New `requirements-dev.txt`** — dev-only tools (`ruff>=0.15`) kept separate from the runtime `requirements.txt` so playing the game needs no linter install.
+- **Scope note**: this change adds the config only; the 43 findings it surfaces are logged under ToDo above for a dedicated cleanup pass (17 are Ruff `--fix`-safe). Run with `ruff check .`. Tests still green (36/36); `py_compile` clean. See ROADMAP.md P2 #10 (moved to Done).
 
 ## 07/08/2026 - v2.1.1
 ### 🧪 Added a minimal unit-test suite (roadmap P2 #8)

@@ -1,0 +1,11 @@
+# Magitech RPG — development-only dependencies.
+# Install with:  pip install -r requirements-dev.txt
+#
+# Runtime deps (pygame/arcade) live in requirements.txt; these tools are only
+# needed for linting/testing, not to play the game.
+
+# Linter — config lives in pyproject.toml ([tool.ruff]). Run: ruff check .
+ruff>=0.15
+
+# Test suite runs on the standard-library `unittest` (no runner needed):
+#   python -m unittest discover -s tests -v
