@@ -4,12 +4,15 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 
 ## How to work this list
 
-- Gitflow: branch every item off `develop` as `feature/<slug>` (or `hotfix/<slug>` for P0 bugs), never commit directly to `main` or `develop`.
-- Version every merge: bump the version in `CHANGELOG.md` following the existing `MM/DD/YYYY - vX.Y.Z` convention and tag releases going forward (only `v1.3.0` and `v1.4` are currently tagged, despite releases through v1.7.4 — start tagging again from the next release).
-- Push every commit to `origin` per project convention.
+- Gitflow: branch every item off `develop` as `feature/<slug>` (or `hotfix/<slug>` for P0 bugs), never commit directly to `main`.
+- Version every merge: bump the version in `CHANGELOG.md` following the existing `MM/DD/YYYY - vX.Y.Z` convention and tag releases going forward
+- Push every commit to `develop` per project convention.
 - Check an item off by moving it to a `## Done` section with the commit hash and date, not by deleting it.
 
 ---
+
+## v2.0.1 - Move to Arcade
+- move code from pygame to Arcade
 
 ## P0 — Known bugs (carried from CHANGELOG.md ToDo)
 
@@ -43,6 +46,15 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 
 ---
 
+### 🎨 Visual Enhancements:
+- **Animated Trees**: Swaying animation and color changes based on harvestable status
+- **Resource Nodes**: Visual feedback showing when objects can be harvested vs depleted
+- **Mystical Dungeons**: Animated portal entrances with glowing magical effects and floating particles
+- **"BOSS DUNGEON" Text**: Golden glow effects and mystical styling
+- **Special Victory Messages**: Boss defeats show trophy emojis and enhanced formatting
+- **World Aesthetics**: Cleaner grass-based terrain without flower clutter
+- **Structured Paths**: Clear walking routes toward important areas
+
 ## Done
 
-_(move completed items here with commit hash + date)_
+_(move completed items to CHANGELOG.md)
