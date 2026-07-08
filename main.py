@@ -755,6 +755,29 @@ class EnhancedGameManager:
             return True
         return False
 
+    def enter_game_board_for_current_level(self):
+        """Enter the game board on the character's last-played (persisted) level.
+
+        LevelManager.load_progression() restores current_world/current_level for
+        the selected character, but the world must be rebuilt for that level
+        before entering play; otherwise the player always spawns into the default
+        1-1 world set up at startup. Called after loading/creating a character.
+        """
+        # Reset player to world center for the loaded level
+        self.animated_player.x = 480
+        self.animated_player.y = 480
+
+        # Build the world for the persisted (last-played) level
+        self.setup_world_for_current_level()
+
+        # Snap the camera to the player
+        self.camera.update(
+            self.animated_player.x + self.animated_player.display_width // 2,
+            self.animated_player.y + self.animated_player.display_height // 2
+        )
+
+        self.current_state = GameState.GAME_BOARD
+
     def change_level(self, world, level):
         """Change to a specific level"""
         if self.level_manager.set_current_level(world, level):
@@ -887,7 +910,8 @@ class EnhancedGameManager:
                         # Update level manager with character-specific progression
                         character_name = self.character_manager.character_data.get('Name')
                         self.level_manager.set_character(character_name)
-                        self.current_state = GameState.GAME_BOARD
+                        # Spawn into the character's last-played level (roadmap P1 #4)
+                        self.enter_game_board_for_current_level()
                     else:
                         print(f"Failed to load character: {selected_char}")
 
@@ -905,7 +929,8 @@ class EnhancedGameManager:
                         # Update level manager with character-specific progression
                         character_name = self.character_manager.character_data.get('Name')
                         self.level_manager.set_character(character_name)
-                        self.current_state = GameState.GAME_BOARD
+                        # Spawn into the character's last-played level (roadmap P1 #4)
+                        self.enter_game_board_for_current_level()
                     else:
                         print("Failed to create character")
 

@@ -17,7 +17,6 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 
 1. [Release] **Continue to migrate the code from pygame to Arcade** Keep working on this step until it has been completely migrated. 
 3. [Hotfix] **Fix Spawn items so they are always accessible**
-4. [Feature] **Character should spawn into last level played** unless selected another level.
 7. [Hotfix] **Add `requirements.txt`** — no dependency manifest exists; README states pygame 2.6.1 on Python 3.11 as the only real dependency, but pinning it removes an onboarding/automation guesswork step.
 
 ## P2 — Testing & CI (enables safe automated changes)
@@ -61,6 +60,7 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 
 ## Done
 
+- **Character spawns into last level played** (P1 #4) — done 07/08/2026 on `feature/spawn-last-level`, released as v2.1.0. `LevelManager` already persists `current_world`/`current_level` per character (`SaveProgression/progression_<name>.json`) and restores it on `set_character()`, but the character-select and character-create paths jumped straight to `GAME_BOARD` without rebuilding the world, so players always spawned into the default 1-1 world built at startup. Added `enter_game_board_for_current_level()` (rebuilds the world for the persisted level, recenters the player, snaps the camera) and called it from both the load-character and create-character paths. Explicit level selection is unchanged (still routes through `change_level`). See CHANGELOG.md.
 - **Save-file tracking policy** (P1 #5) — done 07/08/2026 on `hotfix/save-file-policy`, released as v2.0.6. Decided runtime saves are live per-player state, not versioned source: gitignored `Characters/*.json` + `SaveProgression/*.json`, untracked the five previously committed saves via `git rm --cached`, and added `.gitkeep` to both dirs so a fresh clone keeps the folders. Loader already discovers characters by scanning the dir, so nothing depends on a committed save. See CHANGELOG.md.
 - **Resource regeneration too fast** (P4 #16) — done 07/07/2026 on `hotfix/resource-regen-rate`, released as v2.0.4. Respawn timers were minutes×60 (seconds) but the loop runs at 15 FPS, so nodes regrew 15× too fast (~40–80s vs. intended 10–20 min). Corrected `max_respawn_time` in `Code/ui_components.py` (Tree/Stream/Rock/Metal/Brush) and `Code/crafting_system.py` (ResourceNode) to true 15-FPS frame counts. See CHANGELOG.md.
 - **Remove/gate debug output** (P1 #6) — done 07/07/2026 on `feature/gate-debug-output`, released as v1.7.8. Added `Code/debug.py` with a DEBUG flag (off by default, opt-in via `MEGITECH_DEBUG` env var) and a `debug_print()` helper; replaced all 19 unconditional `print(f"DEBUG: ...")` calls in `Code/combat_system.py` (14) and `Code/settings_system.py` (5). See CHANGELOG.md.

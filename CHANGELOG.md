@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Replace 0-byte placeholder SFX (player_hurt, run_away, victory, menu_select, menu_move, door_open)
 
+## 07/08/2026 - v2.1.0
+### ✨ Characters now spawn into their last-played level (roadmap P1 #4)
+**Loading (or creating) a character sent the player straight to the game board without rebuilding the world, so every character spawned into the default World 1-1 regardless of how far they'd progressed.**
+- **Root cause**: `LevelManager` already persists `current_world`/`current_level` per character in `SaveProgression/progression_<name>.json` and restores it via `set_character()` → `load_progression()`. But the `CHARACTER_SELECT` and `CREATE_CHARACTER` key-handlers set `current_state = GameState.GAME_BOARD` *without* calling `setup_world_for_current_level()`. The world had only been built once, at startup, for the default 1-1 level — so the restored progression pointer was ignored and the player always landed in 1-1.
+- **File: `main.py`** — added `enter_game_board_for_current_level()`: recenters the player (480, 480), calls `setup_world_for_current_level()` to regenerate the world/enemies/theme for the persisted level, snaps the camera to the player, then enters `GAME_BOARD`. Mirrors the world-setup half of `change_level()`.
+- **File: `main.py`** — both the load-character and create-character paths now call `enter_game_board_for_current_level()` after `set_character()` instead of setting the state inline.
+- **Unchanged**: explicit level selection still routes through `change_level()` (the "unless selected another level" case), and a brand-new character correctly starts in 1-1 (its fresh progression defaults there).
+- **Verification**: `py_compile` clean; a headless progression round-trip test confirms a character advanced to World 2-3 has that level restored on re-select, which `enter_game_board_for_current_level()` then builds. See ROADMAP.md P1 #4 (moved to Done).
+
 ## 07/08/2026 - v2.0.6
 ### 🧹 Save-file tracking policy — runtime saves are no longer versioned (roadmap P1 #5)
 **`Characters/*.json` and `SaveProgression/*.json` were tracked in git, so every local playtest produced a noisy uncommitted diff (character level/credits/inventory churn) that had nothing to do with code changes and risked clobbering another machine's saves on merge.**
