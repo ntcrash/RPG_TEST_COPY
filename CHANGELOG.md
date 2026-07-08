@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Replace 0-byte placeholder SFX (player_hurt, run_away, victory, menu_select, menu_move, door_open)
 
+## 07/07/2026 - v2.0.1
+### 🚀 MAJOR: pygame → Arcade migration — foundation (Roadmap: GUI backend swap)
+**Beginning the move from pygame to Arcade 3.x. This release lays the foundation; the legacy pygame path stays fully runnable while modules migrate one at a time.**
+- **File: `Code/version.py`** (new) - Central single-source-of-truth for the game version (`__version__ = "2.0.1"`), window `CAPTION`, and active render `BACKEND`. Replaces scattered hardcoded version strings.
+- **File: `Code/gfx.py`** (new) - pygame→Arcade compatibility/rendering shim. Emulates the exact slice of the pygame surface/draw/font API the codebase uses (`Surface.fill/blit/get_rect/set_alpha`, `draw.rect/circle/polygon/line/lines/ellipse`, `font.Font.render`, `image.load`, `transform.scale`, key + event constants) backed by Arcade draw calls. Handles the pygame(top-left, y-down) → Arcade(bottom-left, y-up) coordinate flip automatically so per-module migration is mechanical rather than a rewrite.
+- **File: `arcade_app.py`** (new) - New Arcade `Window` entry point. Replaces main.py's hand-rolled `while running:` loop with `on_update`/`on_draw` callbacks, throttled to the original 15 Hz logic tick. Translates Arcade (pyglet) key + text events into the pygame-shaped events the existing `EnhancedGameManager` state machine already consumes — the game's state machine runs unchanged on the Arcade loop. Includes an on-screen backend/state overlay so the window is never blank during migration.
+- **File: `main.py`** - Window caption now sourced from `Code.version.CAPTION` (central version) instead of a hardcoded string. No behavior change; `python main.py` still runs the legacy pygame build.
+- **File: `requirements.txt`** (new) - Pins both backends during transition: `pygame>=2.5`, `arcade>=3.3`.
+- **Migration path**: each render module (`ui_components`, `tile_map`, combat, inventory, store, rest, settings, crafting, character_creation, animated_player) will be ported `import pygame` → `from Code import gfx as pygame`, committed individually per gitflow, until pygame is fully retired.
+- **⚠️ Verification pending on-device**: this sandbox has no display and no Arcade install; `pip install arcade` then `python arcade_app.py` on the Mac is required to smoke-test the window/loop/input foundation.
+
 ## 07/07/2026 - v1.7.8
 ### 🐞 Gate Debug Output (Roadmap P1 #6) ✅
 **Verbose developer diagnostics no longer spam the player console**

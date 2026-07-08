@@ -1,0 +1,7 @@
+# Magitech RPG dependencies
+#
+# During the v2.x pygame -> Arcade migration BOTH backends are installed:
+#   * pygame  -> legacy entry point (python main.py), removed once migration completes
+#   * arcade  -> new entry point (python arcade_app.py)
+pygame>=2.5
+arcade>=3.3

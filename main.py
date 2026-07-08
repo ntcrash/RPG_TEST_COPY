@@ -13,6 +13,7 @@ from Code.rest_system import RestManager, EnhancedRestArea
 from Code.level_system import LevelManager, WorldLevelGenerator, LevelSelectScreen
 from Code.settings_system import SettingsIntegration
 from Code.inventory_system import StoreIntegration
+from Code.version import CAPTION, __version__
 
 
 class GameState:
@@ -68,7 +69,7 @@ class EnhancedGameManager:
         # Screen settings
         self.WIDTH, self.HEIGHT = 800, 600
         self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
-        pygame.display.set_caption("Magitech RPG - Multi-Level Edition")
+        pygame.display.set_caption(CAPTION)
 
         # Game state
         self.current_state = GameState.OPENING

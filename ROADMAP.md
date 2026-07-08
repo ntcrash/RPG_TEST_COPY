@@ -57,6 +57,10 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 41. [Feature] **Add account creation** Add account, and characters under the account for multi player, single player should not change
 
 
+## In Progress
+
+- **pygame → Arcade GUI migration** (MAJOR, v2.x) — started 07/07/2026 on `feature/v2-arcade`, foundation released as **v2.0.1**. Added `Code/version.py` (central `__version__`), `Code/gfx.py` (pygame→Arcade compat shim with automatic y-axis flip), and `arcade_app.py` (new `arcade.Window` entry point driving the existing state machine at 15 Hz via translated key/text events). Legacy `python main.py` (pygame) stays runnable throughout. **Remaining**: port each render module (`ui_components`, `tile_map`, `enhanced_combat_system`, `inventory_system`, `store_system`, `rest_system`, `settings_system`, `crafting_system`, `character_creation`, `animated_player`, `level_system`, `combat_system`) from `import pygame` → `from Code import gfx as pygame`, one commit each, then retire pygame. On-device `pip install arcade && python arcade_app.py` smoke test still pending.
+
 ## Done
 
 - **Remove/gate debug output** (P1 #6) — done 07/07/2026 on `feature/gate-debug-output`, released as v1.7.8. Added `Code/debug.py` with a DEBUG flag (off by default, opt-in via `MEGITECH_DEBUG` env var) and a `debug_print()` helper; replaced all 19 unconditional `print(f"DEBUG: ...")` calls in `Code/combat_system.py` (14) and `Code/settings_system.py` (5). See CHANGELOG.md.
