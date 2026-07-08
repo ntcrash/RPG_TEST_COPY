@@ -285,7 +285,7 @@ class CraftingIntegration:
 class CraftingNode:
     """Harvestable crafting material node on the world map"""
 
-    def __init__(self, x, y, material_name, respawn_time=3000):
+    def __init__(self, x, y, material_name, respawn_time=4500):
         import math
         self.x = x
         self.y = y
@@ -295,7 +295,7 @@ class CraftingNode:
         self.active = True
         self.respawn_timer = 0
         # self.max_respawn_time = respawn_time  # 5 minutes at 15 FPS
-        self.max_respawn_time = 3000  # 5 minutes at 15 FPS
+        self.max_respawn_time = 4500  # 5 minutes at 15 FPS (300s * 15)
 
         # Material colors based on type
         material_colors = {

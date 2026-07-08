@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Replace 0-byte placeholder SFX (player_hurt, run_away, victory, menu_select, menu_move, door_open)
 
+## 07/07/2026 - v2.0.4
+### 🐞 Resource regeneration was ~15× too fast (roadmap P4 #16)
+**Harvestable resource nodes respawned every 40–80 seconds instead of the 10–20 minutes their own comments claimed.**
+- **Root cause**: respawn timers were computed as `minutes * 60` (i.e. *seconds*) but the game loop runs at 15 FPS (`clock.tick(15)`), so each value was consumed as *frames* and ran 15× too fast.
+- **File: `Code/ui_components.py`** — corrected `max_respawn_time` to true 15-FPS frame counts: Tree & Stream 600→9000 (10 min), Rock 900→13500 (15 min), Metal 1200→18000 (20 min), Brush 750→11250 (12.5 min).
+- **File: `Code/crafting_system.py`** — `ResourceNode` respawn 3000→4500 (default arg and `max_respawn_time`), now a true 5 minutes at 15 FPS.
+- Effect: harvested trees, rocks, metal, streams, brush, and crafting material nodes now take their intended real-world minutes to regrow, making resources a meaningful constraint again.
+
 ## 07/07/2026 - v2.0.3
 ### 🐞 Arcade foundation hotfix — pygame/Arcade OpenGL context conflict
 **`python arcade_app.py` opened the window then crashed with `pyglet.gl.lib.GLException: No GL context; create a Window first`.**

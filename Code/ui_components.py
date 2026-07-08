@@ -212,7 +212,7 @@ class Tree:
         self.active = True
         self.harvestable = True
         self.respawn_timer = 0
-        self.max_respawn_time = 600  # 10 minutes
+        self.max_respawn_time = 9000  # 10 minutes at 15 FPS (600s * 15)
         self.material = "Wood"
         self.collision_rect = pygame.Rect(x + 10, y + 35, 20, 25)  # Smaller collision for trunk only
 
@@ -322,7 +322,7 @@ class Rock:
         self.active = True
         self.harvestable = True
         self.respawn_timer = 0
-        self.max_respawn_time = 900  # 15 minutes at 15 fps
+        self.max_respawn_time = 13500  # 15 minutes at 15 FPS (900s * 15)
         self.collision_rect = pygame.Rect(x + 2, y + 2, 31, 31)
 
         # Rock colors based on type
@@ -402,7 +402,7 @@ class Metal:
         self.active = True
         self.harvestable = True
         self.respawn_timer = 0
-        self.max_respawn_time = 1200  # 20 minutes
+        self.max_respawn_time = 18000  # 20 minutes at 15 FPS (1200s * 15)
         self.collision_rect = pygame.Rect(x + 2, y + 2, 26, 36)
 
         # Metal types and materials
@@ -481,7 +481,7 @@ class Stream:
         self.active = True
         self.harvestable = True
         self.respawn_timer = 0
-        self.max_respawn_time = 600  # 10 minutes
+        self.max_respawn_time = 9000  # 10 minutes at 15 FPS (600s * 15)
         self.collision_rect = pygame.Rect(x, y, self.width, self.height)
         self.material = "Crystal Fragment"  # Water crystals
         self.flow_offset = random.randint(0, 100)
@@ -551,7 +551,7 @@ class Brush:
         self.active = True
         self.harvestable = True
         self.respawn_timer = 0
-        self.max_respawn_time = 750  # 12.5 minutes
+        self.max_respawn_time = 11250  # 12.5 minutes at 15 FPS (750s * 15)
         self.collision_rect = pygame.Rect(x + 3, y + 3, 26, 26)
         self.materials = ["Wood", "Cloth", "Leather", "Phoenix Feather", "Dragon Scale"]
 
