@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Replace 0-byte placeholder SFX (player_hurt, run_away, victory, menu_select, menu_move, door_open)
 
+## 07/07/2026 - v2.0.3
+### 🐞 Arcade foundation hotfix — pygame/Arcade OpenGL context conflict
+**`python arcade_app.py` opened the window then crashed with `pyglet.gl.lib.GLException: No GL context; create a Window first`.**
+- **Root cause**: `EnhancedGameManager.__init__` still calls `pygame.display.set_mode()` (needed so un-migrated modules can build fonts/convert images). On a real SDL video driver that creates a *second* OpenGL context and makes it current, stealing the context from Arcade/pyglet — so Arcade's `self.clear()` had no GL context.
+- **File: `arcade_app.py`** - Set `SDL_VIDEODRIVER=dummy` before pygame's display initializes, giving pygame a valid off-screen video mode (surface/convert/font ops still work) with no real GL context to steal. Audio driver untouched, so sound still works. Also call `self.switch_to()` after building the manager to reclaim pyglet's GL context.
+- **Note**: the per-frame `draw() error: argument 1 must be pygame.surface.Surface, not Surface` messages are expected and harmless during migration — they are un-migrated modules calling real pygame draw on the gfx shim surface, caught so the window stays alive. They disappear module-by-module as each is ported to `Code.gfx`.
+
 ## 07/07/2026 - v2.0.2
 ### 🐞 Arcade foundation hotfix — Window.screen attribute collision
 **`python arcade_app.py` crashed on launch with `AttributeError: can't set attribute`.**

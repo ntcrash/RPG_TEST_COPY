@@ -28,6 +28,18 @@ RUN IT (on the Mac, not the sandbox):
     python arcade_app.py
 """
 
+import os
+
+# CRITICAL: run pygame's display under SDL's headless "dummy" video driver.
+# The un-migrated modules still call pygame.display.set_mode(), pygame image
+# .convert_alpha(), pygame.font, etc. On a real driver that creates a second
+# OpenGL context which steals the current context from Arcade/pyglet, causing
+# "No GL context; create a Window first" the moment Arcade draws. The dummy
+# driver gives pygame a valid off-screen video mode (so surface/convert/font
+# ops work) WITHOUT any real GL context. Must be set before pygame.display
+# initializes. Audio (SDL_AUDIODRIVER) is untouched, so game sound still works.
+os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+
 import arcade
 
 from Code import gfx
@@ -87,6 +99,10 @@ class MagitechWindow(arcade.Window):
         self.game = EnhancedGameManager()
         # Redirect the manager's render target from its pygame surface to ours.
         self.game.screen = self._surface
+
+        # pygame.display.init (dummy driver) may have made an SDL context current
+        # during construction; reclaim pyglet's GL context so Arcade can draw.
+        self.switch_to()
 
         self._accum = 0.0
 
