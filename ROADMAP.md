@@ -21,9 +21,7 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 
 ## P1 — Repo hygiene (blocks safe automation)
 
-3. **Add a `.gitignore`** — none exists today. At minimum ignore `**/__pycache__/`, `*.pyc`, `venv/`, `.idea/`, `.DS_Store`.
-4. **Untrack committed `.pyc` files** — 13 compiled bytecode files under `Code/__pycache__/` are currently tracked in git and show up as noisy diffs on every run (`git rm -r --cached Code/__pycache__`). Do this in the same commit as #3.
-5. **Decide on save-file tracking policy** — `Characters/*.json` and `SaveProgression/*.json` are tracked in git and change on every local playtest (seen in current uncommitted diff: `nora.json`, `vozy.json`, `progression_Nora.json`). Either gitignore actual save state and commit only fixture/sample data, or explicitly document that these are meant to be versioned as save snapshots.
+3. **Decide on save-file tracking policy** — `Characters/*.json` and `SaveProgression/*.json` are tracked in git and change on every local playtest (seen in current uncommitted diff: `nora.json`, `vozy.json`, `progression_Nora.json`). Either gitignore actual save state and commit only fixture/sample data, or explicitly document that these are meant to be versioned as save snapshots.
 6. **Remove/gate debug output** — 19 `print(f"DEBUG: ...")` statements in `Code/combat_system.py` (14) and `Code/settings_system.py` (5) run unconditionally. Wrap behind a `DEBUG` flag in `settings_system.py` or Python's `logging` module at DEBUG level.
 7. **Add `requirements.txt`** — no dependency manifest exists; README states pygame 2.6.1 on Python 3.11 as the only real dependency, but pinning it removes an onboarding/automation guesswork step.
 
@@ -56,5 +54,7 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 - **Structured Paths**: Clear walking routes toward important areas
 
 ## Done
+
+- **Add a `.gitignore`** + **Untrack committed `.pyc` files** (P1 #3 & #4) — done 07/07/2026 on `feature/repo-hygiene`, released as v1.7.5. See CHANGELOG.md.
 
 _(move completed items to CHANGELOG.md)

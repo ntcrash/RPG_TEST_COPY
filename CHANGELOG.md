@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 - Dying needs to take credits
 - Fix Main Game sound
 
+## 07/07/2026 - v1.7.5
+### 🧹 Repo Hygiene (Roadmap items #3 & #4) ✅
+**Added .gitignore and removed compiled bytecode from version control**
+- **File: `.gitignore`** (new) - Ignores `__pycache__/`, `*.pyc`, `venv/`, `.idea/`, `.vscode/`, `.DS_Store`, and build artifacts
+- **Untracked**: 13 compiled `.pyc` files under `Code/__pycache__/` and `assets/__pycache__/` plus root `.DS_Store` removed from git tracking (`git rm --cached`) - files remain on disk but no longer generate noisy diffs
+- **File: `main.py`** - Main menu subtitle updated to "Start your Adventure NOW!"
+- **Note**: Save-file tracking policy (`Characters/*.json`, `SaveProgression/*.json`) intentionally left unchanged pending roadmap item #5 decision
+
 ## 09/10/2025 - v1.7.3
 ### 🎮 UI Square Outline Fixes ✅
 **Fixed menu item square outlines to properly fit all text content**

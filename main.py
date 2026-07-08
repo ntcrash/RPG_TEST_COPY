@@ -1327,7 +1327,7 @@ class EnhancedGameManager:
         self.screen.blit(title_surface, title_rect)
 
         # Subtitle
-        subtitle = self.ui_renderer.font.render("With Enhanced Combat, Sound & 20 Levels", True, MENU_TEXT)
+        subtitle = self.ui_renderer.font.render("Start your Adventure NOW!", True, MENU_TEXT)
         subtitle_rect = subtitle.get_rect(center=(self.WIDTH // 2, 200))
         self.screen.blit(subtitle, subtitle_rect)
 
