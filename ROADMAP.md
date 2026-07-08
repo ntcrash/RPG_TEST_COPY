@@ -18,7 +18,6 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 1. [Release] **Continue to migrate the code from pygame to Arcade** Keep working on this step until it has been completely migrated. 
 3. [Hotfix] **Fix Spawn items so they are always accessible**
 4. [Feature] **Character should spawn into last level played** unless selected another level.
-5. [Hotfix] **Decide on save-file tracking policy** — `Characters/*.json` and `SaveProgression/*.json` are tracked in git and change on every local playtest (seen in current uncommitted diff: `nora.json`, `vozy.json`, `progression_Nora.json`). Either gitignore actual save state and commit only fixture/sample data, or explicitly document that these are meant to be versioned as save snapshots.
 7. [Hotfix] **Add `requirements.txt`** — no dependency manifest exists; README states pygame 2.6.1 on Python 3.11 as the only real dependency, but pinning it removes an onboarding/automation guesswork step.
 
 ## P2 — Testing & CI (enables safe automated changes)
@@ -62,6 +61,7 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 
 ## Done
 
+- **Save-file tracking policy** (P1 #5) — done 07/08/2026 on `hotfix/save-file-policy`, released as v2.0.6. Decided runtime saves are live per-player state, not versioned source: gitignored `Characters/*.json` + `SaveProgression/*.json`, untracked the five previously committed saves via `git rm --cached`, and added `.gitkeep` to both dirs so a fresh clone keeps the folders. Loader already discovers characters by scanning the dir, so nothing depends on a committed save. See CHANGELOG.md.
 - **Resource regeneration too fast** (P4 #16) — done 07/07/2026 on `hotfix/resource-regen-rate`, released as v2.0.4. Respawn timers were minutes×60 (seconds) but the loop runs at 15 FPS, so nodes regrew 15× too fast (~40–80s vs. intended 10–20 min). Corrected `max_respawn_time` in `Code/ui_components.py` (Tree/Stream/Rock/Metal/Brush) and `Code/crafting_system.py` (ResourceNode) to true 15-FPS frame counts. See CHANGELOG.md.
 - **Remove/gate debug output** (P1 #6) — done 07/07/2026 on `feature/gate-debug-output`, released as v1.7.8. Added `Code/debug.py` with a DEBUG flag (off by default, opt-in via `MEGITECH_DEBUG` env var) and a `debug_print()` helper; replaced all 19 unconditional `print(f"DEBUG: ...")` calls in `Code/combat_system.py` (14) and `Code/settings_system.py` (5). See CHANGELOG.md.
 - **Main game sound is broken** (P0 #2) — done 07/07/2026 on `hotfix/audio-path-fix`, released as v1.7.7. Fixed `../Sounds` vs `Sounds` path mismatch, made music resolve against the absolute Sounds dir regardless of working directory, and defined the missing `start_world_music()` hook. See CHANGELOG.md.

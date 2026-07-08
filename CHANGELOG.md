@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Replace 0-byte placeholder SFX (player_hurt, run_away, victory, menu_select, menu_move, door_open)
 
+## 07/08/2026 - v2.0.6
+### 🧹 Save-file tracking policy — runtime saves are no longer versioned (roadmap P1 #5)
+**`Characters/*.json` and `SaveProgression/*.json` were tracked in git, so every local playtest produced a noisy uncommitted diff (character level/credits/inventory churn) that had nothing to do with code changes and risked clobbering another machine's saves on merge.**
+- **Decision**: these are *live per-player save state*, not source or fixtures, so they are now **gitignored** rather than versioned. A fresh clone starts with no saved characters; the in-game character-creation flow writes them at runtime, and the loader already discovers characters by scanning `Characters/` for `*.json` (`Code/game_data.py`), so nothing depends on a committed save existing.
+- **File: `.gitignore`** — added `Characters/*.json` and `SaveProgression/*.json` (with `!*/.gitkeep` negations), plus ignores for the stray `_t2` scratch file and `.git/*.stalebak` lock backups.
+- **Untracked** the five previously committed live saves (`Characters/nora.json`, `Characters/vozy.json`, `SaveProgression/progression_Nora.json`, `progression_Vozy.json`, `progression_default.json`) via `git rm --cached` — the files stay on disk for the local player, they just leave version control.
+- **Added** `Characters/.gitkeep` and `SaveProgression/.gitkeep` so both directories still exist in a fresh clone.
+- Effect: playtesting no longer dirties the working tree with save churn, and pulling on another machine can't overwrite local progress. See ROADMAP.md P1 #5 (moved to Done).
+
 ## 07/07/2026 - v2.0.5
 ### 🚀 pygame → Arcade migration — central backend switch + hybrid shim (roadmap P1 #1)
 **The Arcade backend is now wired end-to-end: rendering can route through `Code.gfx` (Arcade) while audio/timing/input keep using real pygame — controlled by a single switch. The legacy `python main.py` path is byte-for-byte unchanged.**

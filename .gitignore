@@ -20,3 +20,16 @@ Thumbs.db
 build/
 dist/
 *.egg-info/
+
+# Runtime save state (see ROADMAP P1 #5 / CHANGELOG v2.0.6)
+# Character sheets and level progression are live per-player save files that
+# mutate on every playtest. They are NOT versioned; the directories are kept
+# in the repo via .gitkeep and repopulated by character creation at runtime.
+Characters/*.json
+SaveProgression/*.json
+!Characters/.gitkeep
+!SaveProgression/.gitkeep
+
+# Stray scratch/lock artifacts
+_t2
+.git/*.stalebak
