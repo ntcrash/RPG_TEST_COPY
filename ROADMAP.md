@@ -15,7 +15,7 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 
 ## P1 — Repo hygiene (blocks safe automation)
 
-1. [Release] **Continue to miggrate the code from pygame to Arcade**
+1. [Release] **Continue to migrate the code from pygame to Arcade** Keep working on this step until it has been completely migrated. 
 3. [Hotfix] **Fix Spawn items so they are always accessible**
 4. [Feature] **Character should spawn into last level played** unless selected another level.
 5. [Hotfix] **Decide on save-file tracking policy** — `Characters/*.json` and `SaveProgression/*.json` are tracked in git and change on every local playtest (seen in current uncommitted diff: `nora.json`, `vozy.json`, `progression_Nora.json`). Either gitignore actual save state and commit only fixture/sample data, or explicitly document that these are meant to be versioned as save snapshots.
@@ -56,7 +56,9 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 
 ## In Progress
 
-- **pygame → Arcade GUI migration** (MAJOR, v2.x) — started 07/07/2026 on `feature/v2-arcade`, foundation released as **v2.0.1**. Added `Code/version.py` (central `__version__`), `Code/gfx.py` (pygame→Arcade compat shim with automatic y-axis flip), and `arcade_app.py` (new `arcade.Window` entry point driving the existing state machine at 15 Hz via translated key/text events). Legacy `python main.py` (pygame) stays runnable throughout. **Remaining**: port each render module (`ui_components`, `tile_map`, `enhanced_combat_system`, `inventory_system`, `store_system`, `rest_system`, `settings_system`, `crafting_system`, `character_creation`, `animated_player`, `level_system`, `combat_system`) from `import pygame` → `from Code import gfx as pygame`, one commit each, then retire pygame. On-device `pip install arcade && python arcade_app.py` smoke test still pending.
+- **pygame → Arcade GUI migration** (MAJOR, v2.x) — started 07/07/2026 on `feature/v2-arcade`, foundation released as **v2.0.1**. Added `Code/version.py` (central `__version__`), `Code/gfx.py` (pygame→Arcade compat shim with automatic y-axis flip), and `arcade_app.py` (new `arcade.Window` entry point driving the existing state machine at 15 Hz via translated key/text events). Legacy `python main.py` (pygame) stays runnable throughout.
+  - **v2.0.5 (07/07/2026)** — backend now switches end-to-end. **Key finding**: per-module `import pygame` swaps are a no-op because `Code/ui_components.py` star-exports its `pygame` binding to every module + `main.py`, so the star import always wins. Fixed the real mechanism instead: (1) `ui_components` selects the backend from `MEGITECH_BACKEND` (unset→pygame, `arcade`→`Code.gfx`) and star-exports it everywhere; (2) `arcade_app` sets the env var so its window renders through the shim; (3) `gfx` became a **hybrid** — non-render attrs (`mixer`/`time`/`display`/`event`/`key`/`sprite`/`locals`/…) delegate to real pygame via module `__getattr__`, and `Surface` now records+replays **off-screen** draws (HUD overlay + tile-sheet `area` blits), with y-flip and sub-rect clipping. Headless stub tests (5) pass; `python main.py` unchanged.
+  - **Remaining**: with the switch in place, the shim's render coverage is now the work. Verify on-device (`pip install arcade && python arcade_app.py`); confirm each render module (`ui_components`, `tile_map`, `enhanced_combat_system`, `inventory_system`, `store_system`, `rest_system`, `settings_system`, `crafting_system`, `character_creation`, `animated_player`, `level_system`, `combat_system`) paints correctly through `gfx` and extend the shim where a primitive is missing; note `tile_map` + `animated_player` don't star-import `ui_components`, so they still bind real pygame and need their own line-1 swap once the shim covers their `sprite`/`locals`/sheet use. Then retire pygame.
 
 ## Done
 

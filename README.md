@@ -6,6 +6,8 @@ Magitech RPG is a single-player turn-based role-playing game built with Python a
 
 ## Recent Changes
 
+**2026-07-07 (v2.0.5)**: pygame → Arcade migration — backend now switches end-to-end. `Code/ui_components.py` selects the renderer from the `MEGITECH_BACKEND` env var (unset → real pygame, the default `python main.py` path; `arcade` → the `Code.gfx` Arcade shim, set automatically by `arcade_app.py`) and star-exports it to every module. `Code/gfx.py` is now a hybrid shim: rendering routes to Arcade while non-render calls (audio, timing, input) delegate to real pygame, and off-screen surfaces (HUD overlay, tile sheets) are recorded and replayed. See CHANGELOG.md for details.
+
 **2025-09-08**: Project successfully imported and configured for Replit environment
 - Installed Python 3.11 and pygame
 - Configured VNC workflow for desktop game display

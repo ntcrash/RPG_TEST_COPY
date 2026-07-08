@@ -44,6 +44,18 @@ try:
 except Exception:  # pragma: no cover - arcade not installed yet
     _arcade = None
 
+# Real pygame is imported lazily too. This shim is a HYBRID: it implements the
+# *rendering* slice (draw/font/Rect/Surface/image/transform + key constants)
+# on top of Arcade, and DELEGATES everything else (mixer, time, display, event,
+# key, mouse, sprite, locals, error, Color, ...) straight through to real
+# pygame via the module-level __getattr__ at the bottom of this file. That lets
+# a single `from Code import gfx as pygame` swap route drawing to Arcade while
+# audio/timing/input keep working exactly as before. See __getattr__ below.
+try:
+    import pygame as _pygame
+except Exception:  # pragma: no cover - pygame not installed in this env
+    _pygame = None
+
 # ---------------------------------------------------------------------------
 # Screen dimensions. arcade_app sets these once the Window is created so the
 # Y-flip math knows the surface height. Defaults match the v1.x window.
@@ -69,6 +81,77 @@ def _norm_color(color):
         return (0, 0, 0, 255)
     c = tuple(int(max(0, min(255, v))) for v in color)
     return c
+
+
+# ---------------------------------------------------------------------------
+# Immediate-mode draw primitives (pygame top-left coords -> Arcade, Y flipped).
+# These are the single source of truth for "draw to the current Arcade window".
+# Both the on-screen draw module AND the off-screen surface replay call these,
+# so translated/replayed geometry lands identically to freshly-drawn geometry.
+# ---------------------------------------------------------------------------
+def _draw_rect(color, rect, width=0):
+    if _arcade is None:
+        return
+    x, y, w, h = tuple(rect)
+    c = _norm_color(color)
+    bottom = _flip_y(y + h)
+    if width == 0:
+        _arcade.draw_lbwh_rectangle_filled(x, bottom, w, h, c)
+    else:
+        _arcade.draw_lbwh_rectangle_outline(x, bottom, w, h, c, width)
+
+
+def _draw_circle(color, center, radius, width=0):
+    if _arcade is None:
+        return
+    cx, cy = center
+    c = _norm_color(color)
+    if width == 0:
+        _arcade.draw_circle_filled(cx, _flip_y(cy), radius, c)
+    else:
+        _arcade.draw_circle_outline(cx, _flip_y(cy), radius, c, width)
+
+
+def _draw_ellipse(color, rect, width=0):
+    if _arcade is None:
+        return
+    x, y, w, h = tuple(rect)
+    c = _norm_color(color)
+    cx, cy = x + w / 2, y + h / 2
+    if width == 0:
+        _arcade.draw_ellipse_filled(cx, _flip_y(cy), w, h, c)
+    else:
+        _arcade.draw_ellipse_outline(cx, _flip_y(cy), w, h, c, width)
+
+
+def _draw_line(color, start, end, width=1):
+    if _arcade is None:
+        return
+    c = _norm_color(color)
+    _arcade.draw_line(start[0], _flip_y(start[1]),
+                      end[0], _flip_y(end[1]), c, width)
+
+
+def _draw_lines(color, closed, points, width=1):
+    if _arcade is None or len(points) < 2:
+        return
+    c = _norm_color(color)
+    pts = [(p[0], _flip_y(p[1])) for p in points]
+    seq = pts + [pts[0]] if closed else pts
+    for i in range(len(seq) - 1):
+        _arcade.draw_line(seq[i][0], seq[i][1],
+                          seq[i + 1][0], seq[i + 1][1], c, width)
+
+
+def _draw_polygon(color, points, width=0):
+    if _arcade is None:
+        return
+    c = _norm_color(color)
+    pts = [(p[0], _flip_y(p[1])) for p in points]
+    if width == 0:
+        _arcade.draw_polygon_filled(pts, c)
+    else:
+        _arcade.draw_polygon_outline(pts, c, width)
 
 
 # ===========================================================================
@@ -155,11 +238,24 @@ class Surface:
       * Text/image surfaces -> hold an Arcade drawable + size, blitted later.
     """
 
-    def __init__(self, size=(0, 0), *, text=None, texture=None):
+    def __init__(self, size=(0, 0), flags=0, *, text=None, texture=None,
+                 is_screen=False):
+        # `flags` is pygame's second positional arg (e.g. SRCALPHA). We accept
+        # and ignore it -- the shim always has an alpha channel available.
         self._w, self._h = size
         self._alpha = 255
         self._arcade_text = text        # arcade.Text (for font.render results)
         self._texture = texture         # arcade.Texture (for images)
+        self._is_screen = is_screen     # the one real window framebuffer
+        # An off-screen draw target: a plain sized Surface that is neither the
+        # window nor a text/image surface. pygame code draws onto it and later
+        # blits it to the screen. Arcade is immediate-mode with no spare
+        # framebuffers, so we RECORD draw ops here and REPLAY them (translated,
+        # optionally sub-rect clipped) when this surface is blitted onto the
+        # screen. Covers the HUD-overlay and tile-sheet patterns in the game.
+        self._offscreen = (not is_screen and text is None and texture is None
+                           and (self._w > 0 or self._h > 0))
+        self._ops = [] if self._offscreen else None
 
     # ---- size queries ----
     def get_width(self):
@@ -185,7 +281,14 @@ class Surface:
 
     # ---- clearing ----
     def fill(self, color):
-        """Clear the whole surface to a solid color (main-screen use)."""
+        """Clear the surface to a solid color.
+
+        On the window this clears the whole framebuffer; on an off-screen
+        surface it records a fill covering the surface bounds.
+        """
+        if self._offscreen:
+            self._ops.append(("fill", (_norm_color(color),)))
+            return
         if _arcade is None:
             return
         c = _norm_color(color)
@@ -193,17 +296,87 @@ class Surface:
 
     # ---- compositing ----
     def blit(self, source: "Surface", dest, area=None):
-        """Draw `source` onto this surface at pygame-space top-left `dest`."""
-        if _arcade is None or source is None:
+        """Draw `source` onto this surface at pygame-space top-left `dest`.
+
+        `area` (a sub-rect of `source`) selects a region -- used for tile-sheet
+        blitting. If THIS surface is off-screen, the blit is recorded for later
+        replay; otherwise it renders straight to the window now.
+        """
+        if source is None:
             return
         if isinstance(dest, Rect):
             x, y = dest.x, dest.y
         else:
             x, y = dest[0], dest[1]
-        source._draw_at(x, y, self._alpha_mult(source))
+        if self._offscreen:
+            self._ops.append(("blit", (source, x, y, area)))
+            return
+        self._render_source(source, x, y, area, self._alpha)
 
     def _alpha_mult(self, source):
         return min(self._alpha, source._alpha)
+
+    # ---- render a source surface straight onto the window at (x, y) ----
+    def _render_source(self, source, x, y, area, alpha=255):
+        if getattr(source, "_offscreen", False) and source._ops is not None:
+            source._replay(x, y, area, min(alpha, source._alpha))
+        else:
+            source._draw_at(x, y, min(alpha, source._alpha))
+
+    # ---- replay this off-screen surface's ops onto the window ----
+    def _replay(self, ox, oy, area=None, alpha=255):
+        """Draw every recorded op, translated so this surface's local top-left
+        lands at window (ox, oy). If `area` is given, only the ops inside that
+        sub-rect are drawn (and offset so the sub-rect's top-left maps to
+        (ox, oy)) -- this is how tile sheets blit a single 24x24 cell."""
+        if isinstance(area, Rect):
+            ax, ay, aw, ah = area.x, area.y, area.width, area.height
+        elif area is not None:
+            ax, ay, aw, ah = area[0], area[1], area[2], area[3]
+        else:
+            ax = ay = 0
+            aw, ah = self._w, self._h
+        dx, dy = ox - ax, oy - ay
+
+        def in_area(px, py):
+            return (area is None) or (ax <= px < ax + aw and ay <= py < ay + ah)
+
+        for op, args in self._ops:
+            if op == "fill":
+                (color,) = args
+                _draw_rect(color, (ax + dx, ay + dy, aw, ah), 0)
+            elif op == "rect":
+                color, rect, width = args
+                if in_area(rect[0], rect[1]):
+                    _draw_rect(color, (rect[0] + dx, rect[1] + dy,
+                                       rect[2], rect[3]), width)
+            elif op == "circle":
+                color, center, radius, width = args
+                if in_area(center[0], center[1]):
+                    _draw_circle(color, (center[0] + dx, center[1] + dy),
+                                 radius, width)
+            elif op == "ellipse":
+                color, rect, width = args
+                if in_area(rect[0], rect[1]):
+                    _draw_ellipse(color, (rect[0] + dx, rect[1] + dy,
+                                          rect[2], rect[3]), width)
+            elif op == "line":
+                color, start, end, width = args
+                if in_area(start[0], start[1]):
+                    _draw_line(color, (start[0] + dx, start[1] + dy),
+                               (end[0] + dx, end[1] + dy), width)
+            elif op == "lines":
+                color, closed, points, width = args
+                _draw_lines(color, closed,
+                            [(p[0] + dx, p[1] + dy) for p in points], width)
+            elif op == "polygon":
+                color, points, width = args
+                _draw_polygon(color, [(p[0] + dx, p[1] + dy) for p in points],
+                              width)
+            elif op == "blit":
+                src, sx, sy, sub = args
+                if in_area(sx, sy):
+                    self._render_source(src, sx + dx, sy + dy, sub, alpha)
 
     # ---- internal: render self (text/texture) at pygame top-left (x, y) ----
     def _draw_at(self, x, y, alpha=255):
@@ -287,71 +460,59 @@ font = _FontModule()
 # ===========================================================================
 # draw  (pygame.draw.* -> arcade.draw_*)
 # ===========================================================================
+def _is_offscreen(surface):
+    return getattr(surface, "_offscreen", False)
+
+
 class _DrawModule:
+    """pygame.draw.* -> Arcade. If the target surface is an off-screen buffer
+    the op is recorded on it (for later replay); otherwise it draws now."""
+
     @staticmethod
     def rect(surface, color, rect, width=0, border_radius=0):
-        if _arcade is None:
+        if _is_offscreen(surface):
+            surface._ops.append(("rect", (_norm_color(color), tuple(rect), width)))
             return
-        x, y, w, h = tuple(rect)
-        c = _norm_color(color)
-        bottom = _flip_y(y + h)
-        if width == 0:
-            _arcade.draw_lbwh_rectangle_filled(x, bottom, w, h, c)
-        else:
-            _arcade.draw_lbwh_rectangle_outline(x, bottom, w, h, c, width)
+        _draw_rect(color, rect, width)
 
     @staticmethod
     def circle(surface, color, center, radius, width=0):
-        if _arcade is None:
+        if _is_offscreen(surface):
+            surface._ops.append(("circle", (_norm_color(color), tuple(center),
+                                            radius, width)))
             return
-        cx, cy = center
-        c = _norm_color(color)
-        if width == 0:
-            _arcade.draw_circle_filled(cx, _flip_y(cy), radius, c)
-        else:
-            _arcade.draw_circle_outline(cx, _flip_y(cy), radius, c, width)
+        _draw_circle(color, center, radius, width)
 
     @staticmethod
     def ellipse(surface, color, rect, width=0):
-        if _arcade is None:
+        if _is_offscreen(surface):
+            surface._ops.append(("ellipse", (_norm_color(color), tuple(rect), width)))
             return
-        x, y, w, h = tuple(rect)
-        c = _norm_color(color)
-        cx, cy = x + w / 2, y + h / 2
-        if width == 0:
-            _arcade.draw_ellipse_filled(cx, _flip_y(cy), w, h, c)
-        else:
-            _arcade.draw_ellipse_outline(cx, _flip_y(cy), w, h, c, width)
+        _draw_ellipse(color, rect, width)
 
     @staticmethod
     def line(surface, color, start, end, width=1):
-        if _arcade is None:
+        if _is_offscreen(surface):
+            surface._ops.append(("line", (_norm_color(color), tuple(start),
+                                          tuple(end), width)))
             return
-        c = _norm_color(color)
-        _arcade.draw_line(start[0], _flip_y(start[1]),
-                          end[0], _flip_y(end[1]), c, width)
+        _draw_line(color, start, end, width)
 
     @staticmethod
     def lines(surface, color, closed, points, width=1):
-        if _arcade is None or len(points) < 2:
+        if _is_offscreen(surface):
+            surface._ops.append(("lines", (_norm_color(color), closed,
+                                           [tuple(p) for p in points], width)))
             return
-        c = _norm_color(color)
-        pts = [(p[0], _flip_y(p[1])) for p in points]
-        seq = pts + [pts[0]] if closed else pts
-        for i in range(len(seq) - 1):
-            _arcade.draw_line(seq[i][0], seq[i][1],
-                              seq[i + 1][0], seq[i + 1][1], c, width)
+        _draw_lines(color, closed, points, width)
 
     @staticmethod
     def polygon(surface, color, points, width=0):
-        if _arcade is None:
+        if _is_offscreen(surface):
+            surface._ops.append(("polygon", (_norm_color(color),
+                                             [tuple(p) for p in points], width)))
             return
-        c = _norm_color(color)
-        pts = [(p[0], _flip_y(p[1])) for p in points]
-        if width == 0:
-            _arcade.draw_polygon_filled(pts, c)
-        else:
-            _arcade.draw_polygon_outline(pts, c, width)
+        _draw_polygon(color, points, width)
 
 
 draw = _DrawModule()
@@ -429,9 +590,35 @@ class Event:
 
 
 def init():
-    """pygame.init() no-op; Arcade window handles real init."""
+    """pygame.init(). Delegates to real pygame so mixer/font/display
+    subsystems the un-migrated game logic relies on still initialize
+    (under the SDL 'dummy' video driver arcade_app sets up)."""
+    if _pygame is not None:
+        return _pygame.init()
     return (0, 0)
 
 
 def quit():  # noqa: A001 - mirror pygame API name
+    if _pygame is not None:
+        return _pygame.quit()
     return None
+
+
+# ===========================================================================
+# Hybrid delegation. Any attribute this shim does NOT define itself (mixer,
+# time, display, event, key, mouse, sprite, locals, error, Color, Vector2,
+# ...) is forwarded to real pygame. Module-level __getattr__ (PEP 562) only
+# fires for names missing from this module's namespace, so everything defined
+# above (draw, font, Rect, Surface, image, transform, key constants, init,
+# quit, ...) keeps the Arcade-backed behavior and takes precedence.
+# ===========================================================================
+def __getattr__(name):
+    if _pygame is not None:
+        try:
+            return getattr(_pygame, name)
+        except AttributeError:
+            pass
+    raise AttributeError(
+        f"module 'Code.gfx' has no attribute {name!r} and real pygame is "
+        f"{'not installed' if _pygame is None else 'missing that attribute'}"
+    )

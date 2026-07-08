@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Replace 0-byte placeholder SFX (player_hurt, run_away, victory, menu_select, menu_move, door_open)
 
+## 07/07/2026 - v2.0.5
+### 🚀 pygame → Arcade migration — central backend switch + hybrid shim (roadmap P1 #1)
+**The Arcade backend is now wired end-to-end: rendering can route through `Code.gfx` (Arcade) while audio/timing/input keep using real pygame — controlled by a single switch. The legacy `python main.py` path is byte-for-byte unchanged.**
+- **Why this was the blocker**: every gameplay module gets its `pygame` name from `Code/ui_components.py` via `from Code.ui_components import *` (and `main.py` has *no* pygame import of its own). Because that star-export re-binds `pygame` in each importer, flipping an individual module's own `import pygame` line had no effect — the star import always won. So the backend can only be switched from one place: ui_components.
+- **File: `Code/ui_components.py`** — added the single backend switch. Reads `MEGITECH_BACKEND`: unset → `import pygame` (legacy, unchanged); `=arcade` → `from Code import gfx as pygame`. This selection star-exports to every gameplay module **and** `main.py` at once.
+- **File: `arcade_app.py`** — sets `MEGITECH_BACKEND=arcade` before importing the game, so its `arcade.Window` now actually renders through the shim; marks its window surface `is_screen=True` so screen draws paint immediately (not recorded).
+- **File: `Code/gfx.py`** — made the shim a **hybrid**: a module-level `__getattr__` (PEP 562) delegates any non-render attribute (`mixer`, `time`, `display`, `event`, `key`, `mouse`, `sprite`, `locals`, `error`, `Color`, …) to real pygame, while `draw`/`font`/`Rect`/`Surface`/`image`/`transform`/key-constants stay Arcade-backed. `init()`/`quit()` now delegate to real pygame so audio/font subsystems still initialize.
+- **File: `Code/gfx.py`** — `Surface` now supports **off-screen draw targets**: a plain sized surface records draw ops (`fill`/`rect`/`circle`/`ellipse`/`line`/`lines`/`polygon`/`blit`) and **replays** them — translated, y-flipped, and optionally sub-rect clipped — when blitted onto the window. This unlocks the two patterns every render module uses: the semi-transparent HUD overlay (`Surface((w,h), SRCALPHA)` → draw onto it → blit to screen) and tile-sheet cell blitting (`screen.blit(sheet, pos, area_rect)`). Accepts pygame's positional `flags` arg (e.g. `SRCALPHA`).
+- **Verification**: added a headless stub-backed test suite (5 tests, all passing): default path binds real pygame; arcade path binds gfx and star-exports it; hybrid delegation returns real pygame submodules; overlay replay produces correct y-flipped Arcade coords; tile-sheet `area` blit selects only the addressed cell. Full-tree `py_compile` clean.
+- **⚠️ On-device smoke test still pending**: sandbox has no display/Arcade install; `pip install arcade && python arcade_app.py` on the Mac remains the final visual check.
+
 ## 07/07/2026 - v2.0.4
 ### 🐞 Resource regeneration was ~15× too fast (roadmap P4 #16)
 **Harvestable resource nodes respawned every 40–80 seconds instead of the 10–20 minutes their own comments claimed.**

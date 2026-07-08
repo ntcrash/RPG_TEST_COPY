@@ -40,6 +40,13 @@ import os
 # initializes. Audio (SDL_AUDIODRIVER) is untouched, so game sound still works.
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
+# Select the Arcade rendering backend for the whole game. ui_components reads
+# this to bind `pygame` -> Code.gfx (the Arcade shim) and star-exports it to
+# every gameplay module + main.py. Must be set before any `Code.*`/`main`
+# import so the binding is chosen correctly. `python main.py` never runs this
+# file, so it stays on real pygame.
+os.environ["MEGITECH_BACKEND"] = "arcade"
+
 import arcade
 
 from Code import gfx
@@ -90,7 +97,7 @@ class MagitechWindow(arcade.Window):
         # The game draws to this shim; blits/fills/draws land on this window.
         # NB: don't name this `self.screen` -- arcade.Window already defines a
         # read-only `screen` property (the pyglet display), which collides.
-        self._surface = gfx.Surface((WIDTH, HEIGHT))
+        self._surface = gfx.Surface((WIDTH, HEIGHT), is_screen=True)
 
         # Import lazily so importing this module never triggers pygame init
         # before the Arcade window exists.
