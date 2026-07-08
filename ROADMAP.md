@@ -16,7 +16,6 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 
 ## P0 — Known bugs (carried from CHANGELOG.md ToDo)
 
-1. **Dying doesn't take credits** — player death should deduct credits per existing design intent; currently doesn't. Locate death handling in `Code/enhanced_combat_integration.py` / `Code/combat_system.py`.
 2. **Main game sound is broken** — investigate music/sound loading in `main.py` audio init path; README notes a fallback system exists for missing files, so this may be a path or trigger bug rather than missing assets.
 
 ## P1 — Repo hygiene (blocks safe automation)
@@ -55,6 +54,7 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 
 ## Done
 
+- **Dying doesn't take credits** (P0 #1) — done 07/07/2026 on `hotfix/death-credit-loss`, released as v1.7.6. Fixed legacy combat death path, boss-dungeon FIGHT-state fallthrough, keypress-path reward/penalty skip, and duplicated victory rewards. See CHANGELOG.md.
 - **Add a `.gitignore`** + **Untrack committed `.pyc` files** (P1 #3 & #4) — done 07/07/2026 on `feature/repo-hygiene`, released as v1.7.5. See CHANGELOG.md.
 
 _(move completed items to CHANGELOG.md)

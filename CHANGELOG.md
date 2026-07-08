@@ -2,8 +2,16 @@
 All notable changes to this project will be documented in this file.
 
 ## - ToDo
-- Dying needs to take credits
 - Fix Main Game sound
+
+## 07/07/2026 - v1.7.6
+### 💀 Death Credit Loss Fix (Roadmap P0 #1) ✅
+**Dying now deducts credits on every death path**
+- **File: `main.py`** - Legacy combat death (`handle_combat_action`) now deducts 5-15% of credits on death (was: respawn with no penalty)
+- **File: `main.py`** - Removed duplicated victory block in `handle_combat_action` that double-awarded XP and credits
+- **File: `main.py`** - `enter_boss_dungeon()` only switches to FIGHT state if `start_combat()` succeeds; previously a cooldown-blocked start left the game in FIGHT state with the penalty-free legacy combat path active
+- **File: `Code/enhanced_combat_integration.py`** - `handle_combat_input()` now routes victory/defeat through `handle_victory()`/`handle_defeat()` before ending combat (rewards/penalties were skipped on the keypress path)
+- **File: `Code/enhanced_combat_integration.py`** - Death now always costs at least 1 credit when the player has any (int truncation made small balances lose 0)
 
 ## 07/07/2026 - v1.7.5
 ### 🧹 Repo Hygiene (Roadmap items #3 & #4) ✅

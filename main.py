@@ -677,15 +677,19 @@ class EnhancedGameManager:
         if boss_enemy:
             # Start enhanced combat with boss
             if hasattr(self, 'combat_integration') and self.combat_integration:
-                self.combat_integration.start_combat(boss_enemy)
-                self.current_state = GameState.FIGHT
+                # Only enter FIGHT state if combat actually started (cooldown can block it);
+                # otherwise the FIGHT state falls through to the legacy combat path.
+                if self.combat_integration.start_combat(boss_enemy):
+                    self.current_state = GameState.FIGHT
 
-                # Visual feedback
-                damage_text = DamageText(0, 0, "🐉 BOSS BATTLE BEGINS! 🐉", (255, 0, 0))
-                damage_text.world_pos = (self.animated_player.x, self.animated_player.y - 60)
-                self.damage_texts.append(damage_text)
+                    # Visual feedback
+                    damage_text = DamageText(0, 0, "🐉 BOSS BATTLE BEGINS! 🐉", (255, 0, 0))
+                    damage_text.world_pos = (self.animated_player.x, self.animated_player.y - 60)
+                    self.damage_texts.append(damage_text)
 
-                print(f"Entering boss fight with {boss_enemy.get('Name', 'Unknown Boss')}!")
+                    print(f"Entering boss fight with {boss_enemy.get('Name', 'Unknown Boss')}!")
+                else:
+                    print("Boss fight blocked by combat cooldown - try again in a moment")
             else:
                 print("Combat system not available!")
         else:
@@ -1088,14 +1092,6 @@ class EnhancedGameManager:
             self.character_manager.character_data["Experience_Points"] += xp_gained
             self.character_manager.character_data["Credits"] += credits_gained
 
-        if self.current_enemy.enemy_data["Hit_Points"] <= 0:
-            # Victory
-            xp_gained = random.randint(25, 75)
-            credits_gained = random.randint(50, 150)
-
-            self.character_manager.character_data["Experience_Points"] += xp_gained
-            self.character_manager.character_data["Credits"] += credits_gained
-
             self.combat_messages.append((f"Victory! Gained {xp_gained} XP and {credits_gained} credits!", GOLD))
 
             # Check for level up
@@ -1120,8 +1116,11 @@ class EnhancedGameManager:
         self.damage_texts.append(damage_text)
 
         if self.character_manager.character_data["Hit_Points"] <= 0:
-            # Player death
-            self.combat_messages.append(("You have been defeated!", RED))
+            # Player death - deduct 5-15% of credits (P0 #1: dying didn't take credits)
+            current_credits = self.character_manager.character_data.get("Credits", 0)
+            credits_lost = max(1, int(current_credits * random.uniform(0.05, 0.15))) if current_credits > 0 else 0
+            self.character_manager.character_data["Credits"] = max(0, current_credits - credits_lost)
+            self.combat_messages.append((f"You have been defeated! Lost {credits_lost} credits.", RED))
             self.character_manager.character_data["Hit_Points"] = 50  # Respawn with half health
 
             # Save character
