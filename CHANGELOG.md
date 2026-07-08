@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Replace 0-byte placeholder SFX (player_hurt, run_away, victory, menu_select, menu_move, door_open)
 
+## 07/07/2026 - v2.0.2
+### 🐞 Arcade foundation hotfix — Window.screen attribute collision
+**`python arcade_app.py` crashed on launch with `AttributeError: can't set attribute`.**
+- **File: `arcade_app.py`** - `arcade.Window` (via pyglet) already defines a read-only `screen` property for the display, so the manager's render-target assignment `self.screen = gfx.Surface(...)` collided with it. Renamed the window's shim surface to `self._surface` and pointed `self.game.screen` at it instead. Window now constructs and launches.
+
 ## 07/07/2026 - v2.0.1
 ### 🚀 MAJOR: pygame → Arcade migration — foundation (Roadmap: GUI backend swap)
 **Beginning the move from pygame to Arcade 3.x. This release lays the foundation; the legacy pygame path stays fully runnable while modules migrate one at a time.**

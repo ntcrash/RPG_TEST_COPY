@@ -76,7 +76,9 @@ class MagitechWindow(arcade.Window):
         gfx.configure(WIDTH, HEIGHT)
 
         # The game draws to this shim; blits/fills/draws land on this window.
-        self.screen = gfx.Surface((WIDTH, HEIGHT))
+        # NB: don't name this `self.screen` -- arcade.Window already defines a
+        # read-only `screen` property (the pyglet display), which collides.
+        self._surface = gfx.Surface((WIDTH, HEIGHT))
 
         # Import lazily so importing this module never triggers pygame init
         # before the Arcade window exists.
@@ -84,7 +86,7 @@ class MagitechWindow(arcade.Window):
         self.GameState = GameState
         self.game = EnhancedGameManager()
         # Redirect the manager's render target from its pygame surface to ours.
-        self.game.screen = self.screen
+        self.game.screen = self._surface
 
         self._accum = 0.0
 
