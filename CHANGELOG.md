@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Replace 0-byte placeholder SFX (player_hurt, run_away, victory, menu_select, menu_move, door_open)
 
+## 07/08/2026 - v2.1.1
+### 🧪 Added a minimal unit-test suite (roadmap P2 #8)
+**The project had no `tests/` directory or test framework, so there was no automated safety net for the pure-logic modules — every balance/formula change had to be verified by hand in-game.**
+- **New `tests/` package** using only the standard-library `unittest` (no third-party runner needed). `tests/__init__.py` forces SDL's dummy video/audio drivers (`SDL_VIDEODRIVER=dummy`, `SDL_AUDIODRIVER=dummy`) so the Pygame-coupled game modules import and run in a headless environment (CI, containers) with no display or sound card.
+- **`tests/test_combat_system.py`** — pins `CombatManager.calculate_damage`, `calculate_spell_damage`, and `calculate_hit_chance` (strength/int/wisdom/level bonuses, critical multipliers, the 5%/75% hit-chance boundaries and the 5% floor) plus `SpellManager` level-gated spell availability. Randomness is controlled with `mock.patch` on the module's `random.randint` so every expected value is exact.
+- **`tests/test_level_system.py`** — covers `LevelManager` unlock gating, level selection, and the completion cascade (finishing a boss level unlocks the next world), plus the deterministic `WorldLevelGenerator` enemy/treasure count helpers. Progression JSON is written inside a temp CWD so the repo is never touched.
+- **`tests/test_crafting_system.py`** — covers recipe/material catalog sizes, level-gated recipe availability, rarity-colour lookup, and the random material drop table (with `random.randint` patched to hit each rarity branch).
+- **Run**: `python -m unittest discover -s tests -v`. Current status: **36 tests, all green** (`Ran 36 tests ... OK`). `py_compile` clean. See `tests/README.md` and ROADMAP.md P2 #8 (moved to Done).
+- **Note for next run**: while writing the combat tests I saw one unconditional `print("DEBUG: Spell base damage ...")` still live at `Code/combat_system.py:266` — it slipped past the v1.7.8 debug-gating pass. Small follow-up, not addressed here to keep this change scoped to the test suite.
+
 ## 07/08/2026 - v2.1.0
 ### ✨ Characters now spawn into their last-played level (roadmap P1 #4)
 **Loading (or creating) a character sent the player straight to the game board without rebuilding the world, so every character spawned into the default World 1-1 regardless of how far they'd progressed.**

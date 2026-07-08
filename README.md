@@ -6,6 +6,8 @@ Magitech RPG is a single-player turn-based role-playing game built with Python a
 
 ## Recent Changes
 
+**2026-07-08 (v2.1.1)**: Added a minimal unit-test suite (`tests/`) using the standard-library `unittest` — no third-party runner required. It forces SDL's dummy drivers so the Pygame-coupled modules run headlessly (CI/containers), and covers combat math (`calculate_damage`/`calculate_spell_damage`/`calculate_hit_chance` + spell gating), level progression (unlock/selection/completion cascades), and crafting logic (recipes, materials, drop table). Run with `python -m unittest discover -s tests -v` — 36 tests, all green. See `tests/README.md` and CHANGELOG.md.
+
 **2026-07-08 (v2.1.0)**: Characters now spawn into their last-played level. Progression (`current_world`/`current_level`) was already persisted per character, but loading or creating a character jumped straight to the game board without rebuilding the world, so everyone spawned into World 1-1. A new `enter_game_board_for_current_level()` rebuilds the world for the persisted level, recenters the player, and snaps the camera before entering play. Explicit level selection is unchanged. See CHANGELOG.md.
 
 **2026-07-08 (v2.0.6)**: Save-file tracking policy — `Characters/*.json` and `SaveProgression/*.json` are now treated as live per-player save state and are **gitignored**, not versioned. A fresh clone starts with no saved characters; the game creates them at runtime and the loader discovers characters by scanning the `Characters/` directory. Both folders are kept in the repo via `.gitkeep`. This ends the working-tree churn that previously came from playtesting. See CHANGELOG.md.
@@ -110,6 +112,11 @@ Magitech RPG is a single-player turn-based role-playing game built with Python a
 - Game automatically creates sample files and directories on first run
 - VNC display required for GUI interaction
 - Game supports keyboard controls for all interactions
+
+#### Running the Tests
+- Execute `python -m unittest discover -s tests -v` from the repository root
+- Uses the standard-library `unittest` (no extra dependencies beyond pygame)
+- Runs headless via SDL dummy drivers — no display or audio device needed
 
 #### Key Controls
 - Arrow Keys: Movement
