@@ -74,9 +74,20 @@ class EnhancedCombatIntegration:
         if result == "run_success":
             self.end_combat("escaped")
             return "escaped"
-        elif result in ["victory", "defeat"]:
-            self.end_combat(result)
-            return result
+        elif result == "victory":
+            # Apply rewards before ending combat (previously skipped on this path)
+            if not getattr(self, 'victory_processed', False):
+                self.victory_processed = True
+                self.handle_victory()
+            self.end_combat("victory")
+            return "victory"
+        elif result == "defeat":
+            # Apply death penalty (credit loss) before ending combat (previously skipped on this path)
+            if not getattr(self, 'defeat_processed', False):
+                self.defeat_processed = True
+                self.handle_defeat()
+            self.end_combat("defeat")
+            return "defeat"
 
         return "continue"
 
@@ -184,7 +195,8 @@ class EnhancedCombatIntegration:
         # Lose credits based on level and current wealth
         current_credits = char_data.get("Credits", 0)
         credit_loss_percent = random.uniform(0.05, 0.15)  # 5-15% loss
-        credits_lost = int(current_credits * credit_loss_percent)
+        # Always lose at least 1 credit on death (int() truncation made small balances lose 0)
+        credits_lost = max(1, int(current_credits * credit_loss_percent)) if current_credits > 0 else 0
         char_data["Credits"] = max(0, current_credits - credits_lost)
 
         # Small XP penalty for higher level characters
