@@ -1,4 +1,5 @@
 import pygame
+from Code.debug import debug_print
 import random
 import math
 from Code.ui_components import *
@@ -267,11 +268,11 @@ class CombatManager:
 
         if spell.spell_type == "heal":
             final_damage = base_damage + wis_bonus + level_bonus
-            print(f"DEBUG: Heal spell final: {final_damage}")
+            debug_print(f"Heal spell final: {final_damage}")
             return final_damage, False
         elif spell.spell_type == "drain":
             final_damage = base_damage + int_bonus + level_bonus
-            print(f"DEBUG: Drain spell final: {final_damage}")
+            debug_print(f"Drain spell final: {final_damage}")
             return final_damage, False
         else:
             # Critical hit chance for spells based on intelligence and level
@@ -280,11 +281,11 @@ class CombatManager:
 
             if is_critical:
                 final_damage = int((base_damage + int_bonus + level_bonus) * 1.5)
-                print(f"DEBUG: CRITICAL SPELL! Final damage: {final_damage}")
+                debug_print(f"CRITICAL SPELL! Final damage: {final_damage}")
                 return final_damage, True
             else:
                 final_damage = base_damage + int_bonus + level_bonus
-                print(f"DEBUG: Normal spell damage: {final_damage}")
+                debug_print(f"Normal spell damage: {final_damage}")
                 return final_damage, False
 
     def calculate_hit_chance(self, attacker_stats, defender_stats):
@@ -305,8 +306,8 @@ class CombatManager:
         roll = random.randint(1, 100)
         hit = roll <= final_hit_chance
 
-        print(f"DEBUG: Hit calculation - Base: {base_hit}, DEX bonus: {hit_bonus}, AC penalty: {ac_penalty}")
-        print(f"DEBUG: Final hit chance: {final_hit_chance}%, Roll: {roll}, Hit: {hit}")
+        debug_print(f"Hit calculation - Base: {base_hit}, DEX bonus: {hit_bonus}, AC penalty: {ac_penalty}")
+        debug_print(f"Final hit chance: {final_hit_chance}%, Roll: {roll}, Hit: {hit}")
 
         return hit
 
@@ -341,7 +342,7 @@ class CombatManager:
                     print(f"WARNING: Invalid {stat_name} value: {value}, using default 10")
                     stats[stat_name] = 10
 
-            print(f"DEBUG: Player stats loaded: {stats}")
+            debug_print(f"Player stats loaded: {stats}")
             return stats
 
         except Exception as e:
@@ -377,7 +378,7 @@ class CombatManager:
 
         base_stats["armor_class"] = base_ac + equipment_ac
 
-        print(f"DEBUG: Stats from character data: {base_stats}")
+        debug_print(f"Stats from character data: {base_stats}")
         return base_stats
 
     def get_enemy_stats(self):
@@ -390,7 +391,7 @@ class CombatManager:
         if hasattr(self.character_manager, 'enemy_manager'):
             try:
                 enemy_stats = self.character_manager.enemy_manager.get_enemy_stats_for_combat(self.current_enemy)
-                print(f"DEBUG: Enemy stats with difficulty: {enemy_stats}")
+                debug_print(f"Enemy stats with difficulty: {enemy_stats}")
                 return enemy_stats
             except:
                 pass
@@ -412,7 +413,7 @@ class CombatManager:
             "armor_class": 10 + int(base_bonus * 0.5)
         }
 
-        print(f"DEBUG: Enemy stats (fallback): {enemy_stats}")
+        debug_print(f"Enemy stats (fallback): {enemy_stats}")
         return enemy_stats
 
     def calculate_damage(self, base_min, base_max, attacker_stats, defender_stats=None):
@@ -423,23 +424,23 @@ class CombatManager:
         # Strength modifier for physical attacks
         str_bonus = max(0, (attacker_stats.get("strength", 10) - 10) // 2)
 
-        print(f"DEBUG: Base damage: {base_damage}, STR bonus: {str_bonus} (STR: {attacker_stats.get('strength', 10)})")
+        debug_print(f"Base damage: {base_damage}, STR bonus: {str_bonus} (STR: {attacker_stats.get('strength', 10)})")
 
         # Critical hit chance based on dexterity
         dex = attacker_stats.get("dexterity", 10)
         crit_chance = max(5, (dex - 10) // 2 + 5)  # 5% base + dex modifier
 
-        print(f"DEBUG: Crit chance: {crit_chance}% (DEX: {dex})")
+        debug_print(f"Crit chance: {crit_chance}% (DEX: {dex})")
 
         is_critical = random.randint(1, 100) <= crit_chance
 
         if is_critical:
             final_damage = int((base_damage + str_bonus) * 1.5)
-            print(f"DEBUG: CRITICAL HIT! Final damage: {final_damage}")
+            debug_print(f"CRITICAL HIT! Final damage: {final_damage}")
             return final_damage, True
         else:
             final_damage = base_damage + str_bonus
-            print(f"DEBUG: Normal hit. Final damage: {final_damage}")
+            debug_print(f"Normal hit. Final damage: {final_damage}")
             return final_damage, False
 
     def player_attack(self):

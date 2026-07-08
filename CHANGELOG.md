@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Replace 0-byte placeholder SFX (player_hurt, run_away, victory, menu_select, menu_move, door_open)
 
+## 07/07/2026 - v1.7.8
+### 🐞 Gate Debug Output (Roadmap P1 #6) ✅
+**Verbose developer diagnostics no longer spam the player console**
+- **File: `Code/debug.py`** (new) - Added a central `DEBUG` flag (off by default, opt-in via the `MEGITECH_DEBUG` env var) and a `debug_print()` helper that only emits when DEBUG is enabled, prefixing output with `DEBUG:` to preserve the prior log format
+- **File: `Code/combat_system.py`** - Replaced all 14 unconditional `print(f"DEBUG: ...")` calls (spell/hit/damage/crit/stat diagnostics) with `debug_print(...)`
+- **File: `Code/settings_system.py`** - Replaced all 5 unconditional `print(f"DEBUG: ...")` difficulty-application calls with `debug_print(...)`
+- **Verified**: `py_compile` passes on all three files; with DEBUG off (default) `debug_print` is silent, and `MEGITECH_DEBUG=1` restores full output
+
 ## 07/07/2026 - v1.7.7
 ### 🔊 Main Game Sound Fix (Roadmap P0 #2) ✅
 **Background music now plays correctly regardless of how the game is launched**

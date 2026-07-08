@@ -1,4 +1,5 @@
 import pygame
+from Code.debug import debug_print
 import json
 import os
 from Code.ui_components import *
@@ -415,7 +416,7 @@ class SettingsIntegration:
 
         # Apply to enemy manager if available
         if hasattr(self.game_manager, 'enemy_manager'):
-            print(f"DEBUG: Applying difficulty {difficulty} to enemy_manager")
+            debug_print(f"Applying difficulty {difficulty} to enemy_manager")
             if hasattr(self.game_manager.enemy_manager, 'set_difficulty_multiplier'):
                 self.game_manager.enemy_manager.set_difficulty_multiplier(difficulty)
             else:
@@ -426,7 +427,7 @@ class SettingsIntegration:
         if hasattr(self.game_manager, 'character_manager'):
             char_mgr = self.game_manager.character_manager
             if hasattr(char_mgr, 'enemy_manager'):
-                print(f"DEBUG: Applying difficulty {difficulty} to character_manager.enemy_manager")
+                debug_print(f"Applying difficulty {difficulty} to character_manager.enemy_manager")
                 if hasattr(char_mgr.enemy_manager, 'set_difficulty_multiplier'):
                     char_mgr.enemy_manager.set_difficulty_multiplier(difficulty)
                 else:
@@ -436,7 +437,7 @@ class SettingsIntegration:
         if hasattr(self.game_manager, 'game_states'):
             for state in self.game_manager.game_states.values():
                 if hasattr(state, 'enemy_manager'):
-                    print(f"DEBUG: Applying difficulty {difficulty} to game_state.enemy_manager")
+                    debug_print(f"Applying difficulty {difficulty} to game_state.enemy_manager")
                     if hasattr(state.enemy_manager, 'set_difficulty_multiplier'):
                         state.enemy_manager.set_difficulty_multiplier(difficulty)
                     else:
@@ -450,13 +451,13 @@ class SettingsIntegration:
                 if hasattr(combat_mgr, 'character_manager'):
                     char_mgr = combat_mgr.character_manager
                     if hasattr(char_mgr, 'enemy_manager'):
-                        print(f"DEBUG: Applying difficulty {difficulty} to combat.character_manager.enemy_manager")
+                        debug_print(f"Applying difficulty {difficulty} to combat.character_manager.enemy_manager")
                         if hasattr(char_mgr.enemy_manager, 'set_difficulty_multiplier'):
                             char_mgr.enemy_manager.set_difficulty_multiplier(difficulty)
                         else:
                             char_mgr.enemy_manager.difficulty_multiplier = difficulty
 
-        print(f"DEBUG: Difficulty setting {difficulty} applied to all available enemy managers")
+        debug_print(f"Difficulty setting {difficulty} applied to all available enemy managers")
 
     def handle_settings_input(self, key):
         """Handle input for settings screen"""

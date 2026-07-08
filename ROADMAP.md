@@ -13,14 +13,14 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 
 ## P0 — Known bugs (carried from CHANGELOG.md ToDo)
 
-1. [Release] **Change version number to v2.0.1** move code from pygame to Arcade
-3. [Hotfix] **Fix Spawn items so they are always accessible**
-4. [Feature] **Character should spawn into last level played** unless selected another level.
+
 
 ## P1 — Repo hygiene (blocks safe automation)
 
+1. [Release] **Change version number to v2.0.1** move code from pygame to Arcade
+3. [Hotfix] **Fix Spawn items so they are always accessible**
+4. [Feature] **Character should spawn into last level played** unless selected another level.
 5. [Hotfix] **Decide on save-file tracking policy** — `Characters/*.json` and `SaveProgression/*.json` are tracked in git and change on every local playtest (seen in current uncommitted diff: `nora.json`, `vozy.json`, `progression_Nora.json`). Either gitignore actual save state and commit only fixture/sample data, or explicitly document that these are meant to be versioned as save snapshots.
-6. [Hotfix] **Remove/gate debug output** — 19 `print(f"DEBUG: ...")` statements in `Code/combat_system.py` (14) and `Code/settings_system.py` (5) run unconditionally. Wrap behind a `DEBUG` flag in `settings_system.py` or Python's `logging` module at DEBUG level.
 7. [Hotfix] **Add `requirements.txt`** — no dependency manifest exists; README states pygame 2.6.1 on Python 3.11 as the only real dependency, but pinning it removes an onboarding/automation guesswork step.
 
 ## P2 — Testing & CI (enables safe automated changes)
@@ -59,6 +59,7 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 
 ## Done
 
+- **Remove/gate debug output** (P1 #6) — done 07/07/2026 on `feature/gate-debug-output`, released as v1.7.8. Added `Code/debug.py` with a DEBUG flag (off by default, opt-in via `MEGITECH_DEBUG` env var) and a `debug_print()` helper; replaced all 19 unconditional `print(f"DEBUG: ...")` calls in `Code/combat_system.py` (14) and `Code/settings_system.py` (5). See CHANGELOG.md.
 - **Main game sound is broken** (P0 #2) — done 07/07/2026 on `hotfix/audio-path-fix`, released as v1.7.7. Fixed `../Sounds` vs `Sounds` path mismatch, made music resolve against the absolute Sounds dir regardless of working directory, and defined the missing `start_world_music()` hook. See CHANGELOG.md.
 - **Dying doesn't take credits** (P0 #1) — done 07/07/2026 on `hotfix/death-credit-loss`, released as v1.7.6. Fixed legacy combat death path, boss-dungeon FIGHT-state fallthrough, keypress-path reward/penalty skip, and duplicated victory rewards. See CHANGELOG.md.
 - **Add a `.gitignore`** + **Untrack committed `.pyc` files** (P1 #3 & #4) — done 07/07/2026 on `feature/repo-hygiene`, released as v1.7.5. See CHANGELOG.md.
