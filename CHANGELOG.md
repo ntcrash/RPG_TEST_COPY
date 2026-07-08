@@ -2,7 +2,17 @@
 All notable changes to this project will be documented in this file.
 
 ## - ToDo
-- Fix Main Game sound
+- Replace 0-byte placeholder SFX (player_hurt, run_away, victory, menu_select, menu_move, door_open)
+
+## 07/07/2026 - v1.7.7
+### 🔊 Main Game Sound Fix (Roadmap P0 #2) ✅
+**Background music now plays correctly regardless of how the game is launched**
+- **File: `Code/enhanced_combat_system.py`** - `SoundManager.play_music()` now resolves relative/working-directory-dependent paths against the absolute `sounds_dir`, so music loads no matter the current working directory (SFX already used absolute paths; music did not)
+- **File: `Code/enhanced_combat_integration.py`** - Fixed `../Sounds` vs `Sounds` mismatch where `end_combat()` and the GAME_BOARD branch of `play_contextual_music()` checked `os.path.exists("../Sounds/world_music.ogg")` (always false from the repo root) but tried to play `"Sounds/world_music.ogg"` — world music never resumed. Now pass bare filenames and let `play_music()` resolve them
+- **File: `Code/enhanced_combat_integration.py`** - Defined the missing `start_world_music()` hook on the game manager; `main.py` called `self.start_world_music()` when fleeing combat, which raised `AttributeError` (undefined method)
+- **File: `Code/enhanced_combat_integration.py`** - Stopped calling `create_sound_directories()` during init and repointed it at the absolute Sounds dir; it previously created a stray `../Sounds` folder and wrote empty placeholder `.wav`/`.ogg` files that then failed to load
+- **Verified**: headless smoke test (SDL dummy driver) confirms `world_music.ogg` and `battle_music.ogg` load and play from a non-repo working directory; missing menu/shop music degrades gracefully
+- **Note**: Six SFX files ship as 0-byte placeholders and still can't load (`player_hurt`, `run_away`, `victory`, `menu_select`, `menu_move`, `door_open`) — tracked as ROADMAP #17
 
 ## 07/07/2026 - v1.7.6
 ### 💀 Death Credit Loss Fix (Roadmap P0 #1) ✅

@@ -6,6 +6,7 @@ Integrates the enhanced combat system with sound and animation support
 import pygame
 import random
 import os
+from pathlib import Path
 from Code.enhanced_combat_system import EnhancedCombatManager, SoundManager
 from Code.game_data import CharacterManager
 from Code.ui_components import *
@@ -298,10 +299,11 @@ class EnhancedCombatIntegration:
         if result == "victory" and hasattr(self.game_manager, 'current_enemy_obj'):
             self.game_manager.current_enemy_obj.active = False
 
-        # Play world music if available
+        # Play world music if available. play_music() resolves the file
+        # against the absolute Sounds directory, so a bare filename is safe
+        # regardless of the current working directory.
         try:
-            if os.path.exists("../Sounds/world_music.ogg"):
-                self.sound_manager.play_music("Sounds/world_music.ogg")
+            self.sound_manager.play_music("world_music.ogg")
         except Exception as e:
             print(f"Could not load world music: {e}")
 
@@ -404,8 +406,15 @@ class EnhancedCombatIntegration:
 
 
 def create_sound_directories():
-    """Create sound directories and placeholder files"""
-    sound_dir = "../Sounds"
+    """Ensure the Sounds directory exists (no longer called during init).
+
+    Kept for manual/first-run scaffolding only. Uses the absolute Sounds
+    directory next to the code (matching enhanced_combat_system.sounds_dir)
+    rather than a working-directory-relative "../Sounds", which created a
+    stray folder outside the repo. Placeholder files are only created when a
+    real sound is genuinely missing so we never clobber shipped audio.
+    """
+    sound_dir = str(Path(__file__).parent.parent / 'Sounds')
     if not os.path.exists(sound_dir):
         os.makedirs(sound_dir)
         print(f"Created {sound_dir} directory")
@@ -434,9 +443,6 @@ def integrate_enhanced_combat_with_game_states(game_manager):
     Enhanced integration function to modify existing game states for combat with sound/animation
     Call this from your main game initialization
     """
-
-    # Create sound directories
-    create_sound_directories()
 
     # Create enhanced combat integration
     combat_integration = EnhancedCombatIntegration(game_manager)
@@ -567,26 +573,35 @@ def setup_enhanced_audio_system(game_manager):
 
     sound_manager = game_manager.combat_integration.sound_manager
 
-    # Set up context-sensitive music
+    # Set up context-sensitive music. Pass bare filenames; play_music()
+    # resolves them against the absolute Sounds directory and gracefully
+    # no-ops on files that are not present (e.g. menu/shop music).
     def play_contextual_music():
         if game_manager.current_state == GameState.MAIN_MENU:
             try:
-                if os.path.exists("Sounds/menu_music.ogg"):
-                    sound_manager.play_music("Sounds/menu_music.ogg")
-            except:
+                sound_manager.play_music("menu_music.ogg")
+            except Exception:
                 pass
         elif game_manager.current_state == GameState.GAME_BOARD:
             try:
-                if os.path.exists("../Sounds/world_music.ogg"):
-                    sound_manager.play_music("Sounds/world_music.ogg")
-            except:
+                sound_manager.play_music("world_music.ogg")
+            except Exception:
                 pass
         elif game_manager.current_state == GameState.STORE:
             try:
-                if os.path.exists("Sounds/shop_music.ogg"):
-                    sound_manager.play_music("Sounds/shop_music.ogg")
-            except:
+                sound_manager.play_music("shop_music.ogg")
+            except Exception:
                 pass
+
+    # Expose a simple hook so the main loop can resume world music directly
+    # (e.g. after fleeing combat). main.py calls game_manager.start_world_music().
+    def start_world_music():
+        try:
+            sound_manager.play_music("world_music.ogg")
+        except Exception:
+            pass
+
+    game_manager.start_world_music = start_world_music
 
     # Store original state change logic to add music transitions
     original_set_state = getattr(game_manager, 'set_current_state', None)

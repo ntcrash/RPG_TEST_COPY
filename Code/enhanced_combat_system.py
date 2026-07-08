@@ -225,10 +225,17 @@ class SoundManager:
             return
 
         try:
-            # Check if file exists first
+            # Resolve the music path robustly. Callers historically passed
+            # working-directory-relative paths (e.g. "Sounds/world_music.ogg"
+            # or even "../Sounds/..."), which break when the game is launched
+            # from a different CWD. Fall back to the absolute Sounds directory.
             if not os.path.exists(music_file):
-                print(f"Music file not found: {music_file}")
-                return
+                candidate = os.path.join(str(sounds_dir), os.path.basename(music_file))
+                if os.path.exists(candidate):
+                    music_file = candidate
+                else:
+                    print(f"Music file not found: {music_file}")
+                    return
 
             pygame.mixer.music.load(music_file)
             pygame.mixer.music.set_volume(self.master_volume * 0.6)
