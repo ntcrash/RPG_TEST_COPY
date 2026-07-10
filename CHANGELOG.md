@@ -2,7 +2,16 @@
 All notable changes to this project will be documented in this file.
 
 ## - ToDo
-- Fix the 43 Ruff findings surfaced by the new linter (13 unused imports, 12 unused variables, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only
+- Fix the 43 Ruff findings surfaced by the new linter (13 unused imports, 12 unused variables, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
+
+## 07/09/2026 - v2.1.13
+### 🤖 Continuous Integration: first GitHub Actions workflow (roadmap P2 #9)
+**Added the repository's first CI pipeline so every push and pull request is automatically byte-compiled, linted, and tested — closing roadmap P2 #9 and giving the ongoing Arcade migration a safety net.**
+- **New file: `.github/workflows/ci.yml`.** Triggers on `push` and `pull_request` against the gitflow integration branches `main` and `develop`, plus manual `workflow_dispatch`. A `concurrency` group cancels superseded runs on the same ref.
+- **Job steps** (Ubuntu, Python 3.11 matrix, pip cache): install `requirements.txt` (pygame + arcade) and `requirements-dev.txt` (ruff) → `python -m py_compile main.py arcade_app.py Code/*.py` → `ruff check .` → `python -m unittest discover -s tests -v`.
+- **Headless by design**: `SDL_VIDEODRIVER=dummy` and `SDL_AUDIODRIVER=dummy` are set at job scope so the pygame-coupled modules import without a display or audio device on the runner — the same mechanism the local test harness uses.
+- **Lint is non-blocking for now** (`continue-on-error: true`): the 43 pre-existing Ruff findings are already tracked in the ToDo above and deferred to a dedicated cleanup pass, so the step reports without failing the build. It becomes a hard gate once that cleanup lands.
+- **Verification** (local, before commit): workflow YAML parses via `yaml.safe_load`; `py_compile` clean across all sources; `ruff check .` reports the expected **43** findings; test suite **42/42 green** under the dummy SDL drivers. No application code changed.
 
 ## 07/09/2026 - v2.1.9
 ### 🧹 Arcade migration: fix combat_integration standalone import (roadmap P1 #1, remaining step 3)

@@ -1,0 +1,61 @@
+name: CI
+
+# Roadmap P2 #9 — run the test suite plus a py_compile / lint pass on every
+# push and PR against the gitflow integration branches. Kept deliberately
+# lightweight so it works headlessly on GitHub-hosted runners.
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  # Allow manual runs from the Actions tab.
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref to save runner minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]
+
+    # Pygame/Arcade open SDL/OpenGL contexts; force dummy drivers so nothing
+    # needs a real display or audio device on the runner.
+    env:
+      SDL_VIDEODRIVER: dummy
+      SDL_AUDIODRIVER: dummy
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Byte-compile all sources (py_compile)
+        run: python -m py_compile main.py arcade_app.py Code/*.py
+
+      - name: Lint (ruff)
+        # Non-blocking for now: 43 pre-existing findings are tracked in the
+        # CHANGELOG ToDo and deferred to a dedicated cleanup pass. Flip this to
+        # blocking (remove continue-on-error) once that pass lands.
+        continue-on-error: true
+        run: ruff check .
+
+      - name: Run test suite (unittest, headless)
+        run: python -m unittest discover -s tests -v

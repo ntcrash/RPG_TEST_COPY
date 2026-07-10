@@ -20,7 +20,7 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 
 ## P2 — Testing & CI (enables safe automated changes)
 
-9. [Hotfix] **Add a CI workflow** (GitHub Actions) — run the new test suite plus a `python -m py_compile` / lint pass on push and PR against `develop` and `main`, matching the gitflow branches already in use.
+_(all items complete — see Done)_
 
 ## P3 — Documentation debt
 
@@ -34,7 +34,7 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 ---
 
 ## P5 - Visual Enhancements
-25. [Feature] **Animated Trees**: Swaying animation and color changes based on harvestable status
+25. [Feature] **Animated Trees**: Enhance tree graphics and Swaying animation and color changes based on harvestable status
 26. [Feature] **Resource Nodes**: Visual feedback showing when objects can be harvested vs depleted
 27. [Feature] **Mystical Dungeons**: Animated portal entrances with glowing magical effects and floating particles
 28. [Feature] **"BOSS DUNGEON" Text**: Golden glow effects and mystical styling
@@ -42,7 +42,7 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 30. [Feature] **World Aesthetics**: Cleaner grass-based terrain without flower clutter
 31. [Feature] **Structured Paths**: Clear walking routes toward important areas
 32. [Feature] **Add helper pets** Add companion pets that can assist in combat, you would have to earn from loot of a boss, or buy
-33. [Feature] **Add more spells** add more spells for different classes
+33. [Feature] **Add more spells** add more spells for different classes and based on character level
 
 ## P6 - Multi-player Enhancements
 
@@ -68,6 +68,7 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
 
 ## Done
 
+- **Add a CI workflow** (P2 #9) — done 07/09/2026 on `feature/arcade-migrate-assets`, released as v2.1.13. Added the repo's first GitHub Actions workflow (`.github/workflows/ci.yml`) that runs on every push and PR against `main` and `develop` (plus manual `workflow_dispatch`). Steps: checkout → set up Python 3.11 (pip-cached) → install `requirements.txt` + `requirements-dev.txt` → `python -m py_compile main.py arcade_app.py Code/*.py` → `ruff check .` → headless `python -m unittest discover -s tests -v`. `SDL_VIDEODRIVER`/`SDL_AUDIODRIVER` are forced to `dummy` at job scope so pygame imports without a display/audio device; a `concurrency` group cancels superseded runs. The ruff step is intentionally `continue-on-error` for now — the 43 pre-existing findings are deferred in the CHANGELOG ToDo — and flips to blocking once that cleanup lands. Locally verified before commit: workflow YAML parses, `py_compile` clean, ruff reports the expected 43 findings, and the suite is 42/42 green under the dummy SDL drivers. See CHANGELOG.md.
 - **Fix spawn items so they are always accessible** (P1 #3) — done 07/09/2026 on `hotfix/spawn-accessible`, released as v2.1.4. World items (trees, rocks, metal veins, streams, brushes) were placed at random coordinates constrained only by min-distance to other spawned entities, with x/y ranges hardcoded to the old 800×600 window (world is really 768×576) and no clearance around the player start or key interactables — so a blocking rock/metal/tree could land on the player's spawn point (trapping them) or bury the rest area / shop / boss-dungeon centre. Added `get_spawn_bounds(margin)` (derives spawn ranges from `tile_map.get_world_pixel_size()`, clamped so they never invert) and `get_reserved_positions()` (player start, rest area, shop, dungeon centre); both spawn loops now reject candidates outside the derived bounds, on a non-walkable tile (`is_position_walkable`), or within `RESERVED_CLEARANCE = 70`px of any reserved point. New `tests/test_spawn_accessibility.py` (6 tests) drives the real placement loops across 60 seeds asserting the invariants; suite now 42/42 green. See CHANGELOG.md.
 - **Replace 0-byte placeholder SFX** (P4 #17) — done 07/09/2026 on `feature/placeholder-sfx`, released as v2.1.3. Generated six real WAV effects to replace the empty 0-byte files that failed to load (`player_hurt`, `run_away`, `victory`, `menu_select`, `menu_move`, `door_open`). Synthesized procedurally with NumPy (44.1 kHz, 16-bit stereo, short envelopes): `menu_move` a 60 ms soft blip, `menu_select` a two-note up-confirm, `player_hurt` a descending tonal+noise grunt, `run_away` a rising whoosh sweep, `victory` a four-note C-E-G-C major arpeggio fanfare, and `door_open` a low modulated creak. All six load through `pygame.mixer.Sound` headlessly (dummy SDL drivers) with correct non-zero durations. The generator script logic is captured in CHANGELOG. See CHANGELOG.md.
 - **Add a linter config** (P2 #10) — done 07/08/2026 on `feature/linter-config`, released as v2.1.2. Added the project's first `pyproject.toml` with a `[tool.ruff]` section: `py311`, `line-length = 120`, content/vendored dirs excluded, and a high-signal `select = ["F", "E9", "B"]` rule set (dead code, unused imports, syntax errors, bugbear) with style rules left off so it's not a reformat diff. Key finding: the game's deliberate `from Code.ui_components import *` backend switch (v2.0.5) makes `F403`/`F405` fire on nearly every pygame call — **484 of 527 raw findings**; ignoring them leaves **43 real findings** (13 unused imports, 12 unused vars, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition), now logged in CHANGELOG ToDo for a dedicated cleanup pass (17 are `--fix`-safe). Added `requirements-dev.txt` for the dev-only `ruff` dep. Tests still 36/36 green; `py_compile` clean. See CHANGELOG.md.
