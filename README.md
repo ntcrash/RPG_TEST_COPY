@@ -2,9 +2,11 @@
 
 ## Overview
 
-Magitech RPG is a single-player turn-based role-playing game built with Python and Pygame. The game features a Zelda-inspired tile-based world map, character creation with D&D-style stats, turn-based combat system, and comprehensive loot mechanics. Players can create characters, explore a procedurally generated world, engage in combat, collect treasures, and progress through 20 levels across 5 unique worlds.
+Magitech RPG is a single-player turn-based role-playing game built with Python (currently migrating its renderer from Pygame to the Arcade library). The game features a Zelda-inspired tile-based world map, character creation with D&D-style stats, turn-based combat system, and comprehensive loot mechanics. Players can create characters, explore a procedurally generated world, engage in combat, collect treasures, and progress through 20 levels across 5 unique worlds.
 
 ## Recent Changes
+
+**2026-07-10 (v2.1.14)**: Documentation sync — the "Project Architecture" section was frozen at the pre-v1.6 layout (it listed `game_states.py` as the entry point and a flat, root-level module list). Updated it to reflect the real structure: `main.py` (default pygame entry) and `arcade_app.py` (Arcade entry) at the root, all game modules under the `Code/` package, the `MEGITECH_BACKEND` runtime backend switch, centralized version metadata in `Code/version.py`, and the gitignored runtime save directories. See CHANGELOG.md.
 
 **2026-07-09 (v2.1.9)**: Arcade migration — fixed the last standalone-import bug. `Code/combat_integration.py` referenced `game_data` as a top-level module (`from game_data import CharacterManager`) instead of the package path, so it failed to import outside the running game under both backends. Changed to `from Code.game_data import CharacterManager`. The full `Code/*.py` import sweep is now 20/20 clean under both the pygame and Arcade backends; the test suite stays 42/42 green. See CHANGELOG.md.
 
@@ -34,27 +36,37 @@ Magitech RPG is a single-player turn-based role-playing game built with Python a
 
 ### System Requirements
 - **Language**: Python 3.11
-- **Main Dependency**: pygame 2.6.1
-- **Display**: Requires VNC for desktop GUI display
-- **Entry Point**: `game_states.py`
+- **Dependencies**: pygame ≥ 2.5 (legacy renderer) and arcade ≥ 3.3 (new renderer) — see `requirements.txt`
+- **Display**: Requires a desktop GUI (or VNC) to play; imports and tests run headless via SDL dummy drivers
+- **Entry Points**: `main.py` (default, pygame) or `arcade_app.py` (Arcade backend)
+
+> **Backend note (v2.x migration):** the game is mid-migration from Pygame to the
+> [Arcade](https://api.arcade.academy/) library. The renderer is selected at runtime by the
+> `MEGITECH_BACKEND` env var — unset falls back to real pygame (`python main.py`), while
+> `arcade_app.py` sets `MEGITECH_BACKEND=arcade` to route drawing through the `Code/gfx.py`
+> Arcade compatibility shim. All game modules import the active backend via
+> `Code/backend.py` / `Code/ui_components.py` rather than importing `pygame` directly.
 
 ### Core Components
 
 #### Game Engine
-- **Main Game Loop**: `EnhancedGameManager` class in `game_states.py`
-- **State Management**: Multiple game states (menu, character creation, gameplay, combat, etc.)
-- **Rendering**: Pygame-based graphics with 800x600 resolution
+- **Main Game Loop**: `EnhancedGameManager` class in `main.py`
+- **State Management**: Multiple game states (menu, character creation, gameplay, combat, etc.) — see `GameState` in `main.py`
+- **Rendering**: 800x600 window; Pygame by default, Arcade via the `Code/gfx.py` shim
+- **Version Metadata**: centralized in `Code/version.py` (`__version__`, `CAPTION`)
 - **Audio System**: Sound effects and music (with fallback for missing files)
 
-#### Game Systems
-- **Combat System**: Turn-based combat with D&D-style calculations (`enhanced_combat_system.py`)
+#### Game Systems (all under `Code/`)
+- **Combat System**: Turn-based combat with D&D-style calculations (`combat_system.py`, `enhanced_combat_system.py`, and the `*_integration.py` bridges)
 - **Character System**: Six races and six classes with stat bonuses (`character_creation.py`)
 - **World Generation**: Procedural tile-based world with multiple object types (`tile_map.py`)
 - **Level System**: 20 levels across 5 unique worlds with progressive difficulty (`level_system.py`)
 - **Store System**: In-game shops for purchasing equipment (`store_system.py`)
 - **Rest System**: Strategic rest areas with cooldown timers (`rest_system.py`)
+- **Inventory System**: Item management and equipment (`inventory_system.py`)
 - **Settings System**: Configurable game settings (`settings_system.py`)
 - **Crafting System**: Workshop for creating weapons, armor, accessories, and consumables (`crafting_system.py`)
+- **Enemy Management**: Enemy loading and scaling (`enhanced_enemy_manager.py`)
 
 #### Data Management
 - **Character Data**: JSON-based character persistence in `/Characters/` directory
@@ -87,34 +99,51 @@ Magitech RPG is a single-player turn-based role-playing game built with Python a
 ### File Structure
 ```
 /
-├── game_states.py          # Main game engine and entry point
-├── animated_player.py      # Player character animation
-├── character_creation.py   # Character creation system
-├── combat_system.py        # Combat mechanics
-├── enhanced_combat_system.py # Enhanced combat with effects
-├── tile_map.py             # World generation and tile system
-├── ui_components.py        # UI elements and rendering
-├── game_data.py            # Data management and character handling
-├── level_system.py         # Multi-level world system
-├── store_system.py         # Shop and trading system
-├── rest_system.py          # Rest areas and recovery system
-├── settings_system.py      # Game configuration
-├── crafting_system.py      # Crafting workshops and recipes
-├── game_config.json        # Game configuration settings
-├── game_settings.json      # Player preferences
-├── /Characters/            # Character save files
-├── /Images/                # Game sprites and graphics
-├── /Sounds/                # Audio files and sound effects
-├── /Books/                 # Level and world data
-└── /Enemies/               # Enemy configurations
+├── main.py                     # Main game engine + default (pygame) entry point — EnhancedGameManager
+├── arcade_app.py               # Arcade entry point (sets MEGITECH_BACKEND=arcade, drives the state machine)
+├── requirements.txt            # Runtime deps (pygame, arcade)
+├── requirements-dev.txt        # Dev-only deps (ruff)
+├── pyproject.toml              # Ruff linter config
+├── CHANGELOG.md                # Version history
+├── ROADMAP.md                  # Automation/agent backlog
+├── Code/                       # All game modules (importable package)
+│   ├── version.py              # Central version metadata (__version__, CAPTION)
+│   ├── backend.py              # Runtime pygame/Arcade backend switch
+│   ├── gfx.py                  # pygame→Arcade compatibility shim
+│   ├── ui_components.py        # UI elements, rendering, backend star-export
+│   ├── animated_player.py      # Player character animation
+│   ├── character_creation.py   # Character creation system
+│   ├── combat_system.py        # Combat mechanics
+│   ├── enhanced_combat_system.py     # Enhanced combat with effects
+│   ├── combat_integration.py         # Combat/game-state bridge
+│   ├── enhanced_combat_integration.py
+│   ├── enhanced_enemy_manager.py     # Enemy loading and scaling
+│   ├── tile_map.py             # World generation and tile system
+│   ├── game_data.py            # Data management and character handling
+│   ├── level_system.py         # Multi-level world system
+│   ├── store_system.py         # Shop and trading system
+│   ├── rest_system.py          # Rest areas and recovery system
+│   ├── inventory_system.py     # Inventory and equipment
+│   ├── settings_system.py      # Game configuration
+│   ├── crafting_system.py      # Crafting workshops and recipes
+│   └── debug.py                # Gated debug output (MEGITECH_DEBUG)
+├── tests/                      # Headless unittest suite
+├── Characters/                 # Character save files (gitignored, runtime)
+├── SaveProgression/            # Per-character level progression (gitignored, runtime)
+├── Images/                     # Game sprites and graphics
+├── Sounds/                     # Audio files and sound effects
+├── Books/                      # Level and world data
+└── Enemies/                    # Enemy configurations
 ```
 
 ### Development Notes
 
 #### Running the Game
-- Execute `python game_states.py` to start the game
+- Install dependencies: `pip install -r requirements.txt`
+- Default (Pygame) backend: `python main.py`
+- Arcade backend (v2.x migration): `MEGITECH_BACKEND=arcade python arcade_app.py`
 - Game automatically creates sample files and directories on first run
-- VNC display required for GUI interaction
+- A desktop display (or VNC) is required for GUI interaction
 - Game supports keyboard controls for all interactions
 
 #### Running the Tests

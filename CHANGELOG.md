@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 43 Ruff findings surfaced by the new linter (13 unused imports, 12 unused variables, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/10/2026 - v2.1.14
+### 📝 Documentation: sync README architecture with the real code layout (roadmap P3 #11)
+**The README's "Project Architecture" section was frozen at the pre-v1.6 structure and actively misled anyone (human or agent) trying to navigate the code.** It named `game_states.py` as the main game engine and entry point (that file was renamed to `main.py` back in v1.6) and listed every module as a flat, root-level file — but all game modules have long lived under the `Code/` package, and the v2.x migration added a second entry point.
+- **File: `README.md`.** Rewrote the stale sections to match reality:
+  - **Entry points**: `main.py` (default, pygame) and `arcade_app.py` (Arcade backend) — replaced the single `game_states.py` reference. `EnhancedGameManager` now correctly attributed to `main.py`.
+  - **Backend note**: documented the `MEGITECH_BACKEND` runtime switch (unset → pygame; `arcade` → the `Code/gfx.py` shim, set by `arcade_app.py`) and that modules import the backend via `Code/backend.py` / `Code/ui_components.py`, not `import pygame` directly.
+  - **Dependencies**: pygame ≥ 2.5 **and** arcade ≥ 3.3 (per `requirements.txt`), replacing the lone "pygame 2.6.1".
+  - **File Structure**: replaced the flat root listing with the actual `Code/` package tree (all 20 modules, including the migration-era `version.py`, `backend.py`, `gfx.py`), plus `tests/`, gitignored `Characters/`/`SaveProgression/` runtime dirs, and the tooling/config files (`requirements*.txt`, `pyproject.toml`, `CHANGELOG.md`, `ROADMAP.md`).
+  - **Running the Game**: `pip install -r requirements.txt`, then `python main.py` (default) or `MEGITECH_BACKEND=arcade python arcade_app.py`.
+  - **Overview / Version Metadata**: noted the in-progress Pygame→Arcade migration and the central `Code/version.py`.
+- **Docs-only change** — no application code touched. `py_compile` across `main.py`, `arcade_app.py`, and `Code/*.py` stays clean; test suite unaffected (42/42).
+
 ## 07/09/2026 - v2.1.13
 ### 🤖 Continuous Integration: first GitHub Actions workflow (roadmap P2 #9)
 **Added the repository's first CI pipeline so every push and pull request is automatically byte-compiled, linted, and tested — closing roadmap P2 #9 and giving the ongoing Arcade migration a safety net.**
