@@ -272,6 +272,23 @@ class FontTests(NoArcadeMixin, unittest.TestCase):
         self.assertIsNone(gfx.font.init())
         self.assertTrue(gfx.font.get_init())
 
+    def test_size_method_is_callable_not_shadowed(self):
+        # pygame.font.Font.size(text) -> (w, h) is a METHOD. The stored point
+        # size must NOT be named self.size or it shadows this method with an int
+        # ("int is not callable"). Guards the drop-in API contract.
+        f = gfx.Font(None, 24)
+        self.assertTrue(callable(f.size))
+        w, h = f.size("Hello")
+        self.assertIsInstance(w, int)
+        self.assertGreater(w, 0)
+        self.assertEqual(h, 24)
+
+    def test_font_size_stored_as_font_size_attr(self):
+        f = gfx.Font("arial", 30)
+        self.assertEqual(f.font_size, 30)
+        # render must honor the stored size in the no-arcade metric fallback.
+        self.assertEqual(f.render("x", True, (0, 0, 0)).get_height(), 30)
+
 
 class ConstantsTests(NoArcadeMixin, unittest.TestCase):
     def test_key_constants_match_pygame_values(self):

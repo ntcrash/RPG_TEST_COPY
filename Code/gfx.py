@@ -700,23 +700,30 @@ def _get_cached_text(text, size, name, color):
 
 
 class Font:
-    """Emulates pygame.font.Font. `render()` returns a text Surface."""
+    """Emulates pygame.font.Font. `render()` returns a text Surface.
+
+    NOTE: the font's point size is stored as ``self.font_size`` (NOT ``self.size``)
+    on purpose. pygame.font.Font exposes ``.size(text) -> (w, h)`` as a *method*
+    that measures a string; naming the stored size ``self.size`` would shadow that
+    method with an int, breaking the drop-in contract (calling ``font.size("hi")``
+    would raise "int is not callable"). Keep them separate.
+    """
 
     def __init__(self, name=None, size=24):
         self.name = name
-        self.size = size
+        self.font_size = size
 
     def render(self, text, antialias, color, background=None) -> Surface:
         if _arcade is None:
             # Approximate metrics so layout code still works without arcade.
-            w = int(len(str(text)) * self.size * 0.55)
-            return Surface((w, self.size))
+            w = int(len(str(text)) * self.font_size * 0.55)
+            return Surface((w, self.font_size))
         c = _norm_color(color)
         safe = _safe_text(text)
         if not safe:
             # String was entirely emoji/variation-selectors -> nothing to draw.
             return Surface((0, 0))
-        atext = _get_cached_text(safe, self.size, self.name, c)
+        atext = _get_cached_text(safe, self.font_size, self.name, c)
         surf = Surface((int(atext.content_width), int(atext.content_height)),
                        text=atext)
         return surf
