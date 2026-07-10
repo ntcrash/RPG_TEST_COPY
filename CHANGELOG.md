@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 43 Ruff findings surfaced by the new linter (13 unused imports, 12 unused variables, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/10/2026 - v2.1.15
+### 📦 Dependency manifest confirmed / roadmap reconciliation (roadmap P1 #7)
+**Closed roadmap P1 #7 ("Add `requirements.txt`") — the manifest already exists and fully satisfies the item, so this run reconciles the stale backlog entry rather than re-adding the file.** The roadmap item was written against an earlier state ("no dependency manifest exists"); the manifest was in fact added during the v2.x migration and pins the project's only two third-party runtime dependencies.
+- **Verification: `requirements.txt` covers every third-party runtime import.** A full import sweep of `main.py`, `arcade_app.py`, and `Code/*.py` shows exactly two non-stdlib, non-local packages imported at runtime: `pygame` and `arcade`. Both are pinned in `requirements.txt` (`pygame>=2.5`, `arcade>=3.3`). NumPy was only used by the one-off v2.1.3 SFX generator script, not at runtime, so it is correctly absent from the runtime manifest (dev-only `ruff` lives in `requirements-dev.txt`). The lower-bound (`>=`) pins are intentional for the migration window, during which both backends must be installable together.
+- **No dependency drift**: nothing to add or remove — the manifest and the actual imports agree.
+- **Roadmap**: moved P1 #7 from the open backlog to the Done section.
+- **Docs/metadata-only change** — no application code touched; `py_compile` stays clean and the test suite is unaffected (42/42).
+
 ## 07/10/2026 - v2.1.14
 ### 📝 Documentation: sync README architecture with the real code layout (roadmap P3 #11)
 **The README's "Project Architecture" section was frozen at the pre-v1.6 structure and actively misled anyone (human or agent) trying to navigate the code.** It named `game_states.py` as the main game engine and entry point (that file was renamed to `main.py` back in v1.6) and listed every module as a flat, root-level file — but all game modules have long lived under the `Code/` package, and the v2.x migration added a second entry point.
