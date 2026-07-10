@@ -909,6 +909,56 @@ class Event:
         self.__dict__.update(attrs)
 
 
+class Sprite:
+    """Minimal ``pygame.sprite.Sprite`` stand-in.
+
+    ``EnhancedTileMap`` (``Code/tile_map.py``) and ``AnimatedPlayer``
+    (``Code/animated_player.py``) subclass this purely to call
+    ``super().__init__()``; they never use Group membership or the collision
+    helpers. Providing this native base lets those modules run under the Arcade
+    backend without importing real ``pygame.sprite`` (migration step 6). The
+    Group-tracking API is implemented as faithful no-ops for drop-in parity.
+    """
+
+    def __init__(self, *groups):
+        self._groups = []
+        if groups:
+            self.add(*groups)
+
+    def add(self, *groups):
+        for g in groups:
+            if g is not None and g not in self._groups:
+                self._groups.append(g)
+
+    def remove(self, *groups):
+        for g in groups:
+            if g in self._groups:
+                self._groups.remove(g)
+
+    def kill(self):
+        self._groups.clear()
+
+    def groups(self):
+        return list(self._groups)
+
+    def alive(self):
+        return bool(self._groups)
+
+    def update(self, *args, **kwargs):
+        """No-op; the game drives its own per-frame updates."""
+
+
+class _SpriteModule:
+    """Namespace mirroring ``pygame.sprite`` (only ``Sprite`` is used)."""
+
+    Sprite = Sprite
+
+
+# Exposed as ``gfx.sprite`` so ``pygame.sprite.Sprite`` resolves natively under
+# the Arcade backend instead of falling through ``__getattr__`` to real pygame.
+sprite = _SpriteModule()
+
+
 def init():
     """pygame.init(). Delegates to real pygame so mixer/font/display
     subsystems the un-migrated game logic relies on still initialize

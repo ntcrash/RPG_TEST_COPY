@@ -1,5 +1,4 @@
 from Code.backend import pygame  # backend switch (real pygame or Arcade gfx shim)
-from pygame.locals import *
 import random
 
 
@@ -25,7 +24,7 @@ class AnimatedPlayer(pygame.sprite.Sprite):
             self.spriteSheet = pygame.Surface((640, 640))
             self.spriteSheet.fill((0, 100, 200))
 
-        self.image = self.spriteSheet.subsurface(Rect(self.x, self.y, self.width, self.height))
+        self.image = self.spriteSheet.subsurface(pygame.Rect(self.x, self.y, self.width, self.height))
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
 
         # Increased scale for bigger player
@@ -50,25 +49,25 @@ class AnimatedPlayer(pygame.sprite.Sprite):
 
         # Movement with bounds checking
         if self.y > 0:
-            if pressed_keys[K_UP]:
+            if pressed_keys[pygame.K_UP]:
                 self.y -= self.speed
                 self.state = 0
                 moved = True
 
         if self.y < screen_height - self.display_height:
-            if pressed_keys[K_DOWN]:
+            if pressed_keys[pygame.K_DOWN]:
                 self.y += self.speed
                 self.state = 1
                 moved = True
 
         if self.x < screen_width - self.display_width:
-            if pressed_keys[K_RIGHT]:
+            if pressed_keys[pygame.K_RIGHT]:
                 self.x += self.speed
                 self.state = 2
                 moved = True
 
         if self.x > 0:
-            if pressed_keys[K_LEFT]:
+            if pressed_keys[pygame.K_LEFT]:
                 self.x -= self.speed
                 self.state = 3
                 moved = True
@@ -87,7 +86,7 @@ class AnimatedPlayer(pygame.sprite.Sprite):
             self.frame = 0
 
         # Get current sprite from sheet
-        sprite_rect = Rect(
+        sprite_rect = pygame.Rect(
             self.frame * self.width + self.buffer,
             self.state * self.height + self.buffer,
             self.width - self.buffer,

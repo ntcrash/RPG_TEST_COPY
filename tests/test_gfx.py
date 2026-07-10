@@ -336,6 +336,41 @@ class ConstantsTests(NoArcadeMixin, unittest.TestCase):
         self.assertFalse(gfx.key.get_pressed()[gfx.K_w])
 
 
+class SpriteTests(NoArcadeMixin, unittest.TestCase):
+    """The native gfx.sprite.Sprite base used by EnhancedTileMap / AnimatedPlayer
+    under the Arcade backend (migration step 6 — no real pygame.sprite)."""
+
+    def test_sprite_namespace_exposes_Sprite(self):
+        self.assertIs(gfx.sprite.Sprite, gfx.Sprite)
+
+    def test_subclass_super_init_no_groups(self):
+        class S(gfx.Sprite):
+            def __init__(self):
+                super().__init__()
+                self.x = 5
+
+        s = S()
+        self.assertEqual(s.x, 5)
+        self.assertEqual(s.groups(), [])
+        self.assertFalse(s.alive())
+
+    def test_group_membership_add_remove_kill(self):
+        g1, g2 = object(), object()
+        s = gfx.Sprite(g1)
+        self.assertTrue(s.alive())
+        self.assertEqual(s.groups(), [g1])
+        s.add(g2, g1)  # dedupes existing
+        self.assertEqual(s.groups(), [g1, g2])
+        s.remove(g1)
+        self.assertEqual(s.groups(), [g2])
+        s.kill()
+        self.assertEqual(s.groups(), [])
+        self.assertFalse(s.alive())
+
+    def test_update_is_noop(self):
+        self.assertIsNone(gfx.Sprite().update(1, 2, key="v"))
+
+
 class _FakeArcadeSound:
     """Records how the mixer drives arcade.Sound without a real audio device."""
 

@@ -33,3 +33,4 @@ SaveProgression/*.json
 # Stray scratch/lock artifacts
 _t2
 .git/*.stalebak
+__probe*

@@ -1,6 +1,5 @@
 from pathlib import Path
 from Code.backend import pygame  # backend switch (real pygame or Arcade gfx shim)
-from pygame.locals import *
 import random
 
 # Get the directory where your script is located
