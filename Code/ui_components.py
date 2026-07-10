@@ -620,7 +620,7 @@ class Brush:
 class Dungeon:
     """Dungeon entrance that appears when all enemies are defeated"""
 
-    def __init__(self, x, y):
+    def __init__(self, x, y, is_portal=False):
         self.x = x
         self.y = y
         self.width = 60
@@ -628,6 +628,10 @@ class Dungeon:
         self.active = True
         self.collision_rect = pygame.Rect(x + 5, y + 5, 50, 70)
         self.animation_timer = 0
+        # When True this entrance is a "level portal" left behind after a boss
+        # is defeated: interacting with it advances to the next world/level
+        # instead of starting a boss fight.
+        self.is_portal = is_portal
 
     def get_rect(self):
         """Get collision rectangle"""

@@ -149,6 +149,10 @@ class EnhancedGameManager:
         self.streams = []  # New list for stream objects
         self.brushes = []  # New list for brush objects
         self.dungeons = []  # New list for boss dungeons
+        # True once this level's boss is beaten: stops check_level_completion
+        # from respawning the boss dungeon, and marks the on-map entrance as a
+        # forward portal to the next world instead of a boss fight.
+        self.level_boss_defeated = False
 
         # Combat system variables (for legacy compatibility)
         self.current_enemy = None
@@ -234,6 +238,7 @@ class EnhancedGameManager:
         self.metals.clear()  # Clear metal veins
         self.streams.clear()  # Clear streams
         self.brushes.clear()  # Clear brushes
+        self.level_boss_defeated = False  # fresh level: boss not yet beaten
 
         if not self.current_level_content:
             self.setup_world_objects()  # Fallback
@@ -316,6 +321,15 @@ class EnhancedGameManager:
         # Always create rest area at far bottom right regardless of conflicts
         rest_area = EnhancedRestArea(rest_x, rest_y, self.rest_manager)
         self.rests.append(rest_area)
+
+        # Always create a shop at top right. This method clears self.shops every
+        # time a level is (re)built, but previously never recreated one -- so the
+        # store vanished the moment the player entered any level (only the
+        # startup safety-shop ever existed). Mirrors the init shop + the reserved
+        # zone in get_reserved_positions() at (world_width - 80, 20).
+        shop = Shop(world_width - 80, 20)
+        shop.active = True
+        self.shops.append(shop)
 
     def get_spawn_bounds(self, margin=48):
         """Return (min_x, min_y, max_x, max_y) for spawning world items.
@@ -710,8 +724,12 @@ class EnhancedGameManager:
 
         if obj and obj_type:
             if obj_type == "dungeon":
-                # Enter boss dungeon
-                self.enter_boss_dungeon()
+                # A post-boss portal advances to the next world; a fresh boss
+                # dungeon starts the boss fight.
+                if getattr(obj, "is_portal", False):
+                    self.enter_level_portal(obj)
+                else:
+                    self.enter_boss_dungeon()
             else:
                 # Harvest the object
                 material = obj.harvest()
@@ -765,7 +783,8 @@ class EnhancedGameManager:
         # Level is completed when all enemies are defeated
         active_enemies = [enemy for enemy in self.enemies if enemy.active]
 
-        if len(active_enemies) == 0 and len(self.enemies) > 0 and len(self.dungeons) == 0:
+        if (len(active_enemies) == 0 and len(self.enemies) > 0
+                and len(self.dungeons) == 0 and not self.level_boss_defeated):
             # All enemies defeated but no dungeon spawned yet - spawn boss dungeon!
             from Code.ui_components import Dungeon
 
@@ -813,11 +832,61 @@ class EnhancedGameManager:
             # Unlock next level
             self.level_manager.complete_current_level()
 
-            # Remove dungeon
+            # Mark the boss as beaten so check_level_completion stops respawning
+            # the boss dungeon (previously it reappeared every frame once all
+            # enemies were dead -> "boss remains on screen after defeat").
+            self.level_boss_defeated = True
+
+            # Replace the boss dungeon with a forward PORTAL to the next world.
+            from Code.ui_components import Dungeon
             self.dungeons.clear()
+            if self.get_next_level() is not None:
+                world_width, world_height = self.tile_map.get_world_pixel_size()
+                portal = Dungeon(world_width // 2 - 30, world_height // 2 - 40,
+                                 is_portal=True)
+                self.dungeons.append(portal)
+
+                portal_text = DamageText(
+                    0, 0, "A PORTAL TO THE NEXT WORLD OPENS!", (120, 200, 255))
+                portal_text.world_pos = (self.animated_player.x,
+                                         self.animated_player.y - 60)
+                self.damage_texts.append(portal_text)
 
             return True
         return False
+
+    def get_next_level(self):
+        """Return (world, level) of the level unlocked after the current one,
+        or None if there is no further level. Mirrors LevelManager's 4-levels-
+        per-world progression."""
+        current = self.level_manager.get_current_level()
+        if not current:
+            return None
+        if current.level < 4:
+            nxt = (current.world, current.level + 1)
+        else:
+            nxt = (current.world + 1, 1)
+        key = f"{nxt[0]}-{nxt[1]}"
+        if key in self.level_manager.levels:
+            return nxt
+        return None
+
+    def enter_level_portal(self, portal):
+        """Walk through the post-boss portal into the next world/level."""
+        nxt = self.get_next_level()
+        if nxt is None:
+            return
+        world, level = nxt
+        # complete_current_level() already unlocked it; make sure, then travel.
+        self.level_manager.unlock_level(world, level)
+        if self.change_level(world, level):
+            self.level_boss_defeated = False
+            self.dungeons.clear()
+            damage_text = DamageText(0, 0, f"Entering World {world}-{level}!", GOLD)
+            damage_text.world_pos = (self.animated_player.x,
+                                     self.animated_player.y - 40)
+            self.damage_texts.append(damage_text)
+            print(f"Portal: advanced to level {world}-{level}")
 
     def enter_game_board_for_current_level(self):
         """Enter the game board on the character's last-played (persisted) level.
