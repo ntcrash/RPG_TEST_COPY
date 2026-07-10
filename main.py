@@ -62,6 +62,15 @@ def load_changelog_text(filepath="CHANGELOG.md") -> list[str]:
 class EnhancedGameManager:
     """Main game manager with modular architecture and enhanced combat"""
 
+    # Where the player is placed when a world/level is (re)built. Kept in sync
+    # with change_level() / enter_game_board_for_current_level().
+    PLAYER_START = (480, 480)
+    # Minimum clearance (px) blocking/harvestable items must keep from the
+    # player start and key interactables. Larger than the 50px interact radius
+    # so an interactable is never buried, and larger than the player sprite so
+    # the spawn point is never blocked.
+    RESERVED_CLEARANCE = 70
+
     def __init__(self):
         # Initialize Pygame
         pygame.init()
@@ -308,6 +317,38 @@ class EnhancedGameManager:
         rest_area = EnhancedRestArea(rest_x, rest_y, self.rest_manager)
         self.rests.append(rest_area)
 
+    def get_spawn_bounds(self, margin=48):
+        """Return (min_x, min_y, max_x, max_y) for spawning world items.
+
+        Derived from the ACTUAL world pixel size rather than a hardcoded
+        800x600 window, with an inset margin so an item's sprite stays fully
+        on-map and the player can always walk around it to interact. This
+        guarantees every spawned item lands inside reachable world bounds even
+        if the map/tile dimensions change.
+        """
+        world_width, world_height = self.tile_map.get_world_pixel_size()
+        min_x = margin
+        min_y = margin
+        max_x = max(margin + 1, world_width - margin)
+        max_y = max(margin + 1, world_height - margin)
+        return min_x, min_y, max_x, max_y
+
+    def get_reserved_positions(self):
+        """Critical points that blocking/harvestable items must stay clear of.
+
+        Keeping these clear ensures the player is never trapped at spawn and
+        that key interactables stay reachable: the player start, the rest-area
+        corner, the shop, and the world centre where the boss dungeon appears.
+        Coordinates mirror where those objects are actually placed elsewhere.
+        """
+        world_width, world_height = self.tile_map.get_world_pixel_size()
+        return [
+            self.PLAYER_START,                      # player spawn point
+            (world_width - 60, world_height - 60),  # rest area (see setup)
+            (world_width - 80, 20),                 # shop (init safety shop)
+            (world_width // 2, world_height // 2),  # boss dungeon centre
+        ]
+
     def create_trees(self, existing_positions):
         """Create trees for environmental decoration"""
         current_level = self.level_manager.get_current_level()
@@ -338,20 +379,29 @@ class EnhancedGameManager:
         max_attempts = 1000
         attempts = 0
 
+        # World-derived bounds + reserved interactable zones (roadmap P1 #3)
+        min_x, min_y, max_x, max_y = self.get_spawn_bounds(margin=48)
+        reserved = self.get_reserved_positions()
+
         while len(tree_positions) < tree_count and attempts < max_attempts:
             attempts += 1
-            x = random.randint(60, 740)  # Leave border space
-            y = random.randint(60, 540)
+            x = random.randint(min_x, max_x)
+            y = random.randint(min_y, max_y)
 
-            # Check distance from all existing objects (enemies, treasures, rest areas)
-            all_positions = existing_positions + tree_positions
+            # Only spawn on walkable tiles (future-proofs non-uniform maps)
+            if not self.tile_map.is_position_walkable(x, y):
+                continue
+
+            # Keep clear of the player start, rest area, shop and boss-dungeon
+            # spot so a blocking tree never traps the player or hides an
+            # interactable.
+            if is_too_close(x, y, reserved, min_distance=self.RESERVED_CLEARANCE):
+                continue
 
             # Trees need more space since they're larger
+            all_positions = existing_positions + tree_positions
             if not is_too_close(x, y, all_positions, min_distance=45):
-                # Also avoid the player starting area
-                player_start_x, player_start_y = 480, 480
-                if math.dist((x, y), (player_start_x, player_start_y)) > 80:
-                    tree_positions.append((x, y))
+                tree_positions.append((x, y))
 
         # Create trees with varied types
         for x, y in tree_positions:
@@ -376,10 +426,24 @@ class EnhancedGameManager:
         max_attempts = 1000
         attempts = 0
 
+        # World-derived bounds + reserved interactable zones (roadmap P1 #3)
+        min_x, min_y, max_x, max_y = self.get_spawn_bounds(margin=44)
+        reserved = self.get_reserved_positions()
+
         while len(object_positions) < total_objects and attempts < max_attempts:
             attempts += 1
-            x = random.randint(40, 760)
-            y = random.randint(40, 560)
+            x = random.randint(min_x, max_x)
+            y = random.randint(min_y, max_y)
+
+            # Only spawn on walkable tiles (future-proofs non-uniform maps)
+            if not self.tile_map.is_position_walkable(x, y):
+                continue
+
+            # Blocking harvestables (rocks, metal) must never cover the player
+            # start or a key interactable, and must stay reachable from an open
+            # side.
+            if is_too_close(x, y, reserved, min_distance=self.RESERVED_CLEARANCE):
+                continue
 
             # Check distance from all existing objects
             all_positions = existing_positions + object_positions
