@@ -3,6 +3,8 @@ import os
 import random
 from pathlib import Path
 
+from Code.save_migration import SAVE_SCHEMA_VERSION, migrate_character
+
 
 def roll_dice(num, sides):
     """Roll dice for random events"""
@@ -39,7 +41,8 @@ class CharacterManager:
             "constitution": 16,
             "intelligence": 15,
             "wisdom": 13,
-            "charisma": 11
+            "charisma": 11,
+            "Save_Version": SAVE_SCHEMA_VERSION
         }
 
         # Ensure Characters directory exists
@@ -54,13 +57,20 @@ class CharacterManager:
         return char_file
 
     def load_character(self, char_file):
-        """Load character from file"""
+        """Load character from file, migrating older saves to the current schema."""
         try:
             with open(char_file, 'r') as f:
-                self.character_data = json.load(f)
-                self.character_file = char_file
-                print(f"Successfully loaded character: {self.character_data.get('Name', 'Unknown')}")
-                return True
+                loaded = json.load(f)
+            self.character_data, changed, notes = migrate_character(loaded)
+            self.character_file = char_file
+            print(f"Successfully loaded character: {self.character_data.get('Name', 'Unknown')}")
+            if changed:
+                # Old/partial save: heal it on disk so newer code that reads
+                # fields by direct index doesn't KeyError mid-game.
+                print(f"Migrated save '{char_file}' to schema v{SAVE_SCHEMA_VERSION}: "
+                      f"{'; '.join(notes)}")
+                self.save_character()
+            return True
         except Exception as e:
             print(f"Failed to load character from {char_file}: {e}")
             return False
