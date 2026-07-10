@@ -29,6 +29,13 @@ RUN IT (on the Mac, not the sandbox):
 """
 
 import os
+import faulthandler
+
+# Print a Python traceback if the process hits a hard C-level crash (SIGSEGV)
+# in Arcade/pyglet/OpenGL. During the pygame->Arcade migration this is the only
+# way to see WHERE a native crash originates (a segfault can't be caught by
+# try/except). Safe to leave on; it only fires on an actual fault.
+faulthandler.enable()
 
 # CRITICAL: run pygame's display under SDL's headless "dummy" video driver.
 # The un-migrated modules still call pygame.display.set_mode(), pygame image

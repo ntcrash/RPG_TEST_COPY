@@ -10,6 +10,13 @@ All notable changes to this project will be documented in this file.
 - **File: `Code/combat_integration.py`** — changed line 9 to `from Code.game_data import CharacterManager`. The bare `import pygame` on line 6 is left as-is on purpose: the subsequent `from Code.ui_components import *` star-export rebinds `pygame` to the selected backend (same established pattern as `combat_system.py`), so it is not a bug.
 - **Verification**: full `Code/*.py` import sweep now **20/20 clean** under the pygame backend and 20/20 under `MEGITECH_BACKEND=arcade` (both headless, `SDL_VIDEODRIVER=dummy`); previously combat_integration was the one failure. Test suite still **42/42 green**. This resolves item 3 of the migration's "Remaining to fully retire pygame" list — remaining work is the on-device visual pass (step 1), shim primitive coverage (step 2), and flipping the default (step 4).
 
+## 07/09/2026 - v2.1.10
+### 🛡️ Arcade migration: guard degenerate geometry + enable crash diagnostics (roadmap P1 #1)
+**Combat still SIGSEGV'd (signal 11) after the v2.1.8 caching fix — a hard C-level crash inside Arcade/pyglet/OpenGL that `try/except` can't catch (only the exit code showed).** Two-pronged response:
+- **Defensive geometry guards in `Code/gfx.py`** — pygame silently no-ops degenerate shapes, but Arcade's GL/tessellation layer can hard-crash on them. Every draw primitive now bails on bad input: rects/ellipses/texture blits with width or height ≤ 0, circles with radius ≤ 0, polygons with < 3 points, and any coordinate that is NaN/inf (new `_finite` helper). Combat draws health-bar widths, sprite rects, and effect polygons from live values that can hit 0 or negative — a prime segfault source.
+- **`arcade_app.py`: `faulthandler.enable()`** — so a native crash now prints the Python traceback at the fault point (module + line) instead of a bare `exit code 139`. This is the only way to localize a segfault; safe to leave on (fires only on an actual fault).
+- **Next step**: if combat still crashes, the `faulthandler` dump will name the exact draw call — paste it and the fix is targeted. If the geometry guards were the cause, combat now survives.
+
 ## 07/09/2026 - v2.1.8
 ### ⚡ Arcade migration: fix lag, combat SIGSEGV, and "can't set attribute" (roadmap P1 #1)
 **On-device: movement was slow/laggy and entering combat hard-crashed the process (SIGSEGV / signal 11), preceded by `draw() error: can't set attribute`.** Three distinct shim bugs:

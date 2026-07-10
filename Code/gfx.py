@@ -125,10 +125,21 @@ def _crop_texture(texture, x, y, w, h):
 # Both the on-screen draw module AND the off-screen surface replay call these,
 # so translated/replayed geometry lands identically to freshly-drawn geometry.
 # ---------------------------------------------------------------------------
+def _finite(*vals):
+    """Guard against NaN/inf reaching Arcade's C/GL layer (can hard-crash)."""
+    for v in vals:
+        if v != v or v in (float("inf"), float("-inf")):
+            return False
+    return True
+
+
 def _draw_rect(color, rect, width=0):
     if _arcade is None:
         return
     x, y, w, h = tuple(rect)
+    # pygame no-ops degenerate rects; Arcade's GL layer can segfault on them.
+    if w <= 0 or h <= 0 or not _finite(x, y, w, h):
+        return
     c = _norm_color(color)
     bottom = _flip_y(y + h)
     if width == 0:
@@ -141,6 +152,8 @@ def _draw_circle(color, center, radius, width=0):
     if _arcade is None:
         return
     cx, cy = center
+    if radius <= 0 or not _finite(cx, cy, radius):
+        return
     c = _norm_color(color)
     if width == 0:
         _arcade.draw_circle_filled(cx, _flip_y(cy), radius, c)
@@ -152,6 +165,8 @@ def _draw_ellipse(color, rect, width=0):
     if _arcade is None:
         return
     x, y, w, h = tuple(rect)
+    if w <= 0 or h <= 0 or not _finite(x, y, w, h):
+        return
     c = _norm_color(color)
     cx, cy = x + w / 2, y + h / 2
     if width == 0:
@@ -180,7 +195,11 @@ def _draw_lines(color, closed, points, width=1):
 
 
 def _draw_polygon(color, points, width=0):
-    if _arcade is None:
+    # <3 points is a degenerate polygon; the tessellator (earcut) can crash on
+    # it or on non-finite coords, so bail early.
+    if _arcade is None or points is None or len(points) < 3:
+        return
+    if not all(_finite(p[0], p[1]) for p in points):
         return
     c = _norm_color(color)
     pts = [(p[0], _flip_y(p[1])) for p in points]
@@ -588,6 +607,8 @@ class Surface:
                 ax, ay, aw, ah = _rect_xywh(area)
                 tex = _crop_texture(self._texture, ax, ay, aw, ah)
                 w, h = aw, ah
+            if w <= 0 or h <= 0 or not _finite(x, y, w, h):
+                return
             rect = _arcade.LBWH(x, _flip_y(y + h), w, h)
             _arcade.draw_texture_rect(tex, rect)
 
