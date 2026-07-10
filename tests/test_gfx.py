@@ -371,6 +371,55 @@ class SpriteTests(NoArcadeMixin, unittest.TestCase):
         self.assertIsNone(gfx.Sprite().update(1, 2, key="v"))
 
 
+class DisplayEventShimTests(NoArcadeMixin, unittest.TestCase):
+    """Native gfx.display / gfx.event, replacing the last real-pygame
+    delegations at runtime (migration step 6 — display + event port)."""
+
+    def test_set_mode_returns_screen_surface(self):
+        surf = gfx.display.set_mode((320, 240))
+        self.assertIsInstance(surf, gfx.Surface)
+        self.assertEqual(surf.get_width(), 320)
+        self.assertEqual(surf.get_height(), 240)
+        # get_surface() returns the most recently created display surface.
+        self.assertIs(gfx.display.get_surface(), surf)
+
+    def test_set_and_get_caption(self):
+        gfx.display.set_caption("Magitech RPG (v-test)")
+        self.assertEqual(
+            gfx.display.get_caption(), ("Magitech RPG (v-test)", "Magitech RPG (v-test)")
+        )
+
+    def test_display_lifecycle_ops_are_safe(self):
+        self.assertIsNone(gfx.display.init())
+        self.assertTrue(gfx.display.get_init())
+        self.assertIsNone(gfx.display.flip())
+        self.assertIsNone(gfx.display.update())
+        gfx.display.quit()
+        self.assertIsNone(gfx.display.get_surface())
+
+    def test_event_namespace_uses_native_Event(self):
+        self.assertIs(gfx.event.Event, gfx.Event)
+        ev = gfx.event.Event(gfx.KEYDOWN, key=gfx.K_a)
+        self.assertEqual(ev.type, gfx.KEYDOWN)
+        self.assertEqual(ev.key, gfx.K_a)
+
+    def test_event_queue_ops_are_noops(self):
+        self.assertEqual(gfx.event.get(), [])
+        self.assertIsNone(gfx.event.pump())
+        self.assertIsNone(gfx.event.clear())
+        self.assertTrue(gfx.event.post(gfx.Event(gfx.QUIT)))
+        self.assertEqual(gfx.event.poll().type, gfx.NOEVENT)
+
+    def test_init_is_native_no_pygame_needed(self):
+        # init() no longer routes to real pygame; returns pygame's tuple shape.
+        self.assertEqual(gfx.init(), (0, 0))
+
+    def test_quit_is_safe(self):
+        gfx.display.set_mode((10, 10))
+        self.assertIsNone(gfx.quit())
+        self.assertIsNone(gfx.display.get_surface())
+
+
 class _FakeArcadeSound:
     """Records how the mixer drives arcade.Sound without a real audio device."""
 

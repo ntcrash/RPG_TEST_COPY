@@ -13,9 +13,9 @@ from unittest import mock
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
-os.environ.setdefault("MEGITECH_BACKEND", "pygame")
+os.environ.setdefault("MEGITECH_BACKEND", "arcade")
 
-import pygame  # noqa: E402
+from Code.backend import pygame  # noqa: E402  (default: Code.gfx shim)
 
 pygame.init()
 

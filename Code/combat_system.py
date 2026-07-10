@@ -1,4 +1,4 @@
-import pygame
+from Code.backend import pygame  # backend switch (default: Code.gfx shim)
 from Code.debug import debug_print
 import random
 import math

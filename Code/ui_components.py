@@ -1,17 +1,10 @@
-import os
-
-# --- Rendering backend switch (single source of truth) -----------------------
-# Every gameplay module gets its `pygame` name from this file via
-# `from Code.ui_components import *`, and main.py has no pygame import of its
-# own -- so THIS import decides which backend the whole game renders through.
-#   * default / unset  -> real pygame  (legacy `python main.py` path, unchanged)
-#   * MEGITECH_BACKEND=arcade -> Code.gfx shim (routes drawing to arcade_app's
-#     arcade.Window; non-render calls delegate back to real pygame)
-# arcade_app.py sets the env var before importing the game.
-if os.environ.get("MEGITECH_BACKEND", "").strip().lower() == "arcade":
-    from Code import gfx as pygame
-else:
-    import pygame
+# --- Rendering backend name ---------------------------------------------------
+# Every gameplay module gets its `pygame` name via `from Code.ui_components
+# import *`, and main.py has no pygame import of its own -- so this star-export
+# decides which backend the whole game renders through. The actual choice lives
+# in the single source of truth, Code/backend.py (default: the Arcade-native
+# gfx shim; MEGITECH_BACKEND=pygame opts back into real pygame).
+from Code.backend import pygame
 import random
 import math
 

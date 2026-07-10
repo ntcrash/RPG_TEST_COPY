@@ -3,7 +3,7 @@ Enhanced Combat Integration Module
 Integrates the enhanced combat system with sound and animation support
 """
 
-import pygame
+from Code.backend import pygame  # backend switch (default: Code.gfx shim)
 import random
 import os
 from pathlib import Path

@@ -34,3 +34,6 @@ SaveProgression/*.json
 _t2
 .git/*.stalebak
 __probe*
+
+# FUSE mount leftovers (files held open during delete)
+.fuse_hidden*

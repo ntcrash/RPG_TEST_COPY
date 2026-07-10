@@ -1,11 +1,12 @@
 # Magitech RPG dependencies
 #
-# As of v2.2.1 Arcade is the sole entry point (`python main.py` opens the Arcade
-# window; the deprecated pygame run() loop was removed in migration step 5).
-#   * arcade  -> rendering + windowing + game loop
-#   * pygame  -> STILL REQUIRED at runtime: the Code/gfx.py shim delegates audio
-#                (pygame.mixer), timing, and input constants to real pygame.
-#                Dropped only once those are ported to Arcade (final migration
-#                item — see ROADMAP.md).
-pygame>=2.5
+# As of v2.2.5 the pygame -> Arcade migration is COMPLETE. Arcade is the sole
+# runtime dependency: it provides rendering, windowing, the game loop, audio
+# (arcade.Sound), and input. The Code/gfx.py shim implements the small pygame
+# surface/draw/font/mixer/time/sprite/display/event API slice the game uses on
+# top of Arcade, so no `import pygame` is needed to run or test the game.
+#
+# `pygame` is no longer required or installed. The legacy real-pygame drawing
+# backend survives only as an explicit, best-effort opt-in
+# (MEGITECH_BACKEND=pygame) for developers who install pygame themselves.
 arcade>=3.3

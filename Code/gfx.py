@@ -46,13 +46,14 @@ try:
 except Exception:  # pragma: no cover - arcade not installed yet
     _arcade = None
 
-# Real pygame is imported lazily too. This shim is a HYBRID: it implements the
-# *rendering* slice (draw/font/Rect/Surface/image/transform + key constants)
-# on top of Arcade, and DELEGATES everything else (mixer, time, display, event,
-# key, mouse, sprite, locals, error, Color, ...) straight through to real
-# pygame via the module-level __getattr__ at the bottom of this file. That lets
-# a single `from Code import gfx as pygame` swap route drawing to Arcade while
-# audio/timing/input keep working exactly as before. See __getattr__ below.
+# Real pygame is imported lazily too. This shim is now almost fully Arcade-native:
+# it implements the *rendering* slice (draw/font/Rect/Surface/image/transform +
+# key constants) plus mixer (arcade.Sound), time (stdlib clock), sprite, display,
+# and event on top of Arcade. As of migration step 6 the only things still
+# forwarded to real pygame via the module-level __getattr__ at the bottom of this
+# file are rarely/never-used extras (locals, Color, Vector2, mouse, ...); nothing
+# the game exercises at runtime routes through real pygame anymore. That lets a
+# single `from Code import gfx as pygame` swap run the whole game on Arcade.
 try:
     import pygame as _pygame
 except Exception:  # pragma: no cover - pygame not installed in this env
@@ -872,6 +873,7 @@ transform = _TransformModule()
 # unchanged; arcade_app maps arcade key codes to these on the way in.
 # ===========================================================================
 # Event types
+NOEVENT = 0
 QUIT = 256
 KEYDOWN = 768
 KEYUP = 769
@@ -907,6 +909,102 @@ class Event:
     def __init__(self, type, **attrs):
         self.type = type
         self.__dict__.update(attrs)
+
+
+# ===========================================================================
+# display  (pygame.display -> Arcade-native)
+# main.py.__init__ still calls ``pygame.display.set_mode((W, H))`` and
+# ``pygame.display.set_caption(...)``. Under the Arcade backend arcade_app owns
+# the real ``arcade.Window`` (and later overwrites ``game.screen`` with its own
+# off-screen ``gfx.Surface``), so these calls only need to be satisfied, not
+# routed to a real SDL window. Backing them natively here means ``pygame`` is no
+# longer imported for display handling (migration step 6). Every op is a faithful
+# no-op / in-memory equivalent so the un-migrated call sites keep working.
+# ===========================================================================
+class _DisplayModule:
+    """pygame.display stand-in (no real SDL window; Arcade owns rendering)."""
+
+    def __init__(self):
+        self._surface = None
+        self._caption = ""
+
+    def init(self):
+        return None
+
+    def quit(self):  # noqa: A003 - mirror pygame API name
+        self._surface = None
+
+    def get_init(self):
+        return True
+
+    def set_mode(self, size=(0, 0), flags=0, depth=0):
+        """Return an off-screen drawing Surface instead of opening a window.
+
+        arcade_app replaces ``game.screen`` with its own screen-flagged Surface
+        right after construction, so this value is a stand-in that keeps
+        main.py.__init__ working; it is fully drawable in case anything renders
+        to it before the swap."""
+        self._surface = Surface(size, is_screen=True)
+        return self._surface
+
+    def get_surface(self):
+        return self._surface
+
+    def set_caption(self, title, *rest):
+        self._caption = str(title)
+
+    def get_caption(self):
+        return (self._caption, self._caption)
+
+    def flip(self):
+        # Arcade presents its own frame each on_draw; nothing to swap here.
+        return None
+
+    def update(self, rectangle=None):
+        return None
+
+
+display = _DisplayModule()
+
+
+# ===========================================================================
+# event  (pygame.event -> Arcade-native)
+# Under the Arcade backend, arcade_app translates pyglet key/text callbacks into
+# ``gfx.Event`` objects and pushes them straight into ``game.handle_event`` — the
+# game never *polls* an event queue. The only real usage is constructing events
+# (``pygame.event.Event(KEYDOWN, key=...)`` in main.py's crafting path). Backing
+# this namespace natively removes the last event-related delegation to real
+# pygame (migration step 6). Queue ops are faithful no-ops.
+# ===========================================================================
+class _EventModule:
+    """pygame.event stand-in. ``Event`` is native; the queue is unused under
+    Arcade (events are delivered via arcade_app callbacks), so poll/get/pump are
+    faithful no-ops."""
+
+    Event = Event
+
+    @staticmethod
+    def get():
+        return []
+
+    @staticmethod
+    def poll():
+        return Event(NOEVENT)
+
+    @staticmethod
+    def pump():
+        return None
+
+    @staticmethod
+    def clear():
+        return None
+
+    @staticmethod
+    def post(event):
+        return True
+
+
+event = _EventModule()
 
 
 class Sprite:
@@ -960,17 +1058,22 @@ sprite = _SpriteModule()
 
 
 def init():
-    """pygame.init(). Delegates to real pygame so mixer/font/display
-    subsystems the un-migrated game logic relies on still initialize
-    (under the SDL 'dummy' video driver arcade_app sets up)."""
-    if _pygame is not None:
-        return _pygame.init()
+    """pygame.init() stand-in. Under the Arcade backend every subsystem the
+    un-migrated game logic touches is already Arcade-native — font (arcade.Text),
+    mixer (arcade.Sound), display/event (this shim) — so there is nothing to
+    initialize and no need to route through real pygame (migration step 6).
+    Returns pygame's ``(successes, failures)`` shape for a faithful drop-in."""
     return (0, 0)
 
 
 def quit():  # noqa: A001 - mirror pygame API name
-    if _pygame is not None:
-        return _pygame.quit()
+    """pygame.quit() stand-in. Stop any music and release the display surface;
+    Arcade tears down its own window/audio context."""
+    try:
+        mixer.quit()
+    except Exception:  # pragma: no cover - defensive
+        pass
+    display.quit()
     return None
 
 

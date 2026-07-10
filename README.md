@@ -2,9 +2,13 @@
 
 ## Overview
 
-Magitech RPG is a single-player turn-based role-playing game built with Python (currently migrating its renderer from Pygame to the Arcade library). The game features a Zelda-inspired tile-based world map, character creation with D&D-style stats, turn-based combat system, and comprehensive loot mechanics. Players can create characters, explore a procedurally generated world, engage in combat, collect treasures, and progress through 20 levels across 5 unique worlds.
+Magitech RPG is a single-player turn-based role-playing game built with Python and the [Arcade](https://api.arcade.academy/) library (the renderer migration from Pygame completed in v2.2.5 — `pygame` is no longer a dependency). The game features a Zelda-inspired tile-based world map, character creation with D&D-style stats, turn-based combat system, and comprehensive loot mechanics. Players can create characters, explore a procedurally generated world, engage in combat, collect treasures, and progress through 20 levels across 5 unique worlds.
 
 ## Recent Changes
+
+**2026-07-10 (v2.2.5)**: Arcade migration **COMPLETE — `pygame` is no longer a dependency** (migration step 6, final part). Removed `pygame>=2.5` from `requirements.txt`; Arcade is now the sole runtime dependency. Simplified the backend switch to a single source of truth (`Code/backend.py`): unset/empty/`arcade` → the `Code.gfx` Arcade shim (default), `MEGITECH_BACKEND=pygame` → real pygame as an explicit self-install opt-in. Routed `Code/ui_components.py` and all 11 gameplay modules' bare `import pygame` through `Code.backend`, and reworked the test suite to run on the shim with no pygame installed. Verified **with pygame uninstalled**: 20/20 module import sweep, full suite **109/109** (1 skipped: display-dependent render_smoke), `py_compile` clean, backend resolution matrix correct. Roadmap **P1 #1 is closed**. See CHANGELOG.md.
+
+**2026-07-10 (v2.2.4)**: Arcade migration — **display and event now run through the shim, not pygame** (migration step 6, part 3). Ported the last runtime call sites still delegating to real pygame: `pygame.display.set_mode`/`set_caption` (`main.py.__init__`) and `pygame.event.Event(...)` (crafting input). Added native `display` (`set_mode` → off-screen `gfx.Surface`; in-memory caption; lifecycle no-ops) and `event` (`Event` aliased to the native class; queue no-ops) modules to `Code/gfx.py`, plus a `NOEVENT` constant, and made `init()`/`quit()` native. **As of v2.2.4 nothing the game exercises at runtime routes through real pygame under the Arcade backend** — only unused extras (`locals`/`Color`/`Vector2`/`mouse`) still delegate. +7 tests; suite **102→109** green under both backends. The final step is dropping `pygame>=2.5` from `requirements.txt` and simplifying the backend switch (needs the test suite reworked to run without a real pygame install). See CHANGELOG.md.
 
 **2026-07-10 (v2.2.3)**: Arcade migration — **sprite and input constants now run through the shim, not pygame** (migration step 6, part 2). `Code/tile_map.py` and `Code/animated_player.py` were the last two modules importing real pygame directly (via `from pygame.locals import *` and by subclassing `pygame.sprite.Sprite`). Added a native `Sprite` class + `sprite` namespace to `Code/gfx.py` (module-level, so it wins over the `__getattr__` delegation) and removed the `locals` star-imports (dead in `tile_map`; `Rect`/`K_*` qualified as `pygame.*` in `animated_player`). Both modules now import clean under both backends and carry `gfx.Sprite` in their MRO under Arcade. +4 tests; suite **98→102** green under both backends. Only `display`/`event` (both in `main.py`) still route through real pygame — the last piece before the dep can be dropped. See CHANGELOG.md.
 
@@ -52,20 +56,20 @@ Magitech RPG is a single-player turn-based role-playing game built with Python (
 
 ### System Requirements
 - **Language**: Python 3.11
-- **Dependencies**: pygame ≥ 2.5 (legacy renderer) and arcade ≥ 3.3 (new renderer) — see `requirements.txt`
-- **Display**: Requires a desktop GUI (or VNC) to play; imports and tests run headless via SDL dummy drivers
-- **Entry Points**: `python main.py` (default — now launches Arcade) or `python arcade_app.py` (direct Arcade window)
+- **Dependencies**: arcade ≥ 3.3 (sole runtime dependency) — see `requirements.txt`. `pygame` was dropped in v2.2.5.
+- **Display**: Requires a desktop GUI (or VNC) to play; imports and tests run headless (no display, audio device, or pygame install needed)
+- **Entry Points**: `python main.py` (default — launches Arcade) or `python arcade_app.py` (direct Arcade window)
 
-> **Backend note (v2.2.1):** the pygame → [Arcade](https://api.arcade.academy/) migration now has
-> **Arcade as the only entry point** — `python main.py` opens the Arcade window (it sets
-> `MEGITECH_BACKEND=arcade` before importing the game and delegates to `arcade_app.py`). The
-> deprecated hand-rolled pygame `run()` loop and its `MEGITECH_BACKEND=pygame` launch fallback were
-> removed in v2.2.1. `MEGITECH_BACKEND` now only selects the drawing binding star-exported by
-> `Code/ui_components.py` (real pygame vs. the `Code.gfx` Arcade shim), which the headless test
-> suite forces to `pygame` for pure-logic imports. All game modules import the active backend via
-> `Code/backend.py` / `Code/ui_components.py` rather than importing `pygame` directly.
-> `pygame` remains a runtime dependency: `Code/gfx.py` still delegates audio, timing, and input to
-> it (dropping it is the final migration step — see ROADMAP.md).
+> **Backend note (v2.2.5):** the pygame → [Arcade](https://api.arcade.academy/) migration is
+> **complete** — `pygame` is no longer a dependency. `python main.py` opens the Arcade window (it
+> sets `MEGITECH_BACKEND=arcade` before importing the game and delegates to `arcade_app.py`). The
+> `Code/gfx.py` shim implements the pygame surface/draw/font/mixer/time/sprite/display/event API
+> slice the game uses on top of Arcade, so no `import pygame` is required to run or test the game.
+> `MEGITECH_BACKEND` selects the drawing binding via the single switch in `Code/backend.py`
+> (star-exported by `Code/ui_components.py`): unset/empty/`arcade` → the `Code.gfx` shim (default),
+> `MEGITECH_BACKEND=pygame` → real pygame as an explicit opt-in for developers who install pygame
+> themselves. All game modules import the active backend via `Code/backend.py` rather than
+> importing `pygame` directly.
 
 ### Core Components
 
@@ -121,7 +125,7 @@ Magitech RPG is a single-player turn-based role-playing game built with Python (
 /
 ├── main.py                     # Game engine + entry point (v2.2.1: unconditionally launches the Arcade window) — EnhancedGameManager
 ├── arcade_app.py               # Arcade window entry point (sets MEGITECH_BACKEND=arcade, drives the state machine)
-├── requirements.txt            # Runtime deps (pygame, arcade)
+├── requirements.txt            # Runtime deps (arcade only; pygame dropped in v2.2.5)
 ├── requirements-dev.txt        # Dev-only deps (ruff)
 ├── pyproject.toml              # Ruff linter config
 ├── CHANGELOG.md                # Version history
@@ -167,7 +171,7 @@ Magitech RPG is a single-player turn-based role-playing game built with Python (
 
 #### Running the Tests
 - Execute `python -m unittest discover -s tests -v` from the repository root
-- Uses the standard-library `unittest` (no extra dependencies beyond pygame)
+- Uses the standard-library `unittest` (no extra dependencies — the suite runs on the `Code.gfx` shim with no pygame or display required)
 - The Arcade render-verification test (`test_render_smoke.py`) skips automatically unless `arcade` is installed and a display (or `xvfb-run`) is available; run it directly on a headless box with `xvfb-run -a python3 tests/render_smoke.py`
 - Runs headless via SDL dummy drivers — no display or audio device needed
 

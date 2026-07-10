@@ -3,7 +3,7 @@ Crafting System for Magitech RPG
 Handles crafting materials, recipes, and the crafting interface
 """
 
-import pygame
+from Code.backend import pygame  # backend switch (default: Code.gfx shim)
 import json
 import random
 from Code.ui_components import *

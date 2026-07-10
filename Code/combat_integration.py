@@ -3,7 +3,7 @@ Combat Integration Module
 Integrates the advanced combat system with the main game
 """
 
-import pygame
+from Code.backend import pygame  # backend switch (default: Code.gfx shim)
 import random
 from Code.combat_system import CombatManager
 from Code.game_data import CharacterManager

@@ -1,4 +1,4 @@
-import pygame
+from Code.backend import pygame  # backend switch (default: Code.gfx shim)
 import random
 from Code.ui_components import *
 

@@ -3,7 +3,7 @@ Inventory and Store Management System for Magitech RPG
 Handles inventory operations, item usage, equipment bonuses, and store transactions
 """
 
-import pygame
+from Code.backend import pygame  # backend switch (default: Code.gfx shim)
 import random
 from Code.ui_components import *
 

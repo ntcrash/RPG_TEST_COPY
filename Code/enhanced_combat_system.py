@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import pygame
+from Code.backend import pygame  # backend switch (default: Code.gfx shim)
 import random
 import math
 import os
