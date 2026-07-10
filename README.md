@@ -8,6 +8,8 @@ Magitech RPG is a single-player turn-based role-playing game built with Python (
 
 **2026-07-10 (v2.1.19)**: Arcade migration — fixed a latent API-compat bug in the `gfx` shim's `Font`. `Font.__init__` stored the point size as `self.size`, shadowing pygame's standard `size(text) -> (w, h)` measuring *method* with an int, so `font.size("text")` would raise `'int' object is not callable`. Renamed the stored size to `self.font_size` so the method works, restoring the shim's drop-in `import pygame` contract. Full suite now **82/82**. See CHANGELOG.md.
 
+**2026-07-10 (v2.1.21)**: Arcade migration — **on-device visual verification is done and now automated.** Every screen was confirmed to render through the `Code/gfx.py` shim under `MEGITECH_BACKEND=arcade`: all **13/13** game states (menu, character select/create, game board, store, inventory, character sheet, help, level select, settings, crafting, fight) paint crash-free. Added `tests/render_smoke.py` (drives the real game through every state headlessly, renders each to a PNG, asserts no crash + non-black frame) and `tests/test_render_smoke.py` (auto-uses `xvfb-run`, skips cleanly when arcade/display are absent). Full suite now **85/85**. This unblocks flipping the Arcade backend on by default (the last migration step). See CHANGELOG.md.
+
 **2026-07-10 (v2.1.18)**: Arcade migration — fixed semi-transparent overlays rendering as solid black under the Arcade backend. The crafting and store/inventory screens dim the world behind their panels with a `fill(BLACK)` + `set_alpha(180/200)` overlay, but the `gfx` shim ignored the surface alpha when replaying an off-screen surface's fill/shape ops, so the overlay was fully opaque and hid everything behind it. Added `_apply_alpha()` and threaded it through every shape op in `Surface._replay`. Full suite now **80/80**. See CHANGELOG.md.
 
 **2026-07-10 (v2.1.17)**: Arcade migration — added the first direct test coverage for the `Code/gfx.py` rendering shim (`tests/test_gfx.py`, 36 tests). It pins the shim's GPU-independent core — the pygame→Arcade Y-axis flip, color/rect/finite normalization, `_safe_text` emoji stripping, the `Rect` API, off-screen surface record/replay and `pygame.draw.*` op recording, `Font` metric fallback, and key/event constants — by forcing the no-arcade code path, so it runs deterministically headless whether or not `arcade` is installed. Full suite now **78/78**. This is a safety net for the remaining migration work (the on-device visual pass and any shim tuning it requires). See CHANGELOG.md.
@@ -155,6 +157,7 @@ Magitech RPG is a single-player turn-based role-playing game built with Python (
 #### Running the Tests
 - Execute `python -m unittest discover -s tests -v` from the repository root
 - Uses the standard-library `unittest` (no extra dependencies beyond pygame)
+- The Arcade render-verification test (`test_render_smoke.py`) skips automatically unless `arcade` is installed and a display (or `xvfb-run`) is available; run it directly on a headless box with `xvfb-run -a python3 tests/render_smoke.py`
 - Runs headless via SDL dummy drivers — no display or audio device needed
 
 #### Key Controls

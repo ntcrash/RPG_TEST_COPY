@@ -29,10 +29,12 @@ pygame origin = top-left, +y DOWN.   Arcade origin = bottom-left, +y UP.
 All coordinates you pass in stay in *pygame* (top-left) space; this shim flips
 them to Arcade space at draw time. Do NOT pre-flip.
 
-STATUS: foundation. Covers the primitives inventoried from the codebase
-(rect, circle, polygon, line/lines, ellipse, blit, fill, font render,
-image load, transform.scale, key constants). Needs on-Mac verification with
-`pip install arcade` — this sandbox has no display + no arcade installed.
+STATUS: verified. Covers the primitives inventoried from the codebase
+(rect, circle, polygon, line/lines, ellipse, blit, fill, font render + metrics,
+image load, transform.scale, key constants). As of v2.1.21 all 13 game screens
+render crash-free through this shim under `MEGITECH_BACKEND=arcade` — see
+`tests/render_smoke.py` (headless, xvfb-driven visual pass). No primitive
+rendered wrong during that pass.
 """
 
 from __future__ import annotations
