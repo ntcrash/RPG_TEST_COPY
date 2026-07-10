@@ -289,6 +289,22 @@ class FontTests(NoArcadeMixin, unittest.TestCase):
         # render must honor the stored size in the no-arcade metric fallback.
         self.assertEqual(f.render("x", True, (0, 0, 0)).get_height(), 30)
 
+    def test_get_height_returns_pixel_height(self):
+        # inventory_system.py calls font.get_height() outside a try/except; a
+        # missing method crashed the store/inventory draw under the arcade
+        # backend. In the no-arcade fallback height == point size.
+        f = gfx.Font(None, 24)
+        self.assertTrue(callable(f.get_height))
+        self.assertEqual(f.get_height(), 24)
+
+    def test_font_metric_companions_present(self):
+        # get_linesize/get_ascent/get_descent round out the pygame Font API so
+        # the shim stays a faithful drop-in.
+        f = gfx.Font(None, 20)
+        self.assertEqual(f.get_linesize(), 20)
+        self.assertGreater(f.get_ascent(), 0)
+        self.assertLess(f.get_descent(), 0)  # pygame descent is negative
+
 
 class ConstantsTests(NoArcadeMixin, unittest.TestCase):
     def test_key_constants_match_pygame_values(self):

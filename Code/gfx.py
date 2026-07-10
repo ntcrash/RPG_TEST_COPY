@@ -732,6 +732,27 @@ class Font:
         s = self.render(text, True, (255, 255, 255))
         return (s.get_width(), s.get_height())
 
+    def get_height(self):
+        """pygame.font.Font.get_height() -> pixel height of a line of text.
+
+        Real pygame Fonts expose this; the game calls it in
+        Code/inventory_system.py to size a selection highlight. Without it the
+        shim Font raised AttributeError under the Arcade backend (the call sits
+        outside that code's try/except, so it crashed the inventory/store draw).
+        Measured height is text-independent, so render a tall sample ("Ay",
+        ascender + descender); the no-arcade fallback returns the point size.
+        """
+        return self.render("Ay", True, (255, 255, 255)).get_height()
+
+    def get_linesize(self):  # pygame Font.get_linesize() -> line spacing (px)
+        return self.get_height()
+
+    def get_ascent(self):    # pygame Font.get_ascent() -> baseline-up height
+        return int(self.get_height() * 0.8)
+
+    def get_descent(self):   # pygame Font.get_descent() -> below-baseline drop
+        return -int(self.get_height() * 0.2)
+
 
 class _FontModule:
     """Namespace mirroring pygame.font."""
