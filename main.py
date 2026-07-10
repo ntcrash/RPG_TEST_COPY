@@ -1,6 +1,23 @@
 import sys
 import os
 
+# --- Rendering backend / entry-point default (v2.2.0) -----------------------
+# The game now launches on the Arcade backend by DEFAULT. `python main.py`
+# opens the Arcade window (see the __main__ block at the bottom of this file);
+# the legacy hand-rolled pygame `run()` loop is retained one release as an
+# opt-in fallback via `MEGITECH_BACKEND=pygame python main.py`.
+#
+# This MUST run before any `Code.*` import: ui_components reads MEGITECH_BACKEND
+# at import time and star-exports the chosen `pygame` binding (real pygame vs.
+# the Code.gfx Arcade shim) to every gameplay module. `setdefault` means an
+# explicit MEGITECH_BACKEND (e.g. tests forcing "pygame", or arcade_app forcing
+# "arcade") always wins.
+os.environ.setdefault("MEGITECH_BACKEND", "arcade")
+if os.environ.get("MEGITECH_BACKEND", "").strip().lower() == "arcade":
+    # Under Arcade, the still-un-retired pygame calls (display/convert/font)
+    # must run headless so they never steal the GL context from Arcade/pyglet.
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+
 # Import our custom modules
 from Code.animated_player import AnimatedPlayer
 from Code.tile_map import EnhancedTileMap
@@ -2097,11 +2114,22 @@ if __name__ == "__main__":
     # Create necessary files and directories
     create_sample_files()
 
-    try:
-        # Start the enhanced game
-        game = EnhancedGameManager()
-        game.run()
-    except Exception as e:
-        print(f"Game error: {e}")
-        pygame.quit()
-        sys.exit()
+    _backend = os.environ.get("MEGITECH_BACKEND", "").strip().lower()
+    if _backend == "pygame":
+        # DEPRECATED legacy path (opt in with `MEGITECH_BACKEND=pygame`).
+        # Runs the original hand-rolled pygame `while running:` loop below.
+        # Retained one release as a fallback; slated for removal once the
+        # Arcade default has proven out (roadmap P1 #1, migration step 4).
+        try:
+            game = EnhancedGameManager()
+            game.run()
+        except Exception as e:
+            print(f"Game error: {e}")
+            pygame.quit()
+            sys.exit()
+    else:
+        # DEFAULT (v2.2.0+): launch the Arcade window entry point. All 13
+        # screens render through the Code.gfx shim (verified crash-free by
+        # tests/render_smoke.py). arcade_app drives the state machine at 15 Hz.
+        from arcade_app import main as arcade_main
+        arcade_main()
