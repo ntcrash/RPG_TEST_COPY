@@ -633,6 +633,26 @@ class Surface:
 _text_cache = {}
 
 
+def _safe_text(s):
+    """Strip characters that crash pyglet's macOS CoreText renderer.
+
+    A lone variation selector (U+FE00–FE0F, left behind when an emoji is
+    stripped from source), a zero-width joiner, or an astral-plane emoji makes
+    `arcade.Text` -> pyglet quartz.render SIGSEGV (not catchable). The game's
+    emoji are decorative, so we drop them and keep the readable text. Common
+    BMP symbols (arrows ↑↓, box-drawing) are kept.
+    """
+    out = []
+    for ch in str(s):
+        cp = ord(ch)
+        if 0xFE00 <= cp <= 0xFE0F or cp in (0x200D, 0x20E3):
+            continue  # variation selectors, ZWJ, combining enclosing keycap
+        if cp > 0xFFFF:
+            continue  # astral-plane emoji/symbols — CoreText-fragile in pyglet
+        out.append(ch)
+    return "".join(out)
+
+
 def _get_cached_text(text, size, name, color):
     """Build-or-reuse an arcade.Text. Constructing a Text lays out glyphs and
     is expensive; the game re-renders the same strings every frame, so caching
@@ -644,10 +664,12 @@ def _get_cached_text(text, size, name, color):
     if t is None:
         if len(_text_cache) > 4000:
             _text_cache.clear()  # crude bound: HP/damage strings churn endlessly
+        # Clamp size: 0 / negative / absurd font sizes also crash CoreText.
+        fs = max(6.0, min(200.0, float(size) * 0.75))
         t = _arcade.Text(
             text, 0, 0, color=color,
-            font_size=size * 0.75,          # px font-size ~ pygame point size
-            font_name=name or ("Kenney Pixel", "arial", "calibri"),
+            font_size=fs,                   # px font-size ~ pygame point size
+            font_name=name or ("arial", "helvetica", "calibri"),
             anchor_x="left", anchor_y="top",
         )
         _text_cache[key] = t
@@ -667,7 +689,11 @@ class Font:
             w = int(len(str(text)) * self.size * 0.55)
             return Surface((w, self.size))
         c = _norm_color(color)
-        atext = _get_cached_text(str(text), self.size, self.name, c)
+        safe = _safe_text(text)
+        if not safe:
+            # String was entirely emoji/variation-selectors -> nothing to draw.
+            return Surface((0, 0))
+        atext = _get_cached_text(safe, self.size, self.name, c)
         surf = Surface((int(atext.content_width), int(atext.content_height)),
                        text=atext)
         return surf
