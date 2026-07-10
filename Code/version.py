@@ -6,7 +6,7 @@ hardcoding version strings throughout the codebase.
     from Code.version import __version__, CAPTION
 """
 
-__version__ = "2.2.1"
+__version__ = "2.2.2"
 
 # Human-facing title used for the window caption / title bar.
 TITLE = "Magitech RPG - Multi-Level Edition"
@@ -20,6 +20,9 @@ CAPTION = f"{TITLE} (v{__version__})"
 # binding star-exported by Code/ui_components.py and Code/backend.py:
 #   MEGITECH_BACKEND=arcade (default) -> Code.gfx shim + arcade.Window
 #   MEGITECH_BACKEND=pygame           -> real pygame drawing (headless test imports only)
-# NOTE: pygame remains a runtime dependency — Code/gfx.py delegates audio
-# (pygame.mixer), timing, and input constants to real pygame under either value.
+# NOTE: pygame remains a runtime dependency, but as of v2.2.2 audio
+# (pygame.mixer -> arcade.Sound) and timing (pygame.time) are Arcade-native in
+# Code/gfx.py. Real pygame is still imported for the remaining delegations
+# (display/event/sprite/locals) until migration step 6 finishes and the dep is
+# dropped.
 BACKEND = "arcade"

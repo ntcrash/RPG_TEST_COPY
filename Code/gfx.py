@@ -975,6 +975,209 @@ key = _KeyModule()
 
 
 # ===========================================================================
+# error  (pygame.error stand-in)
+# The audio code catches ``except pygame.error`` / ``except (pygame.error,
+# FileNotFoundError)``. Under the Arcade backend ``pygame`` *is* this shim, so
+# we need our own ``error`` class rather than delegating to real pygame — that
+# is a prerequisite for eventually dropping the pygame runtime dependency
+# (migration step 6). It subclasses Exception, exactly like pygame.error.
+# ===========================================================================
+class error(Exception):  # noqa: N801 - mirror pygame's lowercase class name
+    """pygame.error stand-in raised by the Arcade-backed audio shim."""
+
+
+# ===========================================================================
+# mixer  (pygame.mixer -> arcade.Sound)
+# The v1.x game plays SFX via ``pygame.mixer.Sound(path).play()`` and looping
+# background music via ``pygame.mixer.music.load/play/stop``. Under the Arcade
+# backend those calls resolve to THIS shim, backed by ``arcade.Sound`` so audio
+# no longer needs real pygame. Every op is defensive: if arcade is missing or
+# no audio device is available (headless CI, no ALSA), loads raise ``error``
+# (which the callers already catch) and playback is a silent no-op, so the game
+# keeps running without sound exactly as it did under pygame's dummy driver.
+# ===========================================================================
+class _Sound:
+    """pygame.mixer.Sound stand-in backed by arcade.Sound."""
+
+    def __init__(self, file_path):
+        self._volume = 1.0
+        self._player = None
+        self._sound = None
+        if _arcade is None:
+            raise error("audio backend (arcade) unavailable")
+        try:
+            self._sound = _arcade.Sound(file_path, streaming=False)
+        except FileNotFoundError:
+            raise
+        except Exception as exc:  # pragma: no cover - device/codec dependent
+            raise error(f"could not load sound {file_path!r}: {exc}") from exc
+
+    def set_volume(self, volume):
+        self._volume = max(0.0, min(1.0, float(volume)))
+        # Adjust an in-flight playback if the mixer/player supports it.
+        if self._player is not None and self._sound is not None:
+            try:
+                self._sound.set_volume(self._volume, self._player)
+            except Exception:  # pragma: no cover - best-effort live update
+                pass
+
+    def play(self, loops=0):
+        if self._sound is None:
+            return None
+        try:
+            self._player = self._sound.play(volume=self._volume, loop=bool(loops))
+        except Exception:  # pragma: no cover - no audio device
+            self._player = None
+        return self._player
+
+    def stop(self):
+        if self._sound is not None and self._player is not None:
+            try:
+                self._sound.stop(self._player)
+            except Exception:  # pragma: no cover
+                pass
+        self._player = None
+
+
+class _MusicModule:
+    """pygame.mixer.music stand-in (single streaming track) over arcade.Sound."""
+
+    def __init__(self):
+        self._sound = None
+        self._player = None
+        self._volume = 1.0
+
+    def load(self, music_file):
+        self.stop()
+        if _arcade is None:
+            raise error("audio backend (arcade) unavailable")
+        try:
+            self._sound = _arcade.Sound(music_file, streaming=True)
+        except FileNotFoundError:
+            raise
+        except Exception as exc:  # pragma: no cover - device/codec dependent
+            raise error(f"could not load music {music_file!r}: {exc}") from exc
+
+    def set_volume(self, volume):
+        self._volume = max(0.0, min(1.0, float(volume)))
+        if self._player is not None and self._sound is not None:
+            try:
+                self._sound.set_volume(self._volume, self._player)
+            except Exception:  # pragma: no cover
+                pass
+
+    def play(self, loops=0):
+        if self._sound is None:
+            return
+        # pygame: loops=-1 => loop forever, 0 => play once.
+        loop = loops == -1 or loops < 0
+        try:
+            self._player = self._sound.play(volume=self._volume, loop=loop)
+        except Exception:  # pragma: no cover - no audio device
+            self._player = None
+
+    def stop(self):
+        if self._sound is not None and self._player is not None:
+            try:
+                self._sound.stop(self._player)
+            except Exception:  # pragma: no cover
+                pass
+        self._player = None
+
+    def get_busy(self):
+        return self._player is not None
+
+
+class _MixerModule:
+    """pygame.mixer stand-in. init/quit are no-ops (arcade owns the audio
+    context); Sound and music are Arcade-backed."""
+
+    Sound = _Sound
+
+    def __init__(self):
+        self.music = _MusicModule()
+        self._inited = False
+
+    def init(self, frequency=22050, size=-16, channels=2, buffer=512):
+        # arcade initializes its own audio context lazily; nothing to do, but
+        # report success so callers set sound_available=True.
+        self._inited = True
+        return None
+
+    def get_init(self):
+        return (22050, -16, 2) if self._inited else None
+
+    def quit(self):
+        try:
+            self.music.stop()
+        except Exception:  # pragma: no cover
+            pass
+        self._inited = False
+
+    def stop(self):
+        self.music.stop()
+
+
+mixer = _MixerModule()
+
+
+# ===========================================================================
+# time  (pygame.time -> stdlib / arcade clock)
+# The game only uses ``pygame.time.wait(ms)`` (blocking pauses on level
+# transitions in main.py). Back it with the stdlib clock so timing no longer
+# needs real pygame. ``Clock``/``get_ticks``/``delay`` are provided for a
+# faithful drop-in even though the Arcade window drives its own frame loop.
+# ===========================================================================
+import time as _time_stdlib  # noqa: E402 - deliberately local to the time shim
+
+
+class _Clock:
+    """pygame.time.Clock stand-in. Arcade owns the real frame loop, so tick()
+    just measures elapsed wall-clock time and returns it in milliseconds."""
+
+    def __init__(self):
+        self._last = _time_stdlib.perf_counter()
+
+    def tick(self, framerate=0):
+        now = _time_stdlib.perf_counter()
+        elapsed_ms = (now - self._last) * 1000.0
+        if framerate > 0:
+            target = 1000.0 / framerate
+            if elapsed_ms < target:
+                _time_stdlib.sleep((target - elapsed_ms) / 1000.0)
+                now = _time_stdlib.perf_counter()
+                elapsed_ms = (now - self._last) * 1000.0
+        self._last = now
+        return int(elapsed_ms)
+
+    def get_fps(self):
+        return 0.0
+
+
+class _TimeModule:
+    """pygame.time stand-in."""
+
+    Clock = _Clock
+
+    @staticmethod
+    def wait(milliseconds):
+        ms = max(0, int(milliseconds))
+        _time_stdlib.sleep(ms / 1000.0)
+        return ms
+
+    @staticmethod
+    def delay(milliseconds):
+        return _TimeModule.wait(milliseconds)
+
+    @staticmethod
+    def get_ticks():
+        return int(_time_stdlib.perf_counter() * 1000)
+
+
+time = _TimeModule()
+
+
+# ===========================================================================
 # Hybrid delegation. Any attribute this shim does NOT define itself (mixer,
 # time, display, event, key, mouse, sprite, locals, error, Color, Vector2,
 # ...) is forwarded to real pygame. Module-level __getattr__ (PEP 562) only

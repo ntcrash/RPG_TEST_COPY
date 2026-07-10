@@ -336,5 +336,138 @@ class ConstantsTests(NoArcadeMixin, unittest.TestCase):
         self.assertFalse(gfx.key.get_pressed()[gfx.K_w])
 
 
+class _FakeArcadeSound:
+    """Records how the mixer drives arcade.Sound without a real audio device."""
+
+    def __init__(self, path, streaming=False):
+        if path == "__missing__":
+            raise FileNotFoundError(path)
+        self.path = path
+        self.streaming = streaming
+        self.play_calls = []
+        self.stopped = 0
+        self.volume_calls = []
+
+    def play(self, volume=1.0, loop=False):
+        player = object()
+        self.play_calls.append((volume, loop, player))
+        return player
+
+    def stop(self, player):
+        self.stopped += 1
+
+    def set_volume(self, volume, player):
+        self.volume_calls.append(volume)
+
+
+class _FakeArcade:
+    Sound = _FakeArcadeSound
+
+
+class AudioTimingShimTests(unittest.TestCase):
+    """Covers the Arcade-backed mixer/time/error shims added for migration
+    step 6 (port audio/timing off pygame). Uses a fake arcade so no real audio
+    device is required — runs headlessly in CI."""
+
+    def setUp(self):
+        self._saved_arcade = gfx._arcade
+
+    def tearDown(self):
+        gfx._arcade = self._saved_arcade
+        gfx.mixer.quit()
+
+    # --- error ---------------------------------------------------------------
+    def test_error_is_exception_subclass(self):
+        self.assertTrue(issubclass(gfx.error, Exception))
+        with self.assertRaises(gfx.error):
+            raise gfx.error("boom")
+
+    # --- time ----------------------------------------------------------------
+    def test_time_wait_returns_ms_and_is_nonnegative(self):
+        self.assertEqual(gfx.time.wait(0), 0)
+        self.assertEqual(gfx.time.wait(-50), 0)  # clamped
+        self.assertEqual(gfx.time.wait(5), 5)
+
+    def test_time_clock_tick_returns_int(self):
+        clock = gfx.time.Clock()
+        elapsed = clock.tick()
+        self.assertIsInstance(elapsed, int)
+        self.assertGreaterEqual(elapsed, 0)
+
+    def test_time_get_ticks_monotonic(self):
+        t0 = gfx.time.get_ticks()
+        t1 = gfx.time.get_ticks()
+        self.assertGreaterEqual(t1, t0)
+
+    # --- mixer lifecycle -----------------------------------------------------
+    def test_mixer_init_reports_available(self):
+        self.assertIsNone(gfx.mixer.get_init())
+        gfx.mixer.init(frequency=22050)
+        self.assertIsNotNone(gfx.mixer.get_init())
+        gfx.mixer.quit()
+        self.assertIsNone(gfx.mixer.get_init())
+
+    def test_sound_without_arcade_raises_error(self):
+        gfx._arcade = None
+        with self.assertRaises(gfx.error):
+            gfx.mixer.Sound("whatever.wav")
+
+    def test_missing_file_raises_filenotfound(self):
+        gfx._arcade = _FakeArcade()
+        with self.assertRaises(FileNotFoundError):
+            gfx.mixer.Sound("__missing__")
+
+    # --- Sound playback ------------------------------------------------------
+    def test_sound_play_uses_stored_volume(self):
+        gfx._arcade = _FakeArcade()
+        snd = gfx.mixer.Sound("hit.wav")
+        snd.set_volume(0.5)
+        snd.play()
+        vol, loop, _player = snd._sound.play_calls[-1]
+        self.assertEqual(vol, 0.5)
+        self.assertFalse(loop)
+
+    def test_sound_set_volume_clamps(self):
+        gfx._arcade = _FakeArcade()
+        snd = gfx.mixer.Sound("hit.wav")
+        snd.set_volume(5.0)
+        self.assertEqual(snd._volume, 1.0)
+        snd.set_volume(-1.0)
+        self.assertEqual(snd._volume, 0.0)
+
+    def test_sound_stop_delegates(self):
+        gfx._arcade = _FakeArcade()
+        snd = gfx.mixer.Sound("hit.wav")
+        snd.play()
+        snd.stop()
+        self.assertEqual(snd._sound.stopped, 1)
+
+    # --- music ---------------------------------------------------------------
+    def test_music_load_play_loops_forever_on_negative(self):
+        gfx._arcade = _FakeArcade()
+        gfx.mixer.music.load("theme.ogg")
+        self.assertTrue(gfx.mixer.music._sound.streaming)
+        gfx.mixer.music.set_volume(0.6)
+        gfx.mixer.music.play(-1)
+        vol, loop, _player = gfx.mixer.music._sound.play_calls[-1]
+        self.assertEqual(vol, 0.6)
+        self.assertTrue(loop)
+        self.assertTrue(gfx.mixer.music.get_busy())
+
+    def test_music_play_once_when_zero_loops(self):
+        gfx._arcade = _FakeArcade()
+        gfx.mixer.music.load("theme.ogg")
+        gfx.mixer.music.play(0)
+        _vol, loop, _player = gfx.mixer.music._sound.play_calls[-1]
+        self.assertFalse(loop)
+
+    def test_music_stop_delegates_and_clears_busy(self):
+        gfx._arcade = _FakeArcade()
+        gfx.mixer.music.load("theme.ogg")
+        gfx.mixer.music.play(-1)
+        gfx.mixer.music.stop()
+        self.assertFalse(gfx.mixer.music.get_busy())
+
+
 if __name__ == "__main__":
     unittest.main()
