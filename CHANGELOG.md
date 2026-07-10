@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 43 Ruff findings surfaced by the new linter (13 unused imports, 12 unused variables, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only
 
+## 07/09/2026 - v2.1.9
+### 🧹 Arcade migration: fix combat_integration standalone import (roadmap P1 #1, remaining step 3)
+**Cleared the last pre-existing import bug blocking a clean full-module import sweep.** `Code/combat_integration.py` did a bare `from game_data import CharacterManager`, but `game_data` lives under the `Code/` package — so the module raised `ModuleNotFoundError: No module named 'game_data'` when imported standalone under *both* backends (it only survived at runtime because `main.py` had already put `Code` on the path first). Every other module references siblings as `from Code.<mod> import …`; this one was inconsistent.
+- **File: `Code/combat_integration.py`** — changed line 9 to `from Code.game_data import CharacterManager`. The bare `import pygame` on line 6 is left as-is on purpose: the subsequent `from Code.ui_components import *` star-export rebinds `pygame` to the selected backend (same established pattern as `combat_system.py`), so it is not a bug.
+- **Verification**: full `Code/*.py` import sweep now **20/20 clean** under the pygame backend and 20/20 under `MEGITECH_BACKEND=arcade` (both headless, `SDL_VIDEODRIVER=dummy`); previously combat_integration was the one failure. Test suite still **42/42 green**. This resolves item 3 of the migration's "Remaining to fully retire pygame" list — remaining work is the on-device visual pass (step 1), shim primitive coverage (step 2), and flipping the default (step 4).
+
 ## 07/09/2026 - v2.1.8
 ### ⚡ Arcade migration: fix lag, combat SIGSEGV, and "can't set attribute" (roadmap P1 #1)
 **On-device: movement was slow/laggy and entering combat hard-crashed the process (SIGSEGV / signal 11), preceded by `draw() error: can't set attribute`.** Three distinct shim bugs:

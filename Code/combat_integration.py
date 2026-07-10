@@ -6,7 +6,7 @@ Integrates the advanced combat system with the main game
 import pygame
 import random
 from Code.combat_system import CombatManager
-from game_data import CharacterManager
+from Code.game_data import CharacterManager
 from Code.ui_components import *
 
 

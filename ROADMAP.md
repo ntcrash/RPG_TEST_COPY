@@ -63,7 +63,7 @@ Living backlog of work sized for autonomous/agent-driven execution. Generated 20
   - **Remaining to fully retire pygame**:
     1. **On-device VISUAL verification** — `pip install arcade && MEGITECH_BACKEND=arcade python arcade_app.py`, then walk every screen (menu, character select/create, overworld tiles + player sprite, store, inventory, character sheet, combat, rest, settings, crafting, level select) and confirm it paints through `gfx`. Import-level is green; pixel-level needs eyes.
     2. **Extend the shim** for any primitive that renders wrong during (1) — most likely candidates: text metrics/alignment, alpha overlays, tile-sheet cell offsets.
-    3. **Fix pre-existing bug**: `Code/combat_integration.py` does a bare `import game_data` (should be `from Code import game_data` / `from Code.game_data import ...`) — fails to import standalone in both backends; unrelated to migration but blocks a clean 18/18.
+    3. ✅ **Fixed pre-existing bug** (v2.1.9, 07/09/2026): `Code/combat_integration.py` bare `from game_data import CharacterManager` → `from Code.game_data import CharacterManager`. Full `Code/*.py` import sweep now 20/20 clean under both backends (was 19/20).
     4. **Flip the default** — once (1) passes, make `MEGITECH_BACKEND=arcade` the default (or drop the env gate) and retire the legacy pygame `run()` loop in `main.py`.
 
 ## Done
