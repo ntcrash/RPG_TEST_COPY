@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 43 Ruff findings surfaced by the new linter (13 unused imports, 12 unused variables, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/10/2026 - v2.1.16
+### 📜 Documentation: reconcile the legacy multiplayer version history (roadmap P3 #12)
+**The CHANGELOG's earliest entries (v23–v29, Aug 2025) describe a client/server multiplayer prototype whose code is entirely absent from the current single-player tree — a trap for anyone (human or agent) reading the history and assuming a server component still exists. Annotated it as a discontinued prototype and clarified how it relates to the *planned* future multiplayer work.**
+- **Finding**: the v23–v29 history references `NetworkManager_Class.py`, `Server_v1`/`v2`/`v3`, `config.py`, and `classes.py` — a repo scan confirms **none of these files exist** anywhere in the current codebase, and there is no `socket`/`socketserver`/network import in any `Code/*.py`, `main.py`, or `arcade_app.py`. The prototype was abandoned and the project rebuilt as the single-player game the entire `v1.x`/`v2.x` history documents. The only remnants are two orphaned SQLite files in `assets/` (`rpg_server.db`, `OLD_rpg_server.db`) that no live code opens.
+- **Decision**: multiplayer is **not** a discontinued idea — it is a *future, from-scratch* goal (ROADMAP.md **P6 #40/#41, v3.0.1**), which explicitly adds a fresh server/client layer alongside single-player. That effort shares no code with this early prototype, so the history is archived as legacy rather than treated as a live server the roadmap should plan around.
+- **File: `CHANGELOG.md`** — added a `⚠️ LEGACY / DISCONTINUED PROTOTYPE` banner directly above the v29 section explaining the above, pointing forward to P6, and noting the orphaned DB files. The historical entries are preserved verbatim.
+- **Roadmap**: moved P3 #12 from the open backlog to Done.
+- **Docs/metadata-only change** — no application code touched; `py_compile` stays clean and the test suite is unaffected (42/42).
+
 ## 07/10/2026 - v2.1.15
 ### 📦 Dependency manifest confirmed / roadmap reconciliation (roadmap P1 #7)
 **Closed roadmap P1 #7 ("Add `requirements.txt`") — the manifest already exists and fully satisfies the item, so this run reconciles the stale backlog entry rather than re-adding the file.** The roadmap item was written against an earlier state ("no dependency manifest exists"); the manifest was in fact added during the v2.x migration and pins the project's only two third-party runtime dependencies.
@@ -749,6 +758,16 @@ Combat interface now uses safe ASCII characters instead of Unicode emojis for be
 - 💊 Inventory items usable in combat
 - 📊 Character stats affect combat
 - 🌟 Status effects and critical hits
+
+---
+
+> **⚠️ LEGACY / DISCONTINUED PROTOTYPE (v23–v29, Aug 2025) — read before trusting the entries below.**
+>
+> The version history from here down (v23–v29, plus the `2025-07-25` seed entry) documents an **early client/server multiplayer prototype** — a separate "GUI Client for Multiplayer" that talked to a standalone HTTP server. It referenced modules and components that **no longer exist anywhere in this repository**: `NetworkManager_Class.py`, `Server_v1`/`Server_v2`/`Server_v3`, `config.py`, and `classes.py`. That prototype was **abandoned**; the project was subsequently rebuilt as the **single-player** game that all `v1.x`/`v2.x` history describes. The only surviving artifacts are two orphaned SQLite files under `assets/` (`rpg_server.db`, `OLD_rpg_server.db`), which are dead data, not live dependencies — no current code opens them.
+>
+> **Is multiplayer still a goal?** Yes, but as a *future, from-scratch* effort — see ROADMAP.md **P6 (#40/#41): "Change version number to v3.0.1 — Add multi player"**. That work is planned to add a fresh server/client layer alongside the existing single-player mode; it is **not** a resumption of this discontinued prototype and shares none of its code. Future roadmap items should plan around a *new* server component, and should not assume any of the `Server_v*` / `NetworkManager_*` code below is available.
+>
+> _Reconciliation note: this banner closes ROADMAP.md P3 #12 (v2.1.16, 07/10/2026). The entries below are preserved verbatim as historical record._
 
 ## 08/17/2025 - v29...
 ### - Added
