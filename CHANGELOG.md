@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 43 Ruff findings surfaced by the new linter (13 unused imports, 12 unused variables, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only
 
+## 07/09/2026 - v2.1.8
+### ⚡ Arcade migration: fix lag, combat SIGSEGV, and "can't set attribute" (roadmap P1 #1)
+**On-device: movement was slow/laggy and entering combat hard-crashed the process (SIGSEGV / signal 11), preceded by `draw() error: can't set attribute`.** Three distinct shim bugs:
+- **`can't set attribute`** — `Code/gfx.py` `Rect` exposed `left`/`right`/`top`/`bottom` as read-only, but pygame lets you assign them (combat code does `rect.top = …`). Added setters for all four edges (mirroring pygame: setting `right`/`bottom` moves `x`/`y` by width/height). Verified.
+- **Lag + SIGSEGV** — the real killer was **per-frame GPU resource creation**. Every tile blit called `arcade.Texture.crop` and every text draw built a new `arcade.Text` — hundreds of fresh GPU objects per frame, which thrash and then **overflow the texture atlas** (lag → segfault, worst in combat's full-screen redraw). Added two caches in `gfx.py`: `_crop_texture` now memoizes crops by `(source-texture-id, x, y, w, h)`, and `Font.render` memoizes `arcade.Text` by `(text, size, font, color)` via `_get_cached_text` (position/alpha still set per-draw, so sharing is safe; crude 4000-entry bound handles churning HP/damage strings). Each distinct tile cell / string is now uploaded to the GPU exactly once.
+- **Verification**: Rect edge-setter smoke test passes; import harness 17/18 under both backends. Movement should be smooth and combat should no longer crash — re-run and report any remaining `draw() error:` lines.
+
 ## 07/09/2026 - v2.1.7
 ### 🕹️ Arcade migration: fix character movement (held-key state) (roadmap P1 #1)
 **Game loaded and rendered under Arcade, but the character wouldn't move.** Continuous movement (`AnimatedPlayer.update_position`, and `main.py:1088`) polls `pygame.key.get_pressed()`, but under the Arcade backend the real pygame window receives no input — Arcade owns the window — so `get_pressed()` was always all-False. (Menus worked because they use discrete KEYDOWN events, which were already translated.)

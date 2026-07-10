@@ -90,19 +90,33 @@ def _rect_xywh(rect):
     return int(rect[0]), int(rect[1]), int(rect[2]), int(rect[3])
 
 
+_crop_cache = {}
+
+
 def _crop_texture(texture, x, y, w, h):
     """Return a sub-region of an Arcade texture (sprite-sheet cell / subsurface).
-    Uses Texture.crop when available, else falls back to a PIL image crop."""
+
+    CACHED: tile-sheet / sprite-frame blits ask for the same cell every frame.
+    Creating a fresh GPU texture each time thrashes (and eventually overflows)
+    the texture atlas -> lag then SIGSEGV. Key on the source texture identity +
+    region so each distinct cell is uploaded exactly once.
+    """
     if _arcade is None:
         return texture
+    key = (id(texture), x, y, w, h)
+    cropped = _crop_cache.get(key)
+    if cropped is not None:
+        return cropped
     try:
-        return texture.crop(x, y, w, h)
+        cropped = texture.crop(x, y, w, h)
     except Exception:
         try:
             img = texture.image.crop((x, y, x + w, y + h))
-            return _arcade.Texture(img)
+            cropped = _arcade.Texture(img)
         except Exception:
-            return texture  # last resort: draw the whole sheet
+            cropped = texture  # last resort: draw the whole sheet
+    _crop_cache[key] = cropped
+    return cropped
 
 
 # ---------------------------------------------------------------------------
@@ -187,22 +201,38 @@ class Rect:
     def __init__(self, x=0, y=0, width=0, height=0):
         self.x, self.y, self.width, self.height = x, y, width, height
 
-    # --- edges ---
+    # --- edges (settable, like pygame.Rect) ---
     @property
     def left(self):
         return self.x
+
+    @left.setter
+    def left(self, v):
+        self.x = v
 
     @property
     def right(self):
         return self.x + self.width
 
+    @right.setter
+    def right(self, v):
+        self.x = v - self.width
+
     @property
     def top(self):
         return self.y
 
+    @top.setter
+    def top(self, v):
+        self.y = v
+
     @property
     def bottom(self):
         return self.y + self.height
+
+    @bottom.setter
+    def bottom(self, v):
+        self.y = v - self.height
 
     # --- center (get/set, used for text centering all over the UI) ---
     @property
@@ -579,6 +609,30 @@ class Surface:
 # ===========================================================================
 # Font  (pygame.font.Font / SysFont -> arcade.Text)
 # ===========================================================================
+_text_cache = {}
+
+
+def _get_cached_text(text, size, name, color):
+    """Build-or-reuse an arcade.Text. Constructing a Text lays out glyphs and
+    is expensive; the game re-renders the same strings every frame, so caching
+    creation (not just draw) is the difference between smooth and slideshow.
+    Position/alpha are set per-draw in Surface._draw_at, so sharing is safe."""
+    key = (text, round(float(size), 1),
+           name if isinstance(name, str) else None, tuple(color))
+    t = _text_cache.get(key)
+    if t is None:
+        if len(_text_cache) > 4000:
+            _text_cache.clear()  # crude bound: HP/damage strings churn endlessly
+        t = _arcade.Text(
+            text, 0, 0, color=color,
+            font_size=size * 0.75,          # px font-size ~ pygame point size
+            font_name=name or ("Kenney Pixel", "arial", "calibri"),
+            anchor_x="left", anchor_y="top",
+        )
+        _text_cache[key] = t
+    return t
+
+
 class Font:
     """Emulates pygame.font.Font. `render()` returns a text Surface."""
 
@@ -592,15 +646,7 @@ class Font:
             w = int(len(str(text)) * self.size * 0.55)
             return Surface((w, self.size))
         c = _norm_color(color)
-        atext = _arcade.Text(
-            str(text),
-            0, 0,
-            color=c,
-            font_size=self.size * 0.75,   # px font-size ~ pygame point size
-            font_name=self.name or ("Kenney Pixel", "arial", "calibri"),
-            anchor_x="left",
-            anchor_y="top",
-        )
+        atext = _get_cached_text(str(text), self.size, self.name, c)
         surf = Surface((int(atext.content_width), int(atext.content_height)),
                        text=atext)
         return surf
