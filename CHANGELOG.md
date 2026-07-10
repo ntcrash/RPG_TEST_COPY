@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 43 Ruff findings surfaced by the new linter (13 unused imports, 12 unused variables, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only
 
+## 07/09/2026 - v2.1.5
+### 🎮 Arcade migration: switch the two non-star-import modules + shim sprite-sheet support (roadmap P1 #1)
+**The runtime backend switch (v2.0.5) reaches every module that does `from Code.ui_components import *`, but `Code/tile_map.py` and `Code/animated_player.py` don't — they bound real pygame directly, so they never rendered through the Arcade shim. Migrated both, and taught the shim the sprite-sheet operations they need.**
+- **File: `Code/backend.py`** (new) — DRY single-source-of-truth backend switch (`from Code.backend import pygame`) using the same `MEGITECH_BACKEND` logic as `ui_components` (unset → real pygame; `arcade` → `Code.gfx`). Lets a module that can't reach the `ui_components` star-export flip backends with a one-line import.
+- **File: `Code/tile_map.py`** — `import pygame` → `from Code.backend import pygame`. Tile-sheet cell blits (`screen.blit(sheet, pos, area)`) now route through the shim.
+- **File: `Code/animated_player.py`** — `import pygame` → `from Code.backend import pygame`. Sprite-frame extraction now routes through the shim. (`from pygame.locals import *` and `pygame.sprite.Sprite` keep delegating to real pygame — backend-agnostic.)
+- **File: `Code/gfx.py`** — added the sprite-sheet primitives these modules require: `Surface.subsurface(rect)` (frame extraction) and texture-backed `blit(source, dest, area)` now **crop** the sheet to the requested cell instead of drawing the whole texture. New helpers `_crop_texture` (uses `arcade.Texture.crop`, PIL-crop fallback) and `_rect_xywh`.
+- **Verification**: headless import harness on-device under BOTH backends (`SDL_VIDEODRIVER=dummy`, and again with `MEGITECH_BACKEND=arcade`) — 17/18 modules import clean in each mode. The one failure, `Code/combat_integration.py`'s bare `import game_data`, is a pre-existing relative-import bug (identical in both backends, unrelated to this change) and is logged in ROADMAP P1 #1 remaining work. Pixel-level rendering still needs an on-device visual pass (`MEGITECH_BACKEND=arcade python arcade_app.py`).
+
 ## 07/09/2026 - v2.1.4
 ### 🗺️ Spawned items are now always accessible (roadmap P1 #3)
 **World items (trees, rocks, metal veins, streams, brushes) were placed at random coordinates constrained ONLY by min-distance to other spawned entities. They didn't reserve space around the player's spawn point or the key interactables, and the x/y ranges were hardcoded to the old 800×600 window instead of the actual 768×576 world — so a blocking rock/metal/tree could land on the player's start point (trapping them) or on top of the rest area, shop, or the world-centre where the boss dungeon appears (burying an interactable), and none of the ranges would adapt if the map size changed.**

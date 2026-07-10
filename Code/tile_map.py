@@ -1,5 +1,5 @@
 from pathlib import Path
-import pygame
+from Code.backend import pygame  # backend switch (real pygame or Arcade gfx shim)
 from pygame.locals import *
 import random
 

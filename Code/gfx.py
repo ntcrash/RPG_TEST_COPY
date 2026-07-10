@@ -83,6 +83,28 @@ def _norm_color(color):
     return c
 
 
+def _rect_xywh(rect):
+    """Unpack a pygame.Rect / gfx.Rect / (x, y, w, h) tuple into ints."""
+    if hasattr(rect, "x") and hasattr(rect, "width"):
+        return int(rect.x), int(rect.y), int(rect.width), int(rect.height)
+    return int(rect[0]), int(rect[1]), int(rect[2]), int(rect[3])
+
+
+def _crop_texture(texture, x, y, w, h):
+    """Return a sub-region of an Arcade texture (sprite-sheet cell / subsurface).
+    Uses Texture.crop when available, else falls back to a PIL image crop."""
+    if _arcade is None:
+        return texture
+    try:
+        return texture.crop(x, y, w, h)
+    except Exception:
+        try:
+            img = texture.image.crop((x, y, x + w, y + h))
+            return _arcade.Texture(img)
+        except Exception:
+            return texture  # last resort: draw the whole sheet
+
+
 # ---------------------------------------------------------------------------
 # Immediate-mode draw primitives (pygame top-left coords -> Arcade, Y flipped).
 # These are the single source of truth for "draw to the current Arcade window".
@@ -321,7 +343,7 @@ class Surface:
         if getattr(source, "_offscreen", False) and source._ops is not None:
             source._replay(x, y, area, min(alpha, source._alpha))
         else:
-            source._draw_at(x, y, min(alpha, source._alpha))
+            source._draw_at(x, y, min(alpha, source._alpha), area)
 
     # ---- replay this off-screen surface's ops onto the window ----
     def _replay(self, ox, oy, area=None, alpha=255):
@@ -379,7 +401,7 @@ class Surface:
                     self._render_source(src, sx + dx, sy + dy, sub, alpha)
 
     # ---- internal: render self (text/texture) at pygame top-left (x, y) ----
-    def _draw_at(self, x, y, alpha=255):
+    def _draw_at(self, x, y, alpha=255, area=None):
         if _arcade is None:
             return
         if self._arcade_text is not None:
@@ -393,9 +415,26 @@ class Surface:
                 pass
             t.draw()
         elif self._texture is not None:
-            # Texture drawn top-left at pygame (x, y) -> arcade rect.
-            rect = _arcade.LBWH(x, _flip_y(y + self._h), self._w, self._h)
-            _arcade.draw_texture_rect(self._texture, rect)
+            # Texture drawn top-left at pygame (x, y) -> arcade rect. If `area`
+            # (a sub-rect of the sheet) is given, crop to it first -- this is
+            # how tile sheets blit a single cell via screen.blit(sheet, pos, area).
+            tex, w, h = self._texture, self._w, self._h
+            if area is not None:
+                ax, ay, aw, ah = _rect_xywh(area)
+                tex = _crop_texture(self._texture, ax, ay, aw, ah)
+                w, h = aw, ah
+            rect = _arcade.LBWH(x, _flip_y(y + h), w, h)
+            _arcade.draw_texture_rect(tex, rect)
+
+    # ---- pygame.Surface.subsurface: a view of a sub-rect of a sheet ----
+    def subsurface(self, rect):
+        """Return a Surface for a sub-region (used for sprite-sheet frame
+        extraction, e.g. AnimatedPlayer). Texture-backed -> cropped texture."""
+        x, y, w, h = _rect_xywh(rect)
+        if self._texture is not None and _arcade is not None:
+            return Surface((w, h), texture=_crop_texture(self._texture, x, y, w, h))
+        # off-screen/plain fallback: hand back a blank sub-sized surface.
+        return Surface((w, h))
 
     # ---- transform.scale support ----
     def _scaled(self, size):
