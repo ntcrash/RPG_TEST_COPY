@@ -1,7 +1,11 @@
 # Magitech RPG dependencies
 #
-# During the v2.x pygame -> Arcade migration BOTH backends are installed:
-#   * pygame  -> legacy entry point (python main.py), removed once migration completes
-#   * arcade  -> new entry point (python arcade_app.py)
+# As of v2.2.1 Arcade is the sole entry point (`python main.py` opens the Arcade
+# window; the deprecated pygame run() loop was removed in migration step 5).
+#   * arcade  -> rendering + windowing + game loop
+#   * pygame  -> STILL REQUIRED at runtime: the Code/gfx.py shim delegates audio
+#                (pygame.mixer), timing, and input constants to real pygame.
+#                Dropped only once those are ported to Arcade (final migration
+#                item — see ROADMAP.md).
 pygame>=2.5
 arcade>=3.3

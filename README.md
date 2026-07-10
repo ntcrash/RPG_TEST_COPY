@@ -6,6 +6,8 @@ Magitech RPG is a single-player turn-based role-playing game built with Python (
 
 ## Recent Changes
 
+**2026-07-10 (v2.2.1)**: Arcade migration — **the deprecated pygame `run()` loop is removed; Arcade is the only entry point.** Deleted `EnhancedGameManager.run()` and the `MEGITECH_BACKEND=pygame` launch fallback, so `python main.py` unconditionally opens the Arcade window. `MEGITECH_BACKEND` now only selects the drawing binding used by the headless test suite. Verified: suite **85/85** (render_smoke 13/13), `python main.py` launches crash-free under xvfb. Note: `pygame` stays a runtime dependency — `Code/gfx.py` still delegates audio, timing, and input to it (dropping it is the final migration step). See CHANGELOG.md.
+
 **2026-07-10 (v2.2.0)**: Arcade migration — **the default backend is flipped: `python main.py` now launches the Arcade window.** main.py sets `MEGITECH_BACKEND=arcade` (+ the headless SDL dummy video driver) before importing the game and delegates to `arcade_app.py`, so the game boots on the Arcade renderer out of the box. The legacy hand-rolled pygame `run()` loop is **deprecated but retained one release** as an opt-in fallback: `MEGITECH_BACKEND=pygame python main.py`. Verified: full suite **85/85**, both backend paths bind the correct renderer, all 13 screens render crash-free, and `python main.py` launches the Arcade window headlessly (xvfb) without error. See CHANGELOG.md.
 
 **2026-07-10 (v2.1.19)**: Arcade migration — fixed a latent API-compat bug in the `gfx` shim's `Font`. `Font.__init__` stored the point size as `self.size`, shadowing pygame's standard `size(text) -> (w, h)` measuring *method* with an int, so `font.size("text")` would raise `'int' object is not callable`. Renamed the stored size to `self.font_size` so the method works, restoring the shim's drop-in `import pygame` contract. Full suite now **82/82**. See CHANGELOG.md.
@@ -50,13 +52,16 @@ Magitech RPG is a single-player turn-based role-playing game built with Python (
 - **Display**: Requires a desktop GUI (or VNC) to play; imports and tests run headless via SDL dummy drivers
 - **Entry Points**: `python main.py` (default — now launches Arcade) or `python arcade_app.py` (direct Arcade window)
 
-> **Backend note (v2.2.0):** the pygame → [Arcade](https://api.arcade.academy/) migration has
-> **flipped the default** — `python main.py` now opens the Arcade window (it sets
+> **Backend note (v2.2.1):** the pygame → [Arcade](https://api.arcade.academy/) migration now has
+> **Arcade as the only entry point** — `python main.py` opens the Arcade window (it sets
 > `MEGITECH_BACKEND=arcade` before importing the game and delegates to `arcade_app.py`). The
-> renderer is still selected at runtime by the `MEGITECH_BACKEND` env var; the legacy hand-rolled
-> pygame `run()` loop is **deprecated but retained one release** as an opt-in fallback —
-> `MEGITECH_BACKEND=pygame python main.py`. All game modules import the active backend via
+> deprecated hand-rolled pygame `run()` loop and its `MEGITECH_BACKEND=pygame` launch fallback were
+> removed in v2.2.1. `MEGITECH_BACKEND` now only selects the drawing binding star-exported by
+> `Code/ui_components.py` (real pygame vs. the `Code.gfx` Arcade shim), which the headless test
+> suite forces to `pygame` for pure-logic imports. All game modules import the active backend via
 > `Code/backend.py` / `Code/ui_components.py` rather than importing `pygame` directly.
+> `pygame` remains a runtime dependency: `Code/gfx.py` still delegates audio, timing, and input to
+> it (dropping it is the final migration step — see ROADMAP.md).
 
 ### Core Components
 
@@ -110,7 +115,7 @@ Magitech RPG is a single-player turn-based role-playing game built with Python (
 ### File Structure
 ```
 /
-├── main.py                     # Game engine + default entry point (v2.2.0: launches Arcade; MEGITECH_BACKEND=pygame for legacy loop) — EnhancedGameManager
+├── main.py                     # Game engine + entry point (v2.2.1: unconditionally launches the Arcade window) — EnhancedGameManager
 ├── arcade_app.py               # Arcade window entry point (sets MEGITECH_BACKEND=arcade, drives the state machine)
 ├── requirements.txt            # Runtime deps (pygame, arcade)
 ├── requirements-dev.txt        # Dev-only deps (ruff)
@@ -151,8 +156,7 @@ Magitech RPG is a single-player turn-based role-playing game built with Python (
 
 #### Running the Game
 - Install dependencies: `pip install -r requirements.txt`
-- Default (Arcade) — **v2.2.0**: `python main.py` (opens the Arcade window) or equivalently `python arcade_app.py`
-- Legacy pygame loop (deprecated, one-release fallback): `MEGITECH_BACKEND=pygame python main.py`
+- Run (Arcade) — **v2.2.1**: `python main.py` (opens the Arcade window) or equivalently `python arcade_app.py`. The deprecated `MEGITECH_BACKEND=pygame` launch fallback was removed in v2.2.1.
 - Game automatically creates sample files and directories on first run
 - A desktop display (or VNC) is required for GUI interaction
 - Game supports keyboard controls for all interactions

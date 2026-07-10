@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 43 Ruff findings surfaced by the new linter (13 unused imports, 12 unused variables, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/10/2026 - v2.2.1
+### 🧹 Arcade migration: RETIRE the deprecated pygame run() loop (roadmap P1 #1, migration step 5)
+**The legacy hand-rolled pygame `while running:` game loop is gone — Arcade is now the ONLY entry point.** v2.2.0 flipped the default to Arcade but kept the old loop one release as an opt-in fallback (`MEGITECH_BACKEND=pygame python main.py`). With the Arcade path verified crash-free across all 13 screens (`tests/render_smoke.py`), that fallback is now removed.
+- **What changed**:
+  - **`main.py` (`EnhancedGameManager.run()`)** — the ~40-line deprecated pygame loop (`pygame.time.Clock`, `pygame.event.get()`, `pygame.display.flip()`, `clock.tick(15)`, `pygame.quit()`) was **deleted**. The live loop is `arcade_app`'s `arcade.Window` driving the state machine at 15 Hz.
+  - **`main.py` (`__main__`)** — dropped the `if MEGITECH_BACKEND == "pygame"` branch that instantiated `EnhancedGameManager().run()`. `python main.py` now unconditionally delegates to `arcade_app.main()`.
+  - **`main.py` (top-of-file comment)** — rewritten to describe Arcade as the sole entry point; the `MEGITECH_BACKEND` env var now only selects the *drawing* binding star-exported by `ui_components` (real pygame vs. `Code.gfx` shim), which the headless test suite still forces to `pygame` for pure-logic imports.
+  - **`main.py`** — removed the now-unused `import sys` (its only use was `sys.exit()` inside the deleted loop).
+  - **`Code/version.py`** — bumped to **2.2.1**; `BACKEND` doc comment updated.
+  - **`requirements.txt`** — comment rewritten. **pygame is intentionally KEPT**: `Code/gfx.py` still delegates audio (`pygame.mixer`), timing, and input constants to real pygame, so it remains a hard runtime dependency under Arcade. Dropping it requires porting audio/timing/input to Arcade — split out as the new final migration item.
+- **Why a patch bump (2.2.0 → 2.2.1)**: removes a deprecated, already-non-default code path; no change to the default `python main.py` behavior established in v2.2.0.
+- **Verification** (all green): `py_compile` clean; full unittest suite **85/85** (incl. `tests/render_smoke.py` **13/13** screens under `xvfb`); `python main.py` launched the Arcade window headlessly (`xvfb`) and ran crash-free (only harmless ALSA no-audio-device noise); `ruff check main.py` shows only the 12 pre-existing deferred findings (the `import sys` removal cleared one potential F401, added none).
+- **Roadmap**: migration step 5's headline (remove the pygame `run()` loop + fallback, simplify the switch) is ✅ done. P1 #1 stays open for ONE remaining item: **port audio/timing/input off pygame** so the `pygame` runtime dependency can finally be dropped.
+
 ## 07/10/2026 - v2.2.0
 ### 🎮 Arcade migration: FLIP THE DEFAULT — `python main.py` now launches Arcade (roadmap P1 #1, migration step 4)
 **The pygame → Arcade migration reaches its headline milestone: the game now boots on the Arcade renderer by default.** Every prior v2.x entry gated Arcade behind `MEGITECH_BACKEND=arcade` / running `arcade_app.py`, with plain `python main.py` still driving the legacy hand-rolled pygame `while running:` loop. Step 1 (on-device visual verification, v2.1.21) proved all 13 screens render crash-free through the `Code/gfx.py` shim, which unblocked this flip.

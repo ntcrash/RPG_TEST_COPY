@@ -1,17 +1,16 @@
-import sys
 import os
 
-# --- Rendering backend / entry-point default (v2.2.0) -----------------------
-# The game now launches on the Arcade backend by DEFAULT. `python main.py`
-# opens the Arcade window (see the __main__ block at the bottom of this file);
-# the legacy hand-rolled pygame `run()` loop is retained one release as an
-# opt-in fallback via `MEGITECH_BACKEND=pygame python main.py`.
+# --- Rendering backend / entry-point (v2.2.1) --------------------------------
+# `python main.py` launches the Arcade window (see the __main__ block at the
+# bottom of this file). As of v2.2.1 the legacy hand-rolled pygame `run()` loop
+# and its `MEGITECH_BACKEND=pygame` entry-point fallback are GONE — Arcade is
+# the only entry point (roadmap P1 #1, migration step 5).
 #
-# This MUST run before any `Code.*` import: ui_components reads MEGITECH_BACKEND
-# at import time and star-exports the chosen `pygame` binding (real pygame vs.
-# the Code.gfx Arcade shim) to every gameplay module. `setdefault` means an
-# explicit MEGITECH_BACKEND (e.g. tests forcing "pygame", or arcade_app forcing
-# "arcade") always wins.
+# MEGITECH_BACKEND still selects the *drawing* binding star-exported by
+# ui_components (real pygame vs. the Code.gfx Arcade shim); the headless test
+# suite forces "pygame" for pure-logic imports. This MUST run before any
+# `Code.*` import, since ui_components reads it at import time. `setdefault`
+# means an explicit value (tests, or arcade_app forcing "arcade") always wins.
 os.environ.setdefault("MEGITECH_BACKEND", "arcade")
 if os.environ.get("MEGITECH_BACKEND", "").strip().lower() == "arcade":
     # Under Arcade, the still-un-retired pygame calls (display/convert/font)
@@ -2067,69 +2066,20 @@ class EnhancedGameManager:
         elif self.current_state == GameState.HELP:
             self.draw_help_screen()
 
-    def run(self):
-        """Main game loop"""
-        clock = pygame.time.Clock()
-        running = True
-
-        changelog = load_changelog_text()
-        print("=== MAGITECH RPG - MULTI-LEVEL EDITION ===")
-        print("Now featuring 20 levels across 5 unique worlds!")
-        print("Press L during gameplay for level select")
-        print("Trees now populate the world - walk around them!")
-        print("Settings menu available from main menu!")
-        print("==========================================")
-
-        while running:
-            # Handle events
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                else:
-                    # Use new event handler
-                    result = self.handle_event(event)
-                    if result is False:
-                        running = False
-
-            # Update game logic
-            self.update()
-
-            # Draw everything
-            self.draw()
-
-            # Update display
-            pygame.display.flip()
-            clock.tick(15)
-
-        # Save progression before quitting
-        if hasattr(self, 'level_manager'):
-            self.level_manager.save_progression()
-
-        pygame.quit()
-        sys.exit()
-
-
 # Main execution
 if __name__ == "__main__":
     # Create necessary files and directories
     create_sample_files()
 
-    _backend = os.environ.get("MEGITECH_BACKEND", "").strip().lower()
-    if _backend == "pygame":
-        # DEPRECATED legacy path (opt in with `MEGITECH_BACKEND=pygame`).
-        # Runs the original hand-rolled pygame `while running:` loop below.
-        # Retained one release as a fallback; slated for removal once the
-        # Arcade default has proven out (roadmap P1 #1, migration step 4).
-        try:
-            game = EnhancedGameManager()
-            game.run()
-        except Exception as e:
-            print(f"Game error: {e}")
-            pygame.quit()
-            sys.exit()
-    else:
-        # DEFAULT (v2.2.0+): launch the Arcade window entry point. All 13
-        # screens render through the Code.gfx shim (verified crash-free by
-        # tests/render_smoke.py). arcade_app drives the state machine at 15 Hz.
-        from arcade_app import main as arcade_main
-        arcade_main()
+    # v2.2.1+: Arcade is the ONLY entry point. The deprecated hand-rolled
+    # pygame `run()` loop and its `MEGITECH_BACKEND=pygame` fallback branch were
+    # removed here (roadmap P1 #1, migration step 5). All 13 screens render
+    # through the Code.gfx shim (verified crash-free by tests/render_smoke.py);
+    # arcade_app drives the state machine at 15 Hz.
+    #
+    # NOTE: pygame is still a runtime dependency — the Code.gfx shim delegates
+    # audio (pygame.mixer), timing, and event/key constants to real pygame. It
+    # is retired from requirements only once those are ported to Arcade (see the
+    # remaining migration item in ROADMAP.md).
+    from arcade_app import main as arcade_main
+    arcade_main()
