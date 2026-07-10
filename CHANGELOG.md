@@ -2,8 +2,19 @@
 All notable changes to this project will be documented in this file.
 
 ## - ToDo
-- Replace 0-byte placeholder SFX (player_hurt, run_away, victory, menu_select, menu_move, door_open)
 - Fix the 43 Ruff findings surfaced by the new linter (13 unused imports, 12 unused variables, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only
+
+## 07/09/2026 - v2.1.3
+### 🔊 Replaced 0-byte placeholder SFX with real audio (roadmap P4 #17)
+**Six sound effects shipped as empty 0-byte `.wav` files (`player_hurt`, `run_away`, `victory`, `menu_select`, `menu_move`, `door_open`), so `pygame.mixer.Sound` failed to load them — the game degraded gracefully but those cues were silent (surfaced while fixing the P0 #2 audio-path bug).**
+- **Generated real audio procedurally** with NumPy (no external asset dependency, reproducible via a fixed RNG seed). All files are 44.1 kHz, 16-bit stereo with short attack/release envelopes so they don't click:
+  - `menu_move.wav` — 60 ms soft 880 Hz blip (navigation tick).
+  - `menu_select.wav` — 130 ms two-note up-confirm (660 → 990 Hz).
+  - `player_hurt.wav` — 250 ms descending 300→120 Hz tone mixed with noise (grunt/impact).
+  - `run_away.wav` — 300 ms rising 200→1400 Hz whoosh sweep with a fading noise layer (flee).
+  - `victory.wav` — 800 ms four-note C-E-G-C (523/659/784/1047 Hz) major-arpeggio fanfare with a second harmonic.
+  - `door_open.wav` — 400 ms low 90→140 Hz creak with an 18 Hz flutter amplitude-modulation and light noise.
+- **Verification**: each file loads through `pygame.mixer.Sound` under headless dummy SDL drivers (`SDL_VIDEODRIVER=dummy`, `SDL_AUDIODRIVER=dummy`) and reports its expected non-zero length. No code changes were needed — the loader in `Code/enhanced_combat_system.py` already referenced these filenames; only the assets were missing. See ROADMAP.md P4 #17 (moved to Done).
 
 ## 07/08/2026 - v2.1.2
 ### 🧹 Added a Ruff linter config (roadmap P2 #10)
