@@ -25,3 +25,10 @@ No third-party test runner is required — everything uses the standard-library
   and `WorldLevelGenerator` content-count helpers.
 - `test_crafting_system.py` — recipe/material catalog, level-gated recipe
   availability, rarity colours, and the random material drop table.
+- `test_spawn_accessibility.py` — world-item placement invariants (bounds,
+  walkability, clearance around reserved zones) across many seeds.
+- `test_gfx.py` — the `Code/gfx.py` Pygame→Arcade rendering shim: coordinate
+  Y-flip, color/rect normalization, `_safe_text` emoji stripping, the `Rect`
+  API, off-screen surface record/replay + `pygame.draw.*` op recording, `Font`
+  metric fallback, and key/event constants. Forces the no-arcade code path so it
+  runs deterministically headless with or without `arcade` installed.

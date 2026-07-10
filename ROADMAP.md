@@ -58,6 +58,7 @@ _(all items complete — see Done)_
     - ✅ via `Code.backend` switch (v2.1.5): `tile_map`, `animated_player`.
     - ✅ backend source itself: `ui_components` (v2.0.5).
     - n/a (no pygame): `game_data`, `enhanced_enemy_manager`, `debug`, `version`.
+  - **v2.1.17 (07/10/2026)** — added `tests/test_gfx.py` (36 tests), the first direct coverage of the `Code/gfx.py` shim. Pins the arcade-independent core: pygame→Arcade Y-flip, color/rect/finite normalization, `_safe_text` emoji stripping, the full `Rect` API, off-screen `Surface` record/replay + `pygame.draw.*` op recording, `Font` metric fallback, and key/event constants. GPU-free via a `NoArcadeMixin` that forces `gfx._arcade = None`, so it runs deterministically with or without `arcade` installed. Full suite now **78/78**. This is the safety net for migration steps 1–2 below (both involve editing `gfx.py`).
   - **Remaining to fully retire pygame**:
     1. **On-device VISUAL verification** — `pip install arcade && MEGITECH_BACKEND=arcade python arcade_app.py`, then walk every screen (menu, character select/create, overworld tiles + player sprite, store, inventory, character sheet, combat, rest, settings, crafting, level select) and confirm it paints through `gfx`. Import-level is green; pixel-level needs eyes.
     2. **Extend the shim** for any primitive that renders wrong during (1) — most likely candidates: text metrics/alignment, alpha overlays, tile-sheet cell offsets.
