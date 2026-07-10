@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 43 Ruff findings surfaced by the new linter (13 unused imports, 12 unused variables, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only
 
+## 07/09/2026 - v2.1.7
+### 🕹️ Arcade migration: fix character movement (held-key state) (roadmap P1 #1)
+**Game loaded and rendered under Arcade, but the character wouldn't move.** Continuous movement (`AnimatedPlayer.update_position`, and `main.py:1088`) polls `pygame.key.get_pressed()`, but under the Arcade backend the real pygame window receives no input — Arcade owns the window — so `get_pressed()` was always all-False. (Menus worked because they use discrete KEYDOWN events, which were already translated.)
+- **File: `Code/gfx.py`** — added a real `key` module to the shim: a module-level held-key set plus `set_key(keyint, down)` and a pygame-shaped `key.get_pressed()` that indexes it (`_PressedKeys`, `_KeyModule`). Any other `pygame.key.*` attribute (`get_mods`, `name`, `set_repeat`, …) still delegates to real pygame. Because the shim now defines `key`, it takes precedence over the hybrid `__getattr__` passthrough.
+- **File: `arcade_app.py`** — `on_key_press` now calls `gfx.set_key(key, True)` (in addition to firing the discrete KEYDOWN for menu nav), and a new `on_key_release` calls `gfx.set_key(key, False)`. So the shim's held-key state mirrors what Arcade sees, and polled movement works.
+- **Verification**: shim key-state smoke test passes (press→held→release); import harness still 17/18 under both backends. Arrow-key movement should now work on-device — re-run and report any remaining `draw() error:` lines for the next shim-coverage batch.
+
 ## 07/09/2026 - v2.1.6
 ### 🐞 Arcade migration: complete the shim's Rect API + harden shutdown frame (roadmap P1 #1)
 **On-device run surfaced per-frame `draw() error: 'Rect' object has no attribute 'inflate'` — the shim's `Rect` was missing methods real `pygame.Rect` has, so any module using them silently failed to paint. Also a benign `No GL context` traceback on the final frame after the window closes.**

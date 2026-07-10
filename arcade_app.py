@@ -175,10 +175,18 @@ class MagitechWindow(arcade.Window):
         key = ARCADE_TO_PYGAME_KEY.get(symbol)
         if key is None:
             return
+        # 1) Track held state so pygame.key.get_pressed() (continuous movement)
+        #    reflects reality. 2) Also fire a discrete KEYDOWN for menu nav.
+        gfx.set_key(key, True)
         event = gfx.Event(gfx.KEYDOWN, key=key, mod=modifiers, unicode="")
         result = self.game.handle_event(event)
         if result is False:
             self._shutdown()
+
+    def on_key_release(self, symbol, modifiers):
+        key = ARCADE_TO_PYGAME_KEY.get(symbol)
+        if key is not None:
+            gfx.set_key(key, False)
 
     def on_text(self, text):
         """Character-creation name entry uses pygame TEXTINPUT events."""

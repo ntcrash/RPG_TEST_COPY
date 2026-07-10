@@ -779,6 +779,56 @@ def quit():  # noqa: A001 - mirror pygame API name
 
 
 # ===========================================================================
+# Keyboard state. Under the Arcade backend the real pygame window receives NO
+# input (arcade owns the window), so real pygame.key.get_pressed() is always
+# all-False -> continuous movement (AnimatedPlayer, main.py) would never fire.
+# arcade_app translates its on_key_press/on_key_release callbacks into
+# set_key(...) here, and we expose a pygame-shaped get_pressed() over that set.
+# ===========================================================================
+_pressed_keys = set()
+
+
+def set_key(keyint, down):
+    """Called by arcade_app on key press/release so get_pressed() is truthful."""
+    if down:
+        _pressed_keys.add(keyint)
+    else:
+        _pressed_keys.discard(keyint)
+
+
+class _PressedKeys:
+    """Indexable held-key state, mirroring pygame.key.get_pressed()'s result."""
+    __slots__ = ()
+
+    def __getitem__(self, k):
+        return k in _pressed_keys
+
+    def __len__(self):
+        return 1 << 16  # pygame returns a fixed-length sequence
+
+
+class _KeyModule:
+    """pygame.key stand-in: get_pressed() reads arcade's held-key set; any
+    other attribute (name, get_mods, set_repeat, ...) delegates to real pygame."""
+
+    @staticmethod
+    def get_pressed():
+        return _PressedKeys()
+
+    @staticmethod
+    def get_mods():
+        return 0
+
+    def __getattr__(self, name):
+        if _pygame is not None:
+            return getattr(_pygame.key, name)
+        raise AttributeError(name)
+
+
+key = _KeyModule()
+
+
+# ===========================================================================
 # Hybrid delegation. Any attribute this shim does NOT define itself (mixer,
 # time, display, event, key, mouse, sprite, locals, error, Color, Vector2,
 # ...) is forwarded to real pygame. Module-level __getattr__ (PEP 562) only
