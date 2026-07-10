@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 43 Ruff findings surfaced by the new linter (13 unused imports, 12 unused variables, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only
 
+## 07/09/2026 - v2.1.6
+### 🐞 Arcade migration: complete the shim's Rect API + harden shutdown frame (roadmap P1 #1)
+**On-device run surfaced per-frame `draw() error: 'Rect' object has no attribute 'inflate'` — the shim's `Rect` was missing methods real `pygame.Rect` has, so any module using them silently failed to paint. Also a benign `No GL context` traceback on the final frame after the window closes.**
+- **File: `Code/gfx.py`** — completed `Rect` to match the pygame.Rect surface the code uses: methods `inflate`/`inflate_ip` (grow/shrink keeping center), `copy`, `move_ip`, `colliderect`, `clamp`, `union`, `contains`, and `collidepoint((x,y))` tuple form; plus `w`/`h`/`size` aliases and the `topright`/`bottomleft`/`bottomright`/`midtop`/`midbottom`/`midleft`/`midright` anchors (get + set). Verified in isolation: `inflate` preserves center, `copy` is independent, `colliderect` hit/miss correct.
+- **File: `arcade_app.py`** — `on_draw` now guards `self.clear()` and early-returns on a new `_closing` flag (set in `_shutdown`). After the window closes, pyglet can fire one more scheduled frame with no GL context; this skips that dying frame instead of dumping a `pyglet.gl.lib.GLException` traceback (process already exits 0).
+- **Verification**: `Rect` smoke test passes; import harness still 17/18 under both backends. Remaining errors from the on-device run should now be down to genuinely-missing render primitives (report the next batch of `draw() error:` lines and I'll extend the shim).
+
 ## 07/09/2026 - v2.1.5
 ### 🎮 Arcade migration: switch the two non-star-import modules + shim sprite-sheet support (roadmap P1 #1)
 **The runtime backend switch (v2.0.5) reaches every module that does `from Code.ui_components import *`, but `Code/tile_map.py` and `Code/animated_player.py` don't — they bound real pygame directly, so they never rendered through the Arcade shim. Migrated both, and taught the shim the sprite-sheet operations they need.**

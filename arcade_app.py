@@ -141,7 +141,15 @@ class MagitechWindow(arcade.Window):
                 print(f"[arcade_app] update() error: {exc}")
 
     def on_draw(self):
-        self.clear()
+        # Guard clear(): after the window closes, pyglet may fire one more
+        # scheduled frame with no GL context ("No GL context; create a Window
+        # first"). Skip that dying frame instead of crashing the loop.
+        if getattr(self, "_closing", False):
+            return
+        try:
+            self.clear()
+        except Exception:
+            return
         # Run the game's own draw pipeline (routes through gfx for migrated
         # modules; pygame-only modules simply draw nothing yet).
         try:
@@ -183,6 +191,7 @@ class MagitechWindow(arcade.Window):
         super().on_close()
 
     def _shutdown(self):
+        self._closing = True
         if hasattr(self.game, "level_manager"):
             try:
                 self.game.level_manager.save_progression()

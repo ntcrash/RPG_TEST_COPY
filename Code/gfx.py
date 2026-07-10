@@ -239,11 +239,146 @@ class Rect:
     def topleft(self, value):
         self.x, self.y = value
 
-    def collidepoint(self, px, py):
+    # --- width/height/size aliases ---
+    @property
+    def w(self):
+        return self.width
+
+    @w.setter
+    def w(self, v):
+        self.width = v
+
+    @property
+    def h(self):
+        return self.height
+
+    @h.setter
+    def h(self, v):
+        self.height = v
+
+    @property
+    def size(self):
+        return (self.width, self.height)
+
+    @size.setter
+    def size(self, value):
+        self.width, self.height = value
+
+    # --- corner / edge-midpoint anchors (get + set) ---
+    @property
+    def topright(self):
+        return (self.right, self.top)
+
+    @topright.setter
+    def topright(self, value):
+        self.x = value[0] - self.width
+        self.y = value[1]
+
+    @property
+    def bottomleft(self):
+        return (self.left, self.bottom)
+
+    @bottomleft.setter
+    def bottomleft(self, value):
+        self.x = value[0]
+        self.y = value[1] - self.height
+
+    @property
+    def bottomright(self):
+        return (self.right, self.bottom)
+
+    @bottomright.setter
+    def bottomright(self, value):
+        self.x = value[0] - self.width
+        self.y = value[1] - self.height
+
+    @property
+    def midtop(self):
+        return (self.centerx, self.top)
+
+    @midtop.setter
+    def midtop(self, value):
+        self.centerx = value[0]
+        self.y = value[1]
+
+    @property
+    def midbottom(self):
+        return (self.centerx, self.bottom)
+
+    @midbottom.setter
+    def midbottom(self, value):
+        self.centerx = value[0]
+        self.y = value[1] - self.height
+
+    @property
+    def midleft(self):
+        return (self.left, self.centery)
+
+    @midleft.setter
+    def midleft(self, value):
+        self.x = value[0]
+        self.centery = value[1]
+
+    @property
+    def midright(self):
+        return (self.right, self.centery)
+
+    @midright.setter
+    def midright(self, value):
+        self.x = value[0] - self.width
+        self.centery = value[1]
+
+    # --- geometry helpers (mirror pygame.Rect) ---
+    def collidepoint(self, px, py=None):
+        if py is None:            # allow collidepoint((x, y))
+            px, py = px
         return self.left <= px <= self.right and self.top <= py <= self.bottom
+
+    def colliderect(self, other):
+        ox, oy, ow, oh = _rect_xywh(other)
+        return (self.left < ox + ow and self.right > ox and
+                self.top < oy + oh and self.bottom > oy)
+
+    def copy(self):
+        return Rect(self.x, self.y, self.width, self.height)
 
     def move(self, dx, dy):
         return Rect(self.x + dx, self.y + dy, self.width, self.height)
+
+    def move_ip(self, dx, dy):
+        self.x += dx
+        self.y += dy
+
+    def inflate(self, dx, dy):
+        # Grow/shrink keeping the center fixed (pygame semantics).
+        return Rect(self.x - dx / 2, self.y - dy / 2,
+                    self.width + dx, self.height + dy)
+
+    def inflate_ip(self, dx, dy):
+        self.x -= dx / 2
+        self.y -= dy / 2
+        self.width += dx
+        self.height += dy
+
+    def clamp(self, other):
+        ox, oy, ow, oh = _rect_xywh(other)
+        r = self.copy()
+        r.x = max(ox, min(r.x, ox + ow - r.width))
+        r.y = max(oy, min(r.y, oy + oh - r.height))
+        return r
+
+    def union(self, other):
+        ox, oy, ow, oh = _rect_xywh(other)
+        left = min(self.left, ox)
+        top = min(self.top, oy)
+        right = max(self.right, ox + ow)
+        bottom = max(self.bottom, oy + oh)
+        return Rect(left, top, right - left, bottom - top)
+
+    def contains(self, other):
+        ox, oy, ow, oh = _rect_xywh(other)
+        return (self.left <= ox and self.top <= oy and
+                self.right >= ox + ow and self.bottom >= oy + oh)
 
     def __iter__(self):
         yield from (self.x, self.y, self.width, self.height)
