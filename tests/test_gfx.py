@@ -58,6 +58,22 @@ class HelperFunctionTests(NoArcadeMixin, unittest.TestCase):
         self.assertEqual(gfx._norm_color((300, -5, 128)), (255, 0, 128))
         self.assertEqual(gfx._norm_color((10.7, 20.2, 30.9)), (10, 20, 30))
 
+    def test_apply_alpha_passthrough_when_opaque(self):
+        # None or >=255 surface alpha must not touch the color.
+        self.assertEqual(gfx._apply_alpha((10, 20, 30), None), (10, 20, 30))
+        self.assertEqual(gfx._apply_alpha((10, 20, 30), 255), (10, 20, 30))
+        self.assertEqual(gfx._apply_alpha((10, 20, 30, 255), 300), (10, 20, 30, 255))
+
+    def test_apply_alpha_modulates_alpha_channel(self):
+        # RGB source is treated as alpha=255; half surface alpha -> ~127.
+        self.assertEqual(gfx._apply_alpha((0, 0, 0), 128), (0, 0, 0, 128))
+        # The crafting/store overlay case: BLACK filled, set_alpha(180).
+        self.assertEqual(gfx._apply_alpha((0, 0, 0), 180), (0, 0, 0, 180))
+        # An already-translucent source color composes multiplicatively.
+        self.assertEqual(gfx._apply_alpha((255, 0, 0, 200), 128), (255, 0, 0, 100))
+        # Fully transparent surface alpha zeroes it out.
+        self.assertEqual(gfx._apply_alpha((255, 255, 255), 0), (255, 255, 255, 0))
+
     def test_rect_xywh_accepts_rect_and_tuple(self):
         self.assertEqual(gfx._rect_xywh(gfx.Rect(3, 4, 5, 6)), (3, 4, 5, 6))
         self.assertEqual(gfx._rect_xywh((1, 2, 3, 4)), (1, 2, 3, 4))

@@ -83,6 +83,23 @@ def _norm_color(color):
     return c
 
 
+def _apply_alpha(color, alpha):
+    """Modulate a color's alpha channel by a surface-level alpha (0-255).
+
+    pygame's Surface.set_alpha() dims everything drawn on that surface when it
+    is later blitted. Off-screen surfaces in this shim record their draw ops and
+    replay them on blit; without this, the recorded fill/shape colors ignore the
+    surface alpha and paint fully opaque (e.g. the crafting/store overlays, which
+    fill BLACK then set_alpha(180/200), would blot out the whole screen instead
+    of dimming it). This multiplies the color's own alpha by the surface alpha.
+    """
+    if alpha is None or alpha >= 255:
+        return color
+    c = _norm_color(color)
+    src_a = c[3] if len(c) == 4 else 255
+    return (c[0], c[1], c[2], int(src_a * max(0, min(255, alpha)) / 255))
+
+
 def _rect_xywh(rect):
     """Unpack a pygame.Rect / gfx.Rect / (x, y, w, h) tuple into ints."""
     if hasattr(rect, "x") and hasattr(rect, "width"):
@@ -550,34 +567,40 @@ class Surface:
         for op, args in self._ops:
             if op == "fill":
                 (color,) = args
-                _draw_rect(color, (ax + dx, ay + dy, aw, ah), 0)
+                _draw_rect(_apply_alpha(color, alpha),
+                           (ax + dx, ay + dy, aw, ah), 0)
             elif op == "rect":
                 color, rect, width = args
                 if in_area(rect[0], rect[1]):
-                    _draw_rect(color, (rect[0] + dx, rect[1] + dy,
-                                       rect[2], rect[3]), width)
+                    _draw_rect(_apply_alpha(color, alpha),
+                               (rect[0] + dx, rect[1] + dy,
+                                rect[2], rect[3]), width)
             elif op == "circle":
                 color, center, radius, width = args
                 if in_area(center[0], center[1]):
-                    _draw_circle(color, (center[0] + dx, center[1] + dy),
+                    _draw_circle(_apply_alpha(color, alpha),
+                                 (center[0] + dx, center[1] + dy),
                                  radius, width)
             elif op == "ellipse":
                 color, rect, width = args
                 if in_area(rect[0], rect[1]):
-                    _draw_ellipse(color, (rect[0] + dx, rect[1] + dy,
-                                          rect[2], rect[3]), width)
+                    _draw_ellipse(_apply_alpha(color, alpha),
+                                  (rect[0] + dx, rect[1] + dy,
+                                   rect[2], rect[3]), width)
             elif op == "line":
                 color, start, end, width = args
                 if in_area(start[0], start[1]):
-                    _draw_line(color, (start[0] + dx, start[1] + dy),
+                    _draw_line(_apply_alpha(color, alpha),
+                               (start[0] + dx, start[1] + dy),
                                (end[0] + dx, end[1] + dy), width)
             elif op == "lines":
                 color, closed, points, width = args
-                _draw_lines(color, closed,
+                _draw_lines(_apply_alpha(color, alpha), closed,
                             [(p[0] + dx, p[1] + dy) for p in points], width)
             elif op == "polygon":
                 color, points, width = args
-                _draw_polygon(color, [(p[0] + dx, p[1] + dy) for p in points],
+                _draw_polygon(_apply_alpha(color, alpha),
+                              [(p[0] + dx, p[1] + dy) for p in points],
                               width)
             elif op == "blit":
                 src, sx, sy, sub = args

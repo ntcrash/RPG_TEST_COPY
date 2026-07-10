@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 43 Ruff findings surfaced by the new linter (13 unused imports, 12 unused variables, 13 unused loop vars, 4 placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/10/2026 - v2.1.18
+### 🎨 Arcade migration: fix `set_alpha` being ignored on off-screen surface replay (roadmap P1 #1, migration step 2)
+**Under the Arcade backend, semi-transparent overlays rendered as fully opaque, blotting out the whole screen instead of dimming it.** The crafting, inventory, and store screens use pygame's classic dimmer pattern: build an off-screen `Surface`, `fill(BLACK)`, `set_alpha(180/200)`, then `blit` it over the game world. The `gfx` shim records an off-screen surface's draw ops and replays them at blit time — but the replay path ignored the surface's alpha for every fill/shape op (only nested blits threaded it through). So the overlay painted solid black and hid everything behind the panel.
+- **Root cause**: `Surface._replay()` in `Code/gfx.py` called `_draw_rect`/`_draw_circle`/… with the raw recorded color, dropping the `alpha` argument it already received from `set_alpha`. Confirmed live in `crafting_system.py` (alpha 180) and `inventory_system.py` store (alpha 200), both of which fill BLACK over the full screen.
+- **Fix**: added `_apply_alpha(color, alpha)` — multiplies a color's alpha channel by the surface-level alpha (treating RGB as opaque, composing multiplicatively with an already-translucent RGBA source, and short-circuiting when alpha is `None`/≥255). Threaded it through every shape op in `_replay` (fill, rect, circle, ellipse, line, lines, polygon). Nested blits already carried alpha and are unchanged.
+- **Tests**: added 2 cases to `tests/test_gfx.py` covering `_apply_alpha` (opaque passthrough, half/partial modulation, the exact 180/200 overlay values, multiplicative RGBA compose, zero-alpha). Suite now **80/80** (was 78/78); `py_compile` clean; ruff clean.
+- **Roadmap**: appended a progress note under the migration in-progress entry (P1 #1). The item stays open — on-device visual verification (step 1) and flipping the default (step 4) still require a display.
+
 ## 07/10/2026 - v2.1.17
 ### 🧪 Arcade migration: regression tests for the `gfx` shim (roadmap P1 #1, migration step 2 safety net)
 **The `Code/gfx.py` shim is the single point every draw call flows through during the Pygame→Arcade migration, yet it had zero direct test coverage — its two most fragile jobs (the pygame→Arcade Y-axis flip and off-screen surface record/replay) could regress silently as the shim is extended for the pending on-device visual pass. Added a headless test module that pins that behaviour so the upcoming visual/shim-tuning work has a net under it.**
