@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 42 Ruff findings surfaced by the linter (unused imports, unused variables, unused loop vars, placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/10/2026 - v2.3.4
+### 🐌 Stop real pygame from loading on every launch (startup / repo hygiene)
+**The Arcade backend no longer imports real `pygame` at all during a normal play session.** `Code/gfx.py` — the Arcade-native drawing/audio/timing shim — was importing real pygame *eagerly* at module load (`import pygame as _pygame`) purely to back a handful of never-exercised `__getattr__` fallbacks (`locals`, `Color`, `Vector2`, `mouse`, …). Since v2.2.5 the game drives everything through the shim, so that eager import bought nothing but pygame's SDL load cost and its support-prompt banner on every startup — which is exactly why "why is pygame launching under the Arcade backend?" kept showing up. (`pygame` is no longer even a declared dependency as of v2.2.5, so on a clean install the eager `try/except` was also silently swallowing an `ImportError` on every launch.)
+- **Lazy, cached, banner-silenced import** — replaced the module-load `import pygame` with `_get_pygame()`, which imports real pygame only the first time a fallback actually fires, caches the result (and a `_pygame_tried` flag so a failed import isn't retried on every miss), and sets `PYGAME_HIDE_SUPPORT_PROMPT=1` before importing so no banner prints. Both `__getattr__` hooks (module-level and `_KeyModule`) now route through it.
+- **Effect**: a normal Arcade play session never imports pygame; nothing the game exercises at runtime hits a fallback, so `_get_pygame()` is never called. The opt-in real-pygame backend (`MEGITECH_BACKEND=pygame`, for devs who install pygame themselves) is unaffected — it still goes through `Code/backend.py`, not this shim path.
+- **Verification**: `py_compile` clean; full suite **144/144** green (6 skipped when arcade/display absent); the 66 `tests/test_gfx.py` shim tests still pass with pygame absent.
+- **Also**: gitignored `*.log` / `importtime.log` and removed a stray `importtime.log` profiling artifact (`python -X importtime` output) that had been accidentally git-added.
+
 ## 07/10/2026 - v2.3.3
 ### 🧩 Fix overlapping in-game menus (roadmap P5 #34)
 **Combat, spell, item, and store sub-menus no longer overlap the panels beneath them.** Each menu was drawn at a fixed y-coordinate sized for a shorter list, so a full list ran under the combat log, the control-instruction bar, or (in Arcade) the leftover migration dev overlay.

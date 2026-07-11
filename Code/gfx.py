@@ -46,18 +46,36 @@ try:
 except Exception:  # pragma: no cover - arcade not installed yet
     _arcade = None
 
-# Real pygame is imported lazily too. This shim is now almost fully Arcade-native:
-# it implements the *rendering* slice (draw/font/Rect/Surface/image/transform +
-# key constants) plus mixer (arcade.Sound), time (stdlib clock), sprite, display,
-# and event on top of Arcade. As of migration step 6 the only things still
-# forwarded to real pygame via the module-level __getattr__ at the bottom of this
-# file are rarely/never-used extras (locals, Color, Vector2, mouse, ...); nothing
-# the game exercises at runtime routes through real pygame anymore. That lets a
-# single `from Code import gfx as pygame` swap run the whole game on Arcade.
-try:
-    import pygame as _pygame
-except Exception:  # pragma: no cover - pygame not installed in this env
-    _pygame = None
+# Real pygame is imported LAZILY (only on first fallback use), not at module
+# load. This shim is fully Arcade-native: it implements the *rendering* slice
+# (draw/font/Rect/Surface/image/transform + key constants) plus mixer
+# (arcade.Sound), time (stdlib clock), sprite, display, and event on top of
+# Arcade. The only things still forwarded to real pygame -- via the two
+# __getattr__ hooks below -- are rarely/never-used extras (locals, Color,
+# Vector2, mouse, ...); nothing the game exercises at runtime routes through real
+# pygame. Importing it eagerly here therefore bought nothing but pygame's startup
+# banner and its (SDL) load cost on every launch -- which is exactly what made
+# "why is pygame launching?" show up under the Arcade backend. Deferring it means
+# a normal play session never imports pygame at all. If a fallback ever does
+# fire, we import it once, cache it, and silence its support banner.
+import os as _os_gfx
+
+_pygame = None            # cache: None until first fallback use (or import fails)
+_pygame_tried = False     # so a failed import isn't retried on every miss
+
+
+def _get_pygame():
+    """Import real pygame on first fallback use and cache it (banner silenced)."""
+    global _pygame, _pygame_tried
+    if not _pygame_tried:
+        _pygame_tried = True
+        _os_gfx.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
+        try:
+            import pygame as _pg
+            _pygame = _pg
+        except Exception:  # pragma: no cover - pygame not installed in this env
+            _pygame = None
+    return _pygame
 
 # ---------------------------------------------------------------------------
 # Screen dimensions. arcade_app sets these once the Window is created so the
@@ -1119,8 +1137,9 @@ class _KeyModule:
         return 0
 
     def __getattr__(self, name):
-        if _pygame is not None:
-            return getattr(_pygame.key, name)
+        pg = _get_pygame()
+        if pg is not None:
+            return getattr(pg.key, name)
         raise AttributeError(name)
 
 
@@ -1339,12 +1358,13 @@ time = _TimeModule()
 # quit, ...) keeps the Arcade-backed behavior and takes precedence.
 # ===========================================================================
 def __getattr__(name):
-    if _pygame is not None:
+    pg = _get_pygame()
+    if pg is not None:
         try:
-            return getattr(_pygame, name)
+            return getattr(pg, name)
         except AttributeError:
             pass
     raise AttributeError(
         f"module 'Code.gfx' has no attribute {name!r} and real pygame is "
-        f"{'not installed' if _pygame is None else 'missing that attribute'}"
+        f"{'not installed' if pg is None else 'missing that attribute'}"
     )
