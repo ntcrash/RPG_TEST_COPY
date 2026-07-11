@@ -4,7 +4,6 @@ Handles crafting materials, recipes, and the crafting interface
 """
 
 from Code.backend import pygame  # backend switch (default: Code.gfx shim)
-import json
 import random
 from Code.ui_components import *
 
@@ -286,7 +285,6 @@ class CraftingNode:
     """Harvestable crafting material node on the world map"""
 
     def __init__(self, x, y, material_name, respawn_time=4500):
-        import math
         self.x = x
         self.y = y
         self.width = 25
@@ -312,7 +310,6 @@ class CraftingNode:
         common = ["Iron Ore", "Wood", "Leather", "Cloth", "Stone"]
         uncommon = ["Silver Ore", "Mithril Shard", "Crystal Fragment", "Dragon Scale"]
         rare = ["Gold Ore", "Phoenix Feather", "Void Crystal", "Adamantine"]
-        legendary = ["Starfire Essence", "Time Crystal"]
 
         if material_name in common:
             self.rarity = "Common"

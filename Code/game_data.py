@@ -619,7 +619,6 @@ def create_sample_files():
 
     # Build paths
     enemies_dir = script_dir.parent / 'Enemies'
-    sounds_dir = script_dir.parent / 'Sounds'
     enemy_file = enemies_dir / 'demon_level_1.json'
 
     if not os.path.exists(enemy_file):

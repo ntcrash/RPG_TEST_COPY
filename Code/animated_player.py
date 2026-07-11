@@ -1,5 +1,4 @@
 from Code.backend import pygame  # backend switch (real pygame or Arcade gfx shim)
-import random
 
 
 class AnimatedPlayer(pygame.sprite.Sprite):

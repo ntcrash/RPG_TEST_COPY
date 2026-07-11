@@ -1,7 +1,6 @@
 from Code.backend import pygame  # backend switch (default: Code.gfx shim)
 import json
 import os
-import random
 from Code.ui_components import *
 
 
@@ -182,7 +181,6 @@ class LevelManager:
 
     def complete_current_level(self):
         """Mark current level as complete and unlock next level"""
-        current_key = self.get_current_level_key()
         current = self.get_current_level()
 
         if not current:

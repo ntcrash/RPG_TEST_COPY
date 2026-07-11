@@ -8,7 +8,6 @@ import random
 import os
 from pathlib import Path
 from Code.enhanced_combat_system import EnhancedCombatManager, SoundManager
-from Code.game_data import CharacterManager
 from Code.ui_components import *
 
 

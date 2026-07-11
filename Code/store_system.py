@@ -1,5 +1,4 @@
 from Code.backend import pygame  # backend switch (default: Code.gfx shim)
-import random
 from Code.ui_components import *
 
 
@@ -368,7 +367,7 @@ class StoreManager:
         ]
 
         instruction_y = height - 50
-        for i, instruction in enumerate(instructions):
+        for _i, instruction in enumerate(instructions):
             color = MENU_SELECTED if "ESC" in instruction else WHITE
             instruction_surface = self.small_font.render(instruction, True, color)
             instruction_rect = instruction_surface.get_rect(center=(width // 2, instruction_y))

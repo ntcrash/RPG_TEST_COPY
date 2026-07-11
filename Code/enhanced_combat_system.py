@@ -429,7 +429,6 @@ class CombatAnimation:
                 for i in range(3):
                     flash_radius = radius - i * 5
                     if flash_radius > 0:
-                        alpha = max(0, self.alpha - i * 50)
                         flash_color = (255, 255 - i * 80, 100 - i * 30)
                         pygame.draw.circle(screen, flash_color, (draw_x, draw_y), flash_radius)
 
@@ -438,7 +437,6 @@ class CombatAnimation:
             for particle in self.particles:
                 px = draw_x + particle['x']
                 py = draw_y + particle['y']
-                sparkle_alpha = max(0, min(255, int(particle['life'] * 4)))
                 pygame.draw.circle(screen, particle['color'], (int(px), int(py)), 2)
 
                 # Add sparkle effect
@@ -721,16 +719,16 @@ class EnhancedCombatManager:
     def process_status_effects(self):
         """Process ongoing status effects"""
         # Process enemy status effects
-        for effect, duration in list(self.enemy_status.items()):
+        for effect, _duration in list(self.enemy_status.items()):
             if effect == "burn":
                 burn_damage = random.randint(3, 8)
                 self.current_enemy["Hit_Points"] -= burn_damage
                 self.add_combat_text(400, 280, f"-{burn_damage}", "damage")
                 self.add_combat_log(f"Enemy burns for {burn_damage} damage!", ORANGE)
             elif effect == "freeze":
-                self.add_combat_log(f"Enemy is frozen!", LIGHT_BLUE)
+                self.add_combat_log("Enemy is frozen!", LIGHT_BLUE)
             elif effect == "stun":
-                self.add_combat_log(f"Enemy is stunned!", YELLOW)
+                self.add_combat_log("Enemy is stunned!", YELLOW)
 
             # Reduce duration
             self.enemy_status[effect] -= 1
@@ -739,7 +737,7 @@ class EnhancedCombatManager:
                 self.add_combat_log(f"Enemy recovers from {effect}!", WHITE)
 
         # Process player status effects (if any)
-        for effect, duration in list(self.player_status.items()):
+        for effect, _duration in list(self.player_status.items()):
             self.player_status[effect] -= 1
             if self.player_status[effect] <= 0:
                 del self.player_status[effect]
@@ -974,7 +972,6 @@ class EnhancedCombatManager:
     def attempt_run(self):
         """Enhanced run away with sound effect"""
         player_stats = self.get_player_stats()
-        enemy_stats = self.get_enemy_stats()
 
         run_chance = 60 + (player_stats.get("dexterity", 10) - 10) * 3
         run_chance = max(25, min(90, run_chance))
@@ -1189,9 +1186,7 @@ class EnhancedCombatManager:
             screen.fill((40, 20, 20))
             draw_target = screen
 
-        # Draw title with pulsing effect
-        pulse = math.sin(self.animation_timer * 0.1) * 0.2 + 1.0
-        title_color = tuple(int(c * pulse) for c in WHITE)
+        # Draw title
         title = self.large_font.render("️ COMBAT ", True, DARK_BLUE)
         title_rect = title.get_rect(center=(400, 50))
         draw_target.blit(title, title_rect)

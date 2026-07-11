@@ -6,7 +6,6 @@ Integrates the advanced combat system with the main game
 from Code.backend import pygame  # backend switch (default: Code.gfx shim)
 import random
 from Code.combat_system import CombatManager
-from Code.game_data import CharacterManager
 from Code.ui_components import *
 
 

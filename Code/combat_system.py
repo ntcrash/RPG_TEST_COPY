@@ -1,7 +1,6 @@
 from Code.backend import pygame  # backend switch (default: Code.gfx shim)
 from Code.debug import debug_print
 import random
-import math
 from Code.ui_components import *
 
 
@@ -247,26 +246,6 @@ class CombatManager:
         combat_text = CombatText(x, y, text, text_type, world_pos)
         self.combat_texts.append(combat_text)
 
-    def calculate_damage(self, base_min, base_max, attacker_stats, defender_stats=None):
-        """Calculate damage with stat modifiers"""
-        # Base damage roll
-        base_damage = random.randint(base_min, base_max)
-
-        # Strength modifier for physical attacks
-        str_bonus = max(0, (attacker_stats.get("strength", 10) - 10) // 2)
-
-        # Critical hit chance based on dexterity
-        dex = attacker_stats.get("dexterity", 10)
-        crit_chance = max(5, (dex - 10) // 2 + 5)  # 5% base + dex modifier
-
-        is_critical = random.randint(1, 100) <= crit_chance
-
-        if is_critical:
-            final_damage = int((base_damage + str_bonus) * 1.5)
-            return final_damage, True
-        else:
-            return base_damage + str_bonus, False
-
     def calculate_spell_damage(self, spell, caster_stats, caster_level=1):
         """Calculate spell damage with intelligence/wisdom modifiers and level scaling - ENHANCED VERSION"""
         base_damage = random.randint(spell.damage_min, spell.damage_max)
@@ -388,7 +367,7 @@ class CombatManager:
         # Add equipment AC bonus if available
         equipment_ac = 0
         inventory = char_data.get("Inventory", {})
-        for item_name, item_data in inventory.items():
+        for _item_name, item_data in inventory.items():
             if isinstance(item_data, dict) and item_data.get("equipped", False):
                 if "Armor_Class" in item_data:
                     equipment_ac += item_data["Armor_Class"]
@@ -594,7 +573,7 @@ class CombatManager:
     def process_status_effects(self):
         """Process ongoing status effects"""
         # Process enemy status effects
-        for effect, duration in list(self.enemy_status.items()):
+        for effect, _duration in list(self.enemy_status.items()):
             if effect == "burn":
                 burn_damage = random.randint(3, 8)
                 self.current_enemy["Hit_Points"] -= burn_damage
@@ -608,7 +587,7 @@ class CombatManager:
                 self.add_combat_log(f"Enemy recovers from {effect}!", WHITE)
 
         # Process player status effects (if any)
-        for effect, duration in list(self.player_status.items()):
+        for effect, _duration in list(self.player_status.items()):
             self.player_status[effect] -= 1
             if self.player_status[effect] <= 0:
                 del self.player_status[effect]
@@ -616,7 +595,6 @@ class CombatManager:
     def attempt_run(self):
         """Attempt to run from combat"""
         player_stats = self.get_player_stats()
-        enemy_stats = self.get_enemy_stats()
 
         # Base run chance of 60% + dexterity modifier
         run_chance = 60 + (player_stats.get("dexterity", 10) - 10) * 3

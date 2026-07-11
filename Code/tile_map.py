@@ -1,6 +1,5 @@
 from pathlib import Path
 from Code.backend import pygame  # backend switch (real pygame or Arcade gfx shim)
-import random
 
 # Get the directory where your script is located
 script_dir = Path(__file__).parent
@@ -258,7 +257,7 @@ class EnhancedTileMap(pygame.sprite.Sprite):
         # Initialize empty map
         for row in range(self.map_height):
             tile_map.append([])
-            for column in range(self.map_width):
+            for _column in range(self.map_width):
                 tile_map[row].append((0, 0, 24, 24))  # Default grass
 
         # Process each line of map data

@@ -2,7 +2,19 @@
 All notable changes to this project will be documented in this file.
 
 ## - ToDo
-- Fix the 42 Ruff findings surfaced by the linter (unused imports, unused variables, unused loop vars, placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
+- _(empty — the whole ROADMAP.md P0–P6 backlog and this ToDo list are cleared as of v3.2.0)_
+
+## 07/11/2026 - v3.2.0
+### 🧹 Ruff cleanup — codebase is now lint-clean and CI lint is a hard gate
+**Cleared every remaining Ruff finding and flipped the CI `ruff check` step to blocking.** This closes the last open item in the CHANGELOG ToDo (deferred from v2.1.2 to keep the linter-config change config-only) and, with the ROADMAP P0–P6 backlog already complete, leaves the project with no tracked work items outstanding.
+- **Unused imports removed** (F401) — `random` (from `animated_player.py`, `inventory_system.py`, `level_system.py`, `store_system.py`, `tile_map.py`), `string` (`character_creation.py`), `math` (`combat_system.py` module + a redundant local `import math` in `crafting_system.CraftingNode.__init__`), `json` (`crafting_system.py`), the unused `from Code.game_data import CharacterManager` in both `combat_integration.py` and `enhanced_combat_integration.py`, the module-level `from Code.crafting_system import CraftingIntegration` re-import inside a `main.py` method, and the unused `__version__` alias in `main.py` (`CAPTION` is the one actually used).
+- **Placeholder-less f-strings de-fanged** (F541) — three `f"…"` string literals with no `{}` placeholders (`"Enemy is frozen!"`, `"Enemy is stunned!"` in `enhanced_combat_system.py`; two banner prints in `main.py`) demoted to plain strings.
+- **Unused loop control variables renamed** (B007) — 13 `for i, x in enumerate(...)` / `for k, v in ...` sites across `combat_system.py`, `enhanced_combat_system.py`, `store_system.py`, `tile_map.py`, and `main.py` where the index/key was never used are now `_i` / `_duration` / `_column` / `_item_name`.
+- **Unused local variables removed** (F841) — `enemy_stats` in both combat managers' `attempt_run` (computed, never read), `alpha`/`sparkle_alpha` (dead per-particle alpha never applied by `draw.circle`), `title_color`/`pulse` (the "COMBAT" title renders with `DARK_BLUE`, not the computed pulse colour), `legendary` in `crafting_system` (the rarity `else` branch already yields `"Legendary"`), `sounds_dir` (`game_data`), `current_key` (`level_system`), the fully-dead `too_close_to_existing` rest-area conflict flag + its two scan loops (never read — the fallback placement doesn't consult it), and the `difficulty_surface`/`difficulty_text` pair in the HUD overlay whose blit was already commented out.
+- **Dead method removed** (F811) — `CombatManager.calculate_damage` was defined twice; the first (non-ENHANCED) definition was shadowed by the later "ENHANCED VERSION" that `player_attack` actually calls, so the dead first copy was deleted.
+- **CI** (`.github/workflows/ci.yml`) — removed `continue-on-error: true` from the `Lint (ruff)` step so a new finding now fails the build; also added `server_app.py` to the `py_compile` step for parity with the rest of the entry points.
+- **Verification**: `ruff check .` → **All checks passed!** (was 24 findings on entry; the earlier 42 were partly cleared in-flight before this run); `py_compile` clean on all entry points + `Code/*.py`; full suite **348/348** green (6 skipped when arcade/display absent). All changes are behaviour-preserving dead-code removal — no runtime logic changed.
+- **Result**: CHANGELOG ToDo is now empty and the CI lint gate is enforcing. Note: a couple of removals (the commented-out difficulty HUD line, the dead alpha-fade locals) point at *latent* visual features that were never wired up; these are documented here rather than "fixed" to keep this pass a pure, low-risk cleanup.
 
 ## 07/11/2026 - v3.1.0
 ### 👤 Account creation — logins that group a player's characters for multiplayer (roadmap P6 #41)

@@ -48,13 +48,12 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Byte-compile all sources (py_compile)
-        run: python -m py_compile main.py arcade_app.py Code/*.py
+        run: python -m py_compile main.py arcade_app.py server_app.py Code/*.py
 
       - name: Lint (ruff)
-        # Non-blocking for now: 43 pre-existing findings are tracked in the
-        # CHANGELOG ToDo and deferred to a dedicated cleanup pass. Flip this to
-        # blocking (remove continue-on-error) once that pass lands.
-        continue-on-error: true
+        # Blocking gate: the codebase is Ruff-clean as of v3.2.0 (the pre-existing
+        # findings tracked in the CHANGELOG ToDo were cleaned up), so any new
+        # finding now fails the build.
         run: ruff check .
 
       - name: Run test suite (unittest, headless)

@@ -29,7 +29,7 @@ from Code.rest_system import RestManager, EnhancedRestArea
 from Code.level_system import LevelManager, WorldLevelGenerator, LevelSelectScreen
 from Code.settings_system import SettingsIntegration
 from Code.inventory_system import StoreIntegration
-from Code.version import CAPTION, __version__
+from Code.version import CAPTION
 
 
 class GameState:
@@ -186,7 +186,7 @@ class EnhancedGameManager:
             self.shops.append(init_shop)
             print(f"Initialization shop created at ({world_width - 80}, 20)")
 
-        print(f"=== GAME INITIALIZATION COMPLETE ===")
+        print("=== GAME INITIALIZATION COMPLETE ===")
         print(
             f"Final object counts: {len(self.enemies)} enemies, {len(self.treasures)} treasures, {len(self.shops)} shops, {len(self.rests)} rest areas, {len(self.trees)} trees")
         if len(self.shops) > 0:
@@ -489,7 +489,7 @@ class EnhancedGameManager:
         object_index = 0
 
         # Create rocks
-        for i in range(rock_count):
+        for _i in range(rock_count):
             if object_index < len(object_positions):
                 x, y = object_positions[object_index]
                 # Different rock types based on rarity
@@ -508,7 +508,7 @@ class EnhancedGameManager:
                 object_index += 1
 
         # Create metal veins
-        for i in range(metal_count):
+        for _i in range(metal_count):
             if object_index < len(object_positions):
                 x, y = object_positions[object_index]
                 # Rare metals
@@ -525,7 +525,7 @@ class EnhancedGameManager:
                 object_index += 1
 
         # Create streams
-        for i in range(stream_count):
+        for _i in range(stream_count):
             if object_index < len(object_positions):
                 x, y = object_positions[object_index]
                 stream = Stream(x, y)
@@ -533,7 +533,7 @@ class EnhancedGameManager:
                 object_index += 1
 
         # Create brushes
-        for i in range(brush_count):
+        for _i in range(brush_count):
             if object_index < len(object_positions):
                 x, y = object_positions[object_index]
                 brush = Brush(x, y)
@@ -605,18 +605,6 @@ class EnhancedGameManager:
         # Single rest area in bottom-right corner with some inset
         rest_x = world_width - 120
         rest_y = world_height - 120
-
-        # Make sure rest area doesn't conflict with other objects
-        too_close_to_existing = False
-        for enemy in self.enemies:
-            if math.dist((rest_x, rest_y), (enemy.x, enemy.y)) < 50:
-                too_close_to_existing = True
-                break
-
-        for treasure in self.treasures:
-            if math.dist((rest_x, rest_y), (treasure.x, treasure.y)) < 40:
-                too_close_to_existing = True
-                break
 
         # Create map objects (fallback)
         all_positions = enemy_positions + treasure_positions + [(tree.x, tree.y) for tree in self.trees]
@@ -751,7 +739,6 @@ class EnhancedGameManager:
                 material = obj.harvest()
                 if material:
                     # Add material to inventory
-                    from Code.crafting_system import CraftingIntegration
                     if hasattr(self, 'crafting_integration') and self.crafting_integration:
                         success = self.crafting_integration.crafting_manager.add_crafting_material(material, 1)
                         if success:
@@ -809,7 +796,7 @@ class EnhancedGameManager:
             dungeon_x = world_width // 2 - 30
             dungeon_y = world_height // 2 - 40
 
-            print(f"Boss dungeon spawning at center of world!")
+            print("Boss dungeon spawning at center of world!")
 
             # Create and add dungeon
             dungeon = Dungeon(dungeon_x, dungeon_y)
@@ -1572,10 +1559,10 @@ class EnhancedGameManager:
             treasure.draw(self.screen, self.camera, self.animation_timer)
 
         # Debug: Always try to draw shops and rests
-        for i, shop in enumerate(self.shops):
+        for _i, shop in enumerate(self.shops):
             shop.draw(self.screen, self.camera, self.animation_timer)
 
-        for i, rest_area in enumerate(self.rests):
+        for _i, rest_area in enumerate(self.rests):
             rest_area.draw(self.screen, self.camera.x, self.camera.y)
 
         # Draw map objects (rocks, metal, streams, brushes)
@@ -1644,13 +1631,10 @@ class EnhancedGameManager:
             level_overlay.fill((0, 0, 0, 128))
 
             level_text = f"Level: {current_level.get_display_name()}"
-            difficulty_text = f"Difficulty: {current_level.get_difficulty_description()}"
 
             level_surface = self.ui_renderer.small_font.render(level_text, True, MENU_SELECTED)
-            difficulty_surface = self.ui_renderer.small_font.render(difficulty_text, True, MENU_SELECTED)
 
             level_overlay.blit(level_surface, (10, 24))
-            # level_overlay.blit(difficulty_surface, (10, 22))
 
             # Blit level overlay below main status overlay
             self.screen.blit(level_overlay, (10, 140))
