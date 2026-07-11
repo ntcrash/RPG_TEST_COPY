@@ -202,22 +202,51 @@ class MagitechWindow(arcade.Window):
             self.game.handle_event(event)
 
     def on_close(self):
+        # Fired by the window's "X" / OS close button. Route through the SAME
+        # single shutdown path as the Quit menu item and Escape so every exit
+        # route behaves identically and actually ends the program. We do NOT
+        # call super().on_close() (which would call self.close() a second time
+        # after _shutdown already closed the window, raising on the dead
+        # window); _shutdown owns closing.
         self._shutdown()
-        super().on_close()
 
     def _shutdown(self):
+        # Idempotent: on_close, the Quit menu item, and Escape can all land
+        # here (and pyglet may fire on_close again while we're tearing down),
+        # so guard against re-entry to avoid double-close errors / saving twice.
+        if getattr(self, "_closing", False):
+            return
         self._closing = True
         if hasattr(self.game, "level_manager"):
             try:
                 self.game.level_manager.save_progression()
             except Exception:
                 pass
-        arcade.close_window()
+        # Close this window...
+        try:
+            self.close()
+        except Exception:
+            pass
+        # ...and stop the pyglet/arcade event loop so arcade.run() returns and
+        # main() can end the process. arcade.exit() is the reliable "quit the
+        # whole app" signal; close_window() alone left background (audio) work
+        # able to keep the interpreter alive on some setups.
+        try:
+            arcade.exit()
+        except Exception:
+            pass
 
 
 def main():
     MagitechWindow()
     arcade.run()
+    # arcade.run() has returned, so the window is closed and the loop stopped.
+    # Belt-and-suspenders: force the whole process to end even if a lingering
+    # background thread (e.g. audio streaming from arcade.Sound) would otherwise
+    # keep a non-daemon thread — and thus the interpreter — alive. Progression
+    # is already saved in _shutdown() before we get here, so an immediate exit
+    # loses nothing. This is what "clicking Quit closes everything" requires.
+    os._exit(0)
 
 
 if __name__ == "__main__":

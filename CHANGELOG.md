@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 42 Ruff findings surfaced by the linter (unused imports, unused variables, unused loop vars, placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/10/2026 - v2.3.2
+### 🚪 Window close & Quit now fully end the app (roadmap P5 #24)
+**Every exit route — the window "X" button, the Quit menu item, and Escape — now cleanly terminates the whole program.** Under the Arcade entry point (`arcade_app.py`) exit handling was inconsistent: `on_close()` called `_shutdown()` and then `super().on_close()`, which closed the already-closed window a second time (raising on the dead window), and `_shutdown()` used `arcade.close_window()` with no re-entry guard — so a stray second `on_close` from pyglet during teardown could save progression twice or error, and on some setups a lingering background (audio) thread kept the interpreter alive after the window vanished, leaving the app "not really closed."
+- **One idempotent shutdown path** — `on_close()` (window X / OS close) now simply delegates to `_shutdown()` and no longer calls `super().on_close()` (which would double-close). `_shutdown()` guards against re-entry via `self._closing`, so the window X, the Quit menu item (`handle_keypress` → `return False` → `on_key_press` → `_shutdown`), and Escape all funnel through the same routine exactly once.
+- **Actually ends the program** — `_shutdown()` now saves progression once (failure-tolerant), calls `self.close()` to close the window, then `arcade.exit()` to stop the pyglet/Arcade event loop so `arcade.run()` returns. `main()` then calls `os._exit(0)` as a belt-and-suspenders guarantee that no non-daemon background thread (e.g. `arcade.Sound` audio streaming) can keep the process alive — progression is already persisted, so the immediate exit loses nothing.
+- **New `tests/test_window_close.py`** (5 tests, arcade-guarded skip like `render_smoke`) — pins that `_shutdown` saves-closes-exits, is idempotent across repeated calls, survives a save failure, works with no `level_manager`, and that `on_close` routes through `_shutdown`. GPU-free: `arcade.Window.__init__` is bypassed with `object.__new__` so no display/GL context is needed.
+- **Verification**: `py_compile` clean; full suite **139 → 144** green (6 skipped: display-dependent render_smoke + the 5 new arcade-guarded shutdown tests when arcade is absent).
+- **Result**: roadmap **P5 #24 (fix window close) is done.**
+
 ## 07/10/2026 - v2.3.1
 ### ⚖️ Difficulty / balance regression checks (roadmap P4 #15)
 **Pins the numeric output of the balance-critical formulas so future tuning edits can't silently regress.** The CHANGELOG records repeated past hotfixes to the difficulty-multiplier and stat-scaling systems (v1.4.1, v1.7.3); until now nothing guarded their exact output. New `tests/test_balance_regression.py` (16 tests) locks down reference character/enemy stat combos with all randomness pinned via `mock.patch`:
