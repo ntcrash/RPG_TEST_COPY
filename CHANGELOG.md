@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 42 Ruff findings surfaced by the linter (unused imports, unused variables, unused loop vars, placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/10/2026 - v2.3.1
+### ⚖️ Difficulty / balance regression checks (roadmap P4 #15)
+**Pins the numeric output of the balance-critical formulas so future tuning edits can't silently regress.** The CHANGELOG records repeated past hotfixes to the difficulty-multiplier and stat-scaling systems (v1.4.1, v1.7.3); until now nothing guarded their exact output. New `tests/test_balance_regression.py` (16 tests) locks down reference character/enemy stat combos with all randomness pinned via `mock.patch`:
+- **Enemy HP scaling** (`EnemyManager.create_scaled_enemy`) — the `(hp_base + (level-1)*12 + variance) * difficulty_multiplier` formula at normal/hard(2.0)/easy(0.5) difficulty, the `int()` truncation, that variance is applied *before* the multiplier, the `max(1, …)` HP floor, and the `int(level * multiplier)` enemy-level scaling.
+- **Tier boundaries** — the book-level→tier map (basic ≤3, elite 4–6, champion 7–10, ancient 11–15, boss 16+) checked at every edge.
+- **Boss scaling** (`create_scaled_boss`) — the steeper `(level-1)*30` HP curve and the `(book_level+3)*multiplier` boss level.
+- **Difficulty clamp** — `set_difficulty_multiplier` clamps to `[0.1, 3.0]`.
+- **Armor class** (`CharacterManager.get_armor_class`) — `10 + dex_bonus + best_armor`, explicitly pinning that multiple equipped armors take the **max** bonus, never the sum (Plate Mail 7 + Basic Armor 2 → AC 19, not 21), plus the no-character default of 10.
+- **Verification**: `py_compile` clean; full suite **123 → 139** green (1 skipped: display-dependent render_smoke).
+- **Result**: roadmap **P4 #15 (difficulty/balance regression checks) is done.** Any future edit that shifts the tuning now fails a test instead of shipping a balance regression.
+
 ## 07/10/2026 - v2.3.0
 ### 💾 Versioned save schema + automatic save-file migration (roadmap P4 #14)
 **Old/partial character saves are now healed on load instead of silently breaking.** Character saves (`Characters/*.json`) are live player state, and over the project's history the set of fields a character carries has drifted (e.g. the v1.7.3 spell-damage level-scaling rework). Much of the runtime reads fields by **direct index** — `character_data["Aspect1_Mana"]`, `["Hit_Points"]`, `["Credits"]`, `["Inventory"]`, weapon/armor slots — so a save missing any of those raises an uncaught `KeyError` mid-combat. This release adds a versioned schema and a lightweight migration/validation pass that backfills missing structure before the game touches it.
