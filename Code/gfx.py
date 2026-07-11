@@ -910,6 +910,15 @@ K_LEFT = 1073741904
 K_RIGHT = 1073741903
 K_PAGEUP = 1073741899
 K_PAGEDOWN = 1073741902
+# Function keys (SDL keycodes; F1 is used by the in-combat instruction toggle in
+# main.py). These were previously absent from the shim, so `pygame.K_F1` fell
+# through __getattr__ to real pygame -- which only worked while pygame happened
+# to be installed. On the pygame-free Arcade venv that raised AttributeError and
+# crashed the key handler on every keypress that reached the F1 check. Defining
+# the whole F1-F12 row natively keeps the shim self-sufficient.
+K_F1 = 1073741882; K_F2 = 1073741883; K_F3 = 1073741884; K_F4 = 1073741885
+K_F5 = 1073741886; K_F6 = 1073741887; K_F7 = 1073741888; K_F8 = 1073741889
+K_F9 = 1073741890; K_F10 = 1073741891; K_F11 = 1073741892; K_F12 = 1073741893
 # Letters
 K_a = 97; K_b = 98; K_c = 99; K_d = 100; K_e = 101; K_f = 102
 K_g = 103; K_h = 104; K_i = 105; K_j = 106; K_k = 107; K_l = 108

@@ -83,6 +83,7 @@ ARCADE_TO_PYGAME_KEY = {
     _A.RIGHT: gfx.K_RIGHT,
     _A.PAGEUP: gfx.K_PAGEUP,
     _A.PAGEDOWN: gfx.K_PAGEDOWN,
+    _A.F1: gfx.K_F1,   # in-combat instruction toggle (main.py)
 }
 # Letters a-z and digits 0-9 map to identical integer codes in both systems.
 for _c in range(ord("a"), ord("z") + 1):

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 42 Ruff findings surfaced by the linter (unused imports, unused variables, unused loop vars, placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/10/2026 - v2.3.6
+### 🔑 Define K_F1 in the shim — fix keypress crash on the pygame-free venv
+**A keypress in combat no longer crashes the game with `AttributeError: module 'Code.gfx' has no attribute 'K_F1'`.** `main.py`'s key handler compares against `pygame.K_F1` (the instruction-toggle key), but `Code/gfx.py` never defined `K_F1`, so the lookup fell through the shim's `__getattr__` to real pygame. That only *appeared* to work because the old external venv happened to have pygame installed as a fallback; on the new pygame-free Arcade venv (Python 3.12 + arcade 3.3), the fallback found nothing and raised on **every** keypress that reached the F1 check.
+- **Root cause** — the pygame→Arcade key-constant port (v2.1.x) inventoried "the subset actually referenced" but missed `K_F1`. An audit of every `pygame.<attr>` the game touches at runtime, tested with pygame forced absent, confirmed `K_F1` was the *only* remaining gap — all other constants/attributes (Rect, Surface, draw, event, mixer, K_0-9, arrows, …) resolve natively.
+- **Fix** (`Code/gfx.py`) — defined the full `K_F1`–`K_F12` SDL keycode row natively so the shim is self-sufficient and this class of gap can't recur. (`arcade_app.py`) — mapped `arcade.key.F1` → `gfx.K_F1` so the toggle actually fires under the Arcade backend, not just avoids the crash.
+- **Verification**: reproduced the crash with pygame absent, confirmed fixed; full suite **144/144** green on the Python 3.12 / arcade 3.3.3 venv (pygame not installed).
+
 ## 07/10/2026 - v2.3.5
 ### 🎯 Selection highlight no longer slices through the menu text
 **The combat action and item menu selection boxes now fully wrap the highlighted row's text.** The highlight rectangle was 20px tall around a 24px font, drawn as a 1–2px outline, so its bottom border ran straight through the lower half of the selected line's glyphs — reading like a strikethrough (most visible on "Cast Spell" in the action menu). Rows were also pitched at only 25px, nearly touching.
