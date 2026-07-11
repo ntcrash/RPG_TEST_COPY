@@ -116,6 +116,11 @@ class Spell:
         self.effect_value = effect_value
 
 
+# Character level at which each spell tier unlocks (index i -> spell tier i).
+# Tiers: basic (1), intermediate (3), advanced (5), master (8), ultimate (12).
+SPELL_UNLOCK_LEVELS = (1, 3, 5, 8, 12)
+
+
 class SpellManager:
     """Manages available spells based on character aspect"""
 
@@ -124,48 +129,60 @@ class SpellManager:
             "fire": [
                 Spell("Flame Bolt", 5, 8, 15, "damage", "Basic fire projectile"),
                 Spell("Fireball", 12, 15, 25, "damage", "Explosive fire magic", 20, "burn", 3),
-                Spell("Inferno", 25, 30, 45, "damage", "Devastating fire spell", 30, "burn", 5)
+                Spell("Inferno", 25, 30, 45, "damage", "Devastating fire spell", 30, "burn", 5),
+                Spell("Meteor", 40, 45, 65, "damage", "A falling star of molten fire", 35, "burn", 6),
+                Spell("Supernova", 55, 60, 90, "damage", "Cataclysmic fire eruption", 45, "burn", 8)
             ],
             "water": [
                 Spell("Ice Shard", 4, 6, 12, "damage", "Sharp ice projectile"),
                 Spell("Frost Blast", 10, 12, 20, "damage", "Freezing attack", 25, "freeze", 1),
-                Spell("Blizzard", 22, 25, 40, "damage", "Overwhelming ice storm", 35, "freeze", 2)
+                Spell("Blizzard", 22, 25, 40, "damage", "Overwhelming ice storm", 35, "freeze", 2),
+                Spell("Absolute Zero", 38, 40, 60, "damage", "Flash-freezing cold snap", 40, "freeze", 3),
+                Spell("Tsunami", 52, 55, 85, "damage", "A crushing tidal wave", 30, "freeze", 4)
             ],
             "dream": [
                 Spell("Lightning Bolt", 6, 10, 18, "damage", "Electric shock"),
                 Spell("Chain Lightning", 15, 18, 28, "damage", "Multi-target lightning", 15, "stun", 1),
-                Spell("Thunder Storm", 28, 35, 50, "damage", "Massive electrical assault", 25, "stun", 2)
+                Spell("Thunder Storm", 28, 35, 50, "damage", "Massive electrical assault", 25, "stun", 2),
+                Spell("Tempest", 42, 48, 68, "damage", "A raging electric storm", 30, "stun", 3),
+                Spell("Cataclysm", 58, 62, 95, "damage", "Reality-splitting thunder", 35, "stun", 4)
             ],
             "earth": [
                 Spell("Stone Throw", 3, 5, 10, "damage", "Hurled rock"),
                 Spell("Earth Spike", 8, 12, 18, "damage", "Piercing stone spear"),
-                Spell("Earthquake", 20, 20, 35, "damage", "Ground-shaking force", 20, "knockdown", 1)
+                Spell("Earthquake", 20, 20, 35, "damage", "Ground-shaking force", 20, "knockdown", 1),
+                Spell("Tectonic Shift", 36, 42, 62, "damage", "Continental upheaval", 30, "knockdown", 2),
+                Spell("World Ender", 50, 58, 88, "damage", "Planet-shattering force", 40, "knockdown", 3)
             ],
             "life": [
                 Spell("Heal", 8, 15, 25, "heal", "Restore health"),
                 Spell("Greater Heal", 15, 25, 40, "heal", "Major healing"),
-                Spell("Holy Light", 10, 8, 15, "damage", "Damages undead, heals living", 30, "blind", 2)
+                Spell("Holy Light", 10, 8, 15, "damage", "Damages undead, heals living", 30, "blind", 2),
+                Spell("Divine Restoration", 30, 45, 70, "heal", "Full-body renewal"),
+                Spell("Resurrection", 50, 80, 120, "heal", "A miraculous surge of life-force")
             ],
             "void": [
                 Spell("Shadow Bolt", 7, 12, 20, "damage", "Dark energy projectile"),
                 Spell("Drain Life", 12, 10, 18, "drain", "Damage enemy, heal self", 0, "", 0),
-                Spell("Soul Burn", 20, 25, 35, "damage", "Corrupting darkness", 25, "curse", 3)
+                Spell("Soul Burn", 20, 25, 35, "damage", "Corrupting darkness", 25, "curse", 3),
+                Spell("Void Rift", 38, 45, 65, "damage", "A tear in reality", 35, "curse", 5),
+                Spell("Oblivion", 55, 60, 90, "drain", "Consume the enemy's soul", 0, "", 0)
             ]
         }
 
     def get_spells_for_aspect(self, aspect, level=1):
-        """Get available spells for character aspect and level"""
+        """Get available spells for character aspect and level.
+
+        Each spell unlocks at its tier's level in SPELL_UNLOCK_LEVELS; the list
+        length adapts automatically to however many tiers an aspect defines.
+        """
         aspect_name = aspect.split('_')[0].lower() if aspect else "fire"
         spells = self.spell_library.get(aspect_name, self.spell_library["fire"])
 
-        # Return spells based on level
-        available_spells = []
-        if level >= 1:
-            available_spells.append(spells[0])  # Basic spell
-        if level >= 3:
-            available_spells.append(spells[1])  # Intermediate spell
-        if level >= 5:
-            available_spells.append(spells[2])  # Advanced spell
+        available_spells = [
+            spell for spell, unlock_level in zip(spells, SPELL_UNLOCK_LEVELS)
+            if level >= unlock_level
+        ]
 
         return available_spells if available_spells else [spells[0]]
 
