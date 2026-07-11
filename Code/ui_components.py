@@ -760,67 +760,159 @@ class Dungeon:
         """Check if player can interact with dungeon"""
         return self.active
 
+    # ------------------------------------------------------------------
+    # Mystical-effect helpers (pure math so they can be unit-tested without
+    # a GPU; see tests/test_dungeon_portal.py). All are deterministic in
+    # ``animation_timer`` so a given frame always renders identically.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _lerp_color(c0, c1, t):
+        """Linear blend between two RGB colours; ``t`` clamped to 0..1."""
+        t = max(0.0, min(1.0, t))
+        return (int(c0[0] + (c1[0] - c0[0]) * t),
+                int(c0[1] + (c1[1] - c0[1]) * t),
+                int(c0[2] + (c1[2] - c0[2]) * t))
+
+    @staticmethod
+    def portal_theme(is_portal):
+        """Colour palette for the entrance.
+
+        Boss dungeons read as a violet arcane maw; the level portal left
+        behind after a boss is a cooler teal/cyan gateway, so the two are
+        distinguishable at a glance.
+        """
+        if is_portal:
+            return {
+                "core": (150, 255, 240),
+                "glow": (40, 180, 200),
+                "swirl": (120, 240, 255),
+                "particle": (180, 255, 250),
+                "label": "LEVEL PORTAL",
+                "label_color": (120, 255, 220),
+                "label_glow": (0, 70, 60),
+            }
+        return {
+            "core": (210, 170, 255),
+            "glow": (110, 50, 200),
+            "swirl": (180, 120, 255),
+            "particle": (200, 150, 255),
+            "label": "BOSS DUNGEON",
+            "label_color": (255, 215, 0),
+            "label_glow": (100, 50, 0),
+        }
+
+    @staticmethod
+    def glow_pulse(animation_timer):
+        """0.0..1.0 breathing pulse driving the halo/core brightness."""
+        return 0.5 + 0.5 * math.sin(animation_timer * 0.1)
+
+    @staticmethod
+    def swirl_point(center_x, center_y, animation_timer, arm, step,
+                    arms=3, steps=6):
+        """Position of one node on a rotating spiral arm of the vortex."""
+        base = animation_timer * 0.12 + arm * (2 * math.pi / arms)
+        frac = (step + 1) / steps
+        angle = base + frac * 2.6           # tighter twist further out
+        radius = 6 + frac * 16              # spirals outward
+        return (int(center_x + radius * math.cos(angle)),
+                int(center_y + radius * 0.6 * math.sin(angle)))
+
+    @staticmethod
+    def particle_state(animation_timer, i, count=6, rise_span=46):
+        """Rising-particle position offset + twinkle size for particle ``i``.
+
+        Returns ``(dx, dy, size)`` relative to the portal centre. Particles
+        drift up and loop, twinkling as they go, so the portal looks like it
+        is exhaling motes of light.
+        """
+        phase = (animation_timer * 0.03 + i / count) % 1.0
+        dy = int(rise_span * 0.5 - phase * rise_span)   # +down .. -up
+        dx = int(14 * math.sin(animation_timer * 0.07 + i * 1.7))
+        size = 2 + int(1.5 + 1.5 * math.sin(animation_timer * 0.2 + i))
+        return dx, dy, size
+
     def draw(self, screen, camera, animation_timer=0):
-        """Draw the dungeon entrance with mystical effects"""
+        """Draw the dungeon entrance with mystical animated effects."""
         if not self.active:
             return
 
         screen_x, screen_y = camera.world_to_screen(self.x, self.y)
 
-        if camera.is_visible(self.x, self.y, self.width, self.height):
-            # Draw stone base
-            base_rect = pygame.Rect(screen_x, screen_y + 40, self.width, 40)
-            pygame.draw.rect(screen, (60, 60, 60), base_rect)
-            pygame.draw.rect(screen, BLACK, base_rect, 3)
+        if not camera.is_visible(self.x, self.y, self.width, self.height):
+            return
 
-            # Draw mystical portal entrance
-            portal_center_x = screen_x + self.width // 2
-            portal_center_y = screen_y + 30
+        theme = self.portal_theme(self.is_portal)
+        pulse = self.glow_pulse(animation_timer)
 
-            # Animated magical glow
-            glow_intensity = int(50 + 30 * math.sin(animation_timer * 0.1))
-            portal_color = (100 + glow_intensity, 50 + glow_intensity // 2, 200 + glow_intensity // 3)
+        portal_center_x = screen_x + self.width // 2
+        portal_center_y = screen_y + 30
 
-            # Draw portal circles (larger to smaller)
-            for i in range(3):
-                radius = 25 - i * 6 + int(3 * math.sin(animation_timer * 0.15 + i))
-                alpha_color = tuple(min(255, c) for c in portal_color)
-                pygame.draw.circle(screen, alpha_color, (portal_center_x, portal_center_y), radius)
-                if i == 0:
-                    pygame.draw.circle(screen, BLACK, (portal_center_x, portal_center_y), radius, 2)
+        # Draw stone base
+        base_rect = pygame.Rect(screen_x, screen_y + 40, self.width, 40)
+        pygame.draw.rect(screen, (60, 60, 60), base_rect)
+        pygame.draw.rect(screen, BLACK, base_rect, 3)
 
-            # Draw stone archway
-            arch_points = [
-                (screen_x + 10, screen_y + 60),
-                (screen_x + 10, screen_y + 20),
-                (screen_x + 25, screen_y + 5),
-                (screen_x + 35, screen_y + 5),
-                (screen_x + 50, screen_y + 20),
-                (screen_x + 50, screen_y + 60)
-            ]
-            pygame.draw.lines(screen, (80, 80, 80), False, arch_points, 4)
+        # Layered pulsing glow halo: concentric rings fading from the themed
+        # glow colour out toward the dark world so it reads as a soft aura
+        # even without per-pixel alpha.
+        halo_layers = 5
+        for layer in range(halo_layers, 0, -1):
+            frac = layer / halo_layers
+            radius = int((20 + 12 * pulse) * frac)
+            halo_color = clamp_color(
+                self._lerp_color(theme["glow"], (15, 10, 30), frac * 0.85))
+            pygame.draw.circle(screen, halo_color,
+                               (portal_center_x, portal_center_y), radius)
 
-            # Draw mystical particles floating around
-            for i in range(5):
-                particle_angle = animation_timer * 0.08 + i * 1.26  # 1.26 ≈ 2π/5
-                particle_x = portal_center_x + int(35 * math.cos(particle_angle))
-                particle_y = portal_center_y + int(20 * math.sin(particle_angle))
-                particle_color = (150 + int(50 * math.sin(animation_timer * 0.12 + i)),
-                                  100 + int(30 * math.cos(animation_timer * 0.1 + i)),
-                                  255)
-                pygame.draw.circle(screen, particle_color, (particle_x, particle_y), 3)
+        # Swirling vortex arms spiralling into the core.
+        for arm in range(3):
+            for step in range(6):
+                sx, sy = self.swirl_point(portal_center_x, portal_center_y,
+                                          animation_timer, arm, step)
+                node_color = clamp_color(
+                    self._lerp_color(theme["swirl"], theme["core"], step / 6))
+                pygame.draw.circle(screen, node_color, (sx, sy),
+                                   max(1, 3 - step // 3))
 
-            # Draw "BOSS DUNGEON" text above
-            font = pygame.font.Font(None, 20)
-            text = font.render("BOSS DUNGEON", True, (255, 215, 0))  # Gold text
-            text_rect = text.get_rect(center=(portal_center_x, screen_y - 15))
+        # Bright pulsing core with a dark rim for depth.
+        core_radius = int(7 + 3 * pulse)
+        core_color = clamp_color(
+            self._lerp_color(theme["glow"], theme["core"], 0.4 + 0.6 * pulse))
+        pygame.draw.circle(screen, core_color,
+                           (portal_center_x, portal_center_y), core_radius)
+        pygame.draw.circle(screen, BLACK,
+                           (portal_center_x, portal_center_y), core_radius, 1)
 
-            # Text glow effect
-            glow_surface = font.render("BOSS DUNGEON", True, (100, 50, 0))
-            for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
-                screen.blit(glow_surface, (text_rect.x + dx, text_rect.y + dy))
+        # Stone archway framing the portal.
+        arch_points = [
+            (screen_x + 10, screen_y + 60),
+            (screen_x + 10, screen_y + 20),
+            (screen_x + 25, screen_y + 5),
+            (screen_x + 35, screen_y + 5),
+            (screen_x + 50, screen_y + 20),
+            (screen_x + 50, screen_y + 60),
+        ]
+        pygame.draw.lines(screen, (80, 80, 80), False, arch_points, 4)
 
-            screen.blit(text, text_rect)
+        # Rising, twinkling mystical particles.
+        for i in range(6):
+            dx, dy, size = self.particle_state(animation_timer, i)
+            twinkle = 0.5 + 0.5 * math.sin(animation_timer * 0.18 + i)
+            particle_color = clamp_color(
+                self._lerp_color(theme["glow"], theme["particle"], twinkle))
+            pygame.draw.circle(screen, particle_color,
+                               (portal_center_x + dx, portal_center_y + dy),
+                               max(1, size))
+
+        # Themed label above with a mystical drop-glow.
+        font = pygame.font.Font(None, 20)
+        label = theme["label"]
+        text = font.render(label, True, clamp_color(theme["label_color"]))
+        text_rect = text.get_rect(center=(portal_center_x, screen_y - 15))
+        glow_surface = font.render(label, True, clamp_color(theme["label_glow"]))
+        for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
+            screen.blit(glow_surface, (text_rect.x + dx, text_rect.y + dy))
+        screen.blit(text, text_rect)
 
 
 class UIRenderer:

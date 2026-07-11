@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 42 Ruff findings surfaced by the linter (unused imports, unused variables, unused loop vars, placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/11/2026 - v2.6.0
+### 🌀 Mystical dungeon entrances — animated portals with glow, vortex & rising motes (roadmap P5 #27)
+**Boss-dungeon entrances and the level portals left behind after a boss now render as fully animated mystical gateways**, replacing the old three flat circles + a static particle ring. `Dungeon.draw` (`Code/ui_components.py`) was rebuilt around a set of deterministic, unit-testable helpers so a given `animation_timer` frame always paints identically.
+- **Layered pulsing glow halo** — five concentric rings fade from the themed glow colour out toward the dark world (via `_lerp_color`), giving a soft breathing aura driven by a shared `glow_pulse()` (0..1 sine) even without per-pixel alpha.
+- **Swirling vortex** — three rotating spiral arms (`swirl_point()`) twist inward toward a bright pulsing core with a dark rim for depth, so the portal reads as *spinning* rather than static.
+- **Rising, twinkling motes** — six particles now drift upward and loop (`particle_state()` → `(dx, dy, size)`), twinkling in size and colour, so the gateway looks like it's exhaling light instead of orbiting a fixed ring.
+- **Portal vs. boss are now distinguishable** — new `portal_theme(is_portal)` palette: boss dungeons keep the violet arcane maw + gold **"BOSS DUNGEON"** label, while the post-boss **level portal** (`is_portal=True`) now renders in a cooler teal/cyan with its own **"LEVEL PORTAL"** label, instead of both showing an identical "BOSS DUNGEON" entrance.
+- **Tests** — added `tests/test_dungeon_portal.py` (19 tests): themed-palette distinctness, `_lerp_color` endpoints/midpoint/clamp, `glow_pulse` range + oscillation + determinism, `swirl_point` outward spiral / per-arm offset / rotation over time, `particle_state` rise-span bounds + spread, and a headless draw pass across four frames for both entrance modes plus the offscreen/inactive no-op guards (rendered through the `Code.gfx` shim, no GPU).
+- **Verification**: `py_compile` clean; Ruff clean on `Code/ui_components.py` + the new test; full suite **168 → 187** green (6 skipped when arcade/display absent).
+- **Result**: roadmap **P5 #27 (mystical dungeons) is done.**
+
 ## 07/10/2026 - v2.5.0
 ### ⛏️ Resource-node harvest feedback — ready vs. depleted at a glance (roadmap P5 #26)
 **Rocks, metal veins, streams, and brush now clearly show whether they can be harvested right now or are still regrowing**, extending the harvest-state feedback that trees got in v2.4.0 to every gathering node. Previously these nodes only did a crude binary colour swap (full colour vs. one dark shade) with no regrowth cue and no "you can gather this" indicator, so a depleted node and a ready one were easy to confuse from a distance.
