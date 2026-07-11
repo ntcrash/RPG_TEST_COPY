@@ -6,6 +6,10 @@ Magitech RPG is a single-player turn-based role-playing game built with Python a
 
 ## Recent Changes
 
+**2026-07-11 (v2.12.0)**: **Helper pets** (roadmap P5 #32). Players can now recruit a combat companion — earned as loot for defeating a boss, or bought from the shop. New pure module `Code/pet_system.py` defines a five-pet catalog (Dire Wolf, Healing Sprite, Ember Drake, Phoenix, and the boss-only Void Shade), each with a per-turn assist (`attack` damages the enemy, `heal` restores the player, `leech` does both) scaled by player level. The active pet assists every round via `EnhancedCombatManager.pet_assist_turn()`; boss victories roll a 35% drop (`roll_boss_pet_drop`); the shop lists buyable pets and purchases them through `PetManager`. Ownership persists on the save (`Pets` list + `Active_Pet`), backfilled by a `SAVE_SCHEMA_VERSION` 1→2 migration. +45 tests (`tests/test_pet_system.py`); full suite **242 → 287** green. Closes the P5 backlog. See CHANGELOG.md.
+
+**2026-07-11 (v2.11.0)**: **More spells** (roadmap P5 #33). Every magic aspect gained two new level-gated tiers — a master spell (unlocks at level 8) and an ultimate (level 12) — extending casting progression into the late game. A data-driven `SPELL_UNLOCK_LEVELS = (1, 3, 5, 8, 12)` replaced the hard-coded 3-spell ladder, and the combat spell menu's row pitch is now adaptive so a full 5-spell list clears the combat log. +15 tests (`tests/test_more_spells.py`); full suite **227 → 242** green. See CHANGELOG.md.
+
 **2026-07-11 (v2.10.0)**: **Structured Paths** (roadmap P5 #31). The overworld now has clear dirt routes leading toward every important area. The boss dungeon (world centre), shop (top-right), and rest area (bottom-right) sat at fixed spots but nothing on the ground pointed the way. New `EnhancedTileMap.carve_landmark_paths(lines)` carves L-shaped dirt-path routes from the central hub out to the player spawn, shop, and rest area (crossings become `+` intersections), and `landmark_tiles(cols, rows)` locates each landmark from the grid size using the same pixel positions the game places them at. It runs inside `load_map_from_data` right after flower declutter, guarded so only full-size overworld maps get routed. Also regenerated the bundled `assets/map.txt` with the routes drawn in. +14 tests (`tests/test_structured_paths.py`); full suite **213 → 227** green. See CHANGELOG.md.
 
 **2026-07-11 (v2.9.0)**: **Cleaner grass terrain** (roadmap P5 #30). The overworld is now clean, natural grass instead of a field of scattered flowers. `assets/map.txt` had been sprinkled with 40 decorative flower tiles that competed with paths and landmarks for attention. New `EnhancedTileMap.declutter_flowers(line, row)` swaps every flower marker (`FfRr`) for a grass variant (`G`/`g`/`d`, chosen deterministically by position so the ground stays varied but flower-free); it runs inside `load_map_from_data`, so no flower tile survives to the rendered map regardless of what's on disk. Also rewrote the bundled map (0 flowers remain) and stripped the flower-circle detail from the procedural fallback tileset. +9 tests (`tests/test_world_aesthetics.py`); full suite **204 → 213** green. See CHANGELOG.md.
@@ -111,7 +115,8 @@ Magitech RPG is a single-player turn-based role-playing game built with Python a
 - **Character System**: Six races and six classes with stat bonuses (`character_creation.py`)
 - **World Generation**: Procedural tile-based world with multiple object types (`tile_map.py`)
 - **Level System**: 20 levels across 5 unique worlds with progressive difficulty (`level_system.py`)
-- **Store System**: In-game shops for purchasing equipment (`store_system.py`)
+- **Store System**: In-game shops for purchasing equipment and pets (`store_system.py`)
+- **Pet System**: Helper companions that assist in combat, earned from bosses or bought (`pet_system.py`)
 - **Rest System**: Strategic rest areas with cooldown timers (`rest_system.py`)
 - **Inventory System**: Item management and equipment (`inventory_system.py`)
 - **Settings System**: Configurable game settings (`settings_system.py`)
@@ -138,6 +143,7 @@ Magitech RPG is a single-player turn-based role-playing game built with Python a
 - **Character Races**: Human, Elf, Dwarf, Halfling, Orc, Gnome
 - **Level System**: Experience-based progression with stat improvements
 - **Equipment System**: Weapons, armor, and consumables
+- **Helper Pets**: Combat companions (attack/heal/leech) earned from bosses or bought in the shop
 - **Crafting System**: Comprehensive crafting with 15+ recipes, 15+ materials, and 4 rarity tiers
 
 #### Audio & Visual
@@ -172,6 +178,7 @@ Magitech RPG is a single-player turn-based role-playing game built with Python a
 │   ├── game_data.py            # Data management and character handling
 │   ├── level_system.py         # Multi-level world system
 │   ├── store_system.py         # Shop and trading system
+│   ├── pet_system.py           # Helper pets — combat companions
 │   ├── rest_system.py          # Rest areas and recovery system
 │   ├── inventory_system.py     # Inventory and equipment
 │   ├── settings_system.py      # Game configuration

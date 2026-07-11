@@ -88,6 +88,7 @@ class MigrateCharacterTests(unittest.TestCase):
     def test_already_current_save_unchanged(self):
         current = dict(FIELD_DEFAULTS)
         current["Inventory"] = {}
+        current["Pets"] = []  # container field (roadmap P5 #32), like Inventory
         for stat in STAT_KEYS:
             current[stat] = 10
         current["Save_Version"] = SAVE_SCHEMA_VERSION

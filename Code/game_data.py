@@ -36,6 +36,8 @@ class CharacterManager:
             "Armor_Slot_1": "Spell_Armor",
             "Armor_Slot_2": "",
             "Inventory": {},
+            "Pets": [],
+            "Active_Pet": "",
             "strength": 14,
             "dexterity": 12,
             "constitution": 16,

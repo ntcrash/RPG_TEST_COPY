@@ -1028,12 +1028,65 @@ class EnhancedCombatManager:
 
         # Handle enemy turn
         if not self.player_turn:
+            # Active helper pet assists on the player's behalf first (P5 #32),
+            # then the enemy acts. If the pet's strike finishes the enemy, the
+            # HP<=0 guard at the top of enemy_turn skips the enemy's attack and
+            # the next update() resolves the victory.
+            self.pet_assist_turn()
             self.enemy_turn()
             self.process_status_effects()
             self.player_turn = True
             self.action_delay = 30
 
         return "continue"
+
+    def pet_assist_turn(self):
+        """Have the player's active helper pet assist this round (roadmap P5 #32).
+
+        Reads the active pet off the character save via ``PetManager`` and, if
+        one is set, applies its per-turn assist: damage to the enemy, healing to
+        the player, or both (leech). All the amount/message math lives in the
+        pure ``Code.pet_system.compute_pet_assist`` so it is unit-tested
+        headlessly; this method only applies the result and plays effects.
+        """
+        cd = self.character_manager.character_data if self.character_manager else None
+        if not cd or not self.current_enemy:
+            return
+
+        from Code.pet_system import PetManager, compute_pet_assist
+
+        pet = PetManager(self.character_manager).active_pet()
+        if not pet:
+            return
+
+        level = cd.get("Level", 1)
+        assist = compute_pet_assist(pet, level)
+        if not assist:
+            return
+
+        max_hp = self.character_manager.get_max_hp_for_level(level)
+        cur_hp = cd.get("Hit_Points", 0)
+
+        if assist["type"] in ("attack", "leech"):
+            self.current_enemy["Hit_Points"] = self.current_enemy.get("Hit_Points", 0) - assist["amount"]
+            self.add_combat_text(430, 250, f"-{assist['amount']}", "spell")
+            self.add_combat_animation(430, 260, "impact_flash", 24)
+            if assist["type"] == "leech":
+                healed = max(0, min(assist.get("heal", 0), max_hp - cur_hp))
+                if healed > 0:
+                    cd["Hit_Points"] = cur_hp + healed
+                    self.add_combat_text(210, 250, f"+{healed}", "heal")
+            self.sound_manager.play_sound("enemy_hit")
+            if self.current_enemy["Hit_Points"] <= 0:
+                self.sound_manager.play_sound("enemy_death")
+        elif assist["type"] == "heal":
+            healed = max(0, min(assist["amount"], max_hp - cur_hp))
+            if healed > 0:
+                cd["Hit_Points"] = cur_hp + healed
+                self.add_combat_text(210, 250, f"+{healed}", "heal")
+            self.sound_manager.play_sound("heal")
+
+        self.add_combat_log(assist["message"], assist["color"])
 
     def handle_keypress(self, key):
         """Enhanced keypress handling with menu sounds"""

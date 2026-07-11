@@ -200,6 +200,8 @@ class EnhancedCombatIntegration:
         if is_boss:
             # This was a boss fight - complete the level!
             self.game_manager.complete_level_after_boss()
+            # Chance to drop a helper pet as boss loot (roadmap P5 #32).
+            self.award_boss_pet(enemy_level)
 
         if leveled_up:
             # Play level up sound
@@ -323,6 +325,32 @@ class EnhancedCombatIntegration:
             reward_msg = f"Found {item_name}!"
 
         self.combat_manager.add_combat_log(reward_msg, LIGHT_BLUE)
+
+    def award_boss_pet(self, boss_level):
+        """Maybe award a helper pet as boss loot (roadmap P5 #32).
+
+        Rolls ``Code.pet_system.roll_boss_pet_drop`` for an eligible, not-yet-
+        owned companion; on a hit, records ownership (auto-active if it's the
+        player's first pet) and announces it in the combat log. All the drop
+        odds / eligibility logic lives in the pure pet module for testability.
+        """
+        char_data = self.game_manager.character_manager.character_data
+        if not char_data:
+            return None
+
+        from Code.pet_system import roll_boss_pet_drop, get_pet, PetManager
+
+        pet_id = roll_boss_pet_drop(char_data, boss_level)
+        if not pet_id:
+            return None
+
+        pet = get_pet(pet_id)
+        newly_owned = PetManager(self.game_manager.character_manager).own_pet(pet_id)
+        if newly_owned:
+            self.sound_manager.play_sound("victory")
+            self.combat_manager.add_combat_log(
+                f"A {pet['name']} joins you as a companion!", GOLD)
+        return pet_id if newly_owned else None
 
     def end_combat(self, result):
         """End combat and return to world"""

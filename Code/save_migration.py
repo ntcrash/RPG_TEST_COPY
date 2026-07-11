@@ -24,7 +24,9 @@ healed the first time it is opened rather than silently breaking later.
 
 # Bump this whenever the required-field set or a coercion rule changes so that
 # older saves are detectably out of date and get re-written on next load.
-SAVE_SCHEMA_VERSION = 1
+# v2 (roadmap P5 #32): added the helper-pet fields ``Pets`` (list of owned pet
+# ids) and ``Active_Pet`` (id of the active companion, "" == none).
+SAVE_SCHEMA_VERSION = 2
 
 # The six D&D-style ability scores the game reads via the lowercase key
 # (see CharacterManager.get_base_stat, which lowercases and defaults to 10).
@@ -55,6 +57,9 @@ FIELD_DEFAULTS = {
     "Weapon3": "Hands",
     "Armor_Slot_1": "",
     "Armor_Slot_2": "",
+    # Helper pets (roadmap P5 #32): id of the active companion ("" == none).
+    # The owned-pet list is a container, handled alongside Inventory below.
+    "Active_Pet": "",
 }
 
 # Fields that must be whole numbers.
@@ -97,6 +102,10 @@ def validate_character(data):
         issues.append("missing field: Inventory")
     elif not isinstance(data["Inventory"], dict):
         issues.append(f"Inventory is not an object: {data['Inventory']!r}")
+    if "Pets" not in data:
+        issues.append("missing field: Pets")
+    elif not isinstance(data["Pets"], list):
+        issues.append(f"Pets is not a list: {data['Pets']!r}")
     if data.get("Save_Version") != SAVE_SCHEMA_VERSION:
         issues.append(
             f"schema out of date: Save_Version={data.get('Save_Version')!r} "
@@ -158,6 +167,13 @@ def migrate_character(data):
     if not isinstance(inv, dict):
         data["Inventory"] = {}
         notes.append("reset Inventory to empty object")
+        changed = True
+
+    # Pets must be a list of owned pet ids (roadmap P5 #32).
+    pets = data.get("Pets")
+    if not isinstance(pets, list):
+        data["Pets"] = []
+        notes.append("reset Pets to empty list")
         changed = True
 
     # Stamp the schema version last.

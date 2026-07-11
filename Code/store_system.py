@@ -6,13 +6,15 @@ from Code.ui_components import *
 class StoreItem:
     """Store item with stats and effects"""
 
-    def __init__(self, name, price, item_type, effect_value, description, stat_bonuses=None):
+    def __init__(self, name, price, item_type, effect_value, description, stat_bonuses=None, pet_id=None):
         self.name = name
         self.price = price
         self.item_type = item_type
         self.effect_value = effect_value
         self.description = description
         self.stat_bonuses = stat_bonuses or {}
+        # For item_type == "pet": the Code.pet_system catalog id this row buys.
+        self.pet_id = pet_id
 
 
 class StoreManager:
@@ -34,7 +36,7 @@ class StoreManager:
 
     def _initialize_store_items(self):
         """Initialize the store's inventory"""
-        return [
+        items = [
             StoreItem("Health Potion", 250, "health_potion", 25, "Restores 25 HP"),
             StoreItem("Greater Health Potion", 450, "health_potion", 50, "Restores 50 HP"),
             StoreItem("Mana Potion", 400, "mana_potion", 15, "Restores 15 MP"),
@@ -65,6 +67,21 @@ class StoreManager:
             StoreItem("Boots of Dexterity", 1250, "accessory", 0, "+2 Dexterity",
                       {"dexterity": 2})
         ]
+
+        # Helper pets — combat companions bought from the shop (roadmap P5 #32).
+        # Sourced from the pet catalog so the store and the pet system never
+        # drift. Each pet's assist power drives its price/unlock in one place.
+        from Code.pet_system import shop_pets
+        for pet in shop_pets():
+            items.append(
+                StoreItem(
+                    pet["name"], pet["price"], "pet", pet["power"],
+                    f"Companion (Lv {pet['unlock_level']}+): {pet['description']}",
+                    pet_id=pet["id"],
+                )
+            )
+
+        return items
 
     def get_affordable_items(self, credits):
         """Get items the player can afford"""
@@ -117,6 +134,21 @@ class StoreManager:
 
         selected_item = self.items[self.selected_item]
         current_credits = self.character_manager.character_data.get("Credits", 0)
+
+        # Helper pets are handled by the pet system (roadmap P5 #32): it does
+        # its own affordability / already-owned / level checks and records
+        # ownership on the save rather than adding to the item Inventory.
+        if selected_item.item_type == "pet":
+            from Code.pet_system import PetManager
+            outcome = PetManager(self.character_manager).buy_pet(selected_item.pet_id)
+            result = outcome.get("result")
+            if result == "purchased":
+                self.character_manager.save_character()
+                return {"result": "purchased", "item": selected_item.name}
+            if result == "insufficient_funds":
+                return {"result": "insufficient_funds", "needed": outcome.get("needed", 0)}
+            # already_owned / level_locked / not_for_sale -> treat as a no-op buy
+            return {"result": result, "item": selected_item.name}
 
         if current_credits >= selected_item.price:
             # Player can afford the item
