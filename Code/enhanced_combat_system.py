@@ -1200,12 +1200,14 @@ class EnhancedCombatManager:
         # Draw action interface with enhanced visuals
         self.draw_enhanced_action_interface(draw_target)
 
-        # Draw enhanced combat log with background
-        log_bg = pygame.Rect(40, 390, 720, 130)
+        # Draw enhanced combat log with background.
+        # Kept low on the screen (top at y=455) so the action / spell / item
+        # sub-menus above it have room to grow without overlapping the log.
+        log_bg = pygame.Rect(40, 455, 720, 130)
         pygame.draw.rect(draw_target, (20, 10, 10, 180), log_bg)
         pygame.draw.rect(draw_target, (100, 50, 50), log_bg, 2)
 
-        log_y = 400
+        log_y = 463
         for i, (message, color) in enumerate(self.combat_log[-6:]):
             # Add fade effect for older messages
             fade = 1.0 - (5 - i) * 0.15 if i < 5 else 1.0
@@ -1316,12 +1318,15 @@ class EnhancedCombatManager:
                     spell_entries.append(entry)
                     max_width = max(max_width, entry['width'])
 
-                # Dynamic menu sizing based on content
+                # Dynamic menu sizing based on content. Aspects expose at most
+                # 3 spells (levels 1/3/5), so worst case is 3*45+80 = 215px tall.
+                # Starting at y=190 keeps the box (bottom ~405) and its
+                # instruction bar clear of the combat log, whose top is at y=455.
                 padding = 20
                 menu_width = max_width + (padding * 4)  # Extra padding for comfort
                 menu_height = len(spells) * 45 + 80
                 menu_x = 40
-                menu_y = 210
+                menu_y = 190
 
                 # Enhanced spell menu background - dynamically sized
                 menu_bg = pygame.Rect(menu_x, menu_y, menu_width, menu_height)
@@ -1390,13 +1395,16 @@ class EnhancedCombatManager:
                 inventory = self.character_manager.character_data.get("Inventory", {})
                 usable_items = [item for item in inventory.keys() if "Potion" in item or "Restore" in item]
 
-                # Enhanced item menu
-                menu_height = len(usable_items) * 35 + 60
-                menu_bg = pygame.Rect(40, 210, 350, menu_height)
+                # Enhanced item menu. Row pitch is 30px and the panel starts at
+                # y=190 so even a long potion list (7+ distinct types) stays
+                # above the combat log (top at y=455) instead of running under it.
+                row_pitch = 30
+                menu_height = len(usable_items) * row_pitch + 55
+                menu_bg = pygame.Rect(40, 190, 350, menu_height)
                 pygame.draw.rect(screen, (10, 20, 10, 220), menu_bg)
                 pygame.draw.rect(screen, (50, 150, 50), menu_bg, 2)
 
-                item_y = 220
+                item_y = 200
                 item_title = self.font.render("Choose Item:", True, GREEN)
                 screen.blit(item_title, (50, item_y))
                 item_y += 30
@@ -1406,7 +1414,7 @@ class EnhancedCombatManager:
 
                     # Selection highlight
                     if i == self.selected_item:
-                        highlight_rect = pygame.Rect(65, item_y + i * 35 - 2, 300, 30)
+                        highlight_rect = pygame.Rect(65, item_y + i * row_pitch - 2, 300, 26)
                         pygame.draw.rect(screen, (20, 40, 20), highlight_rect)
                         pygame.draw.rect(screen, MENU_SELECTED, highlight_rect, 2)
                         color = MENU_SELECTED
@@ -1425,10 +1433,10 @@ class EnhancedCombatManager:
 
                     item_text = f"{item_icon} {item_name} x{quantity}"
                     text_surface = self.font.render(item_text, True, color)
-                    screen.blit(text_surface, (70, item_y + i * 35))
+                    screen.blit(text_surface, (70, item_y + i * row_pitch))
 
                 # Instructions
-                instruction_bg = pygame.Rect(40, item_y + len(usable_items) * 35 + 5, 350, 25)
+                instruction_bg = pygame.Rect(40, item_y + len(usable_items) * row_pitch + 5, 350, 25)
                 pygame.draw.rect(screen, (20, 40, 20), instruction_bg)
 
     def draw_combatant_info(self, draw_target):

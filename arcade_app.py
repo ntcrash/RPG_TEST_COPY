@@ -120,21 +120,31 @@ class MagitechWindow(arcade.Window):
 
         self._accum = 0.0
 
-        # Overlay text confirming the foundation is live.
-        self._banner = arcade.Text(
-            f"Arcade backend online  -  v{__version__}",
-            10, HEIGHT - 10, arcade.color.LIGHT_GREEN, 14,
-            anchor_x="left", anchor_y="top",
+        # Migration scaffolding overlay (banner / state readout / footer hint).
+        # The pygame->Arcade migration is COMPLETE (v2.2.5), so this dev overlay
+        # now just collides with real game UI (it drew on top of the combat
+        # "ESC: Forfeit" HUD and the combat log). It is therefore OFF by default
+        # and only rendered when MEGITECH_DEBUG is set to a truthy value
+        # (e.g. `MEGITECH_DEBUG=1 python arcade_app.py`) for anyone who still
+        # wants the loop/state readout while working on the backend.
+        self._debug_overlay = os.environ.get("MEGITECH_DEBUG", "").lower() not in (
+            "", "0", "false", "no",
         )
-        self._hint = arcade.Text(
-            "Foundation running on arcade.Window. Modules light up as they migrate. "
-            "Press keys to drive the state machine.",
-            10, 22, arcade.color.GRAY, 11, anchor_x="left", anchor_y="bottom",
-        )
-        self._state_text = arcade.Text(
-            "", 10, HEIGHT - 30, arcade.color.WHITE, 12,
-            anchor_x="left", anchor_y="top",
-        )
+        if self._debug_overlay:
+            self._banner = arcade.Text(
+                f"Arcade backend online  -  v{__version__}",
+                10, HEIGHT - 10, arcade.color.LIGHT_GREEN, 14,
+                anchor_x="left", anchor_y="top",
+            )
+            self._hint = arcade.Text(
+                "Foundation running on arcade.Window. Modules light up as they migrate. "
+                "Press keys to drive the state machine.",
+                10, 22, arcade.color.GRAY, 11, anchor_x="left", anchor_y="bottom",
+            )
+            self._state_text = arcade.Text(
+                "", 10, HEIGHT - 30, arcade.color.WHITE, 12,
+                anchor_x="left", anchor_y="top",
+            )
 
     # ---- game loop ----
     def on_update(self, delta_time: float):
@@ -164,12 +174,13 @@ class MagitechWindow(arcade.Window):
         except Exception as exc:
             print(f"[arcade_app] draw() error: {exc}")
 
-        # Foundation overlay so the window is never blank during migration.
-        self._banner.draw()
-        state_name = self._state_name(self.game.current_state)
-        self._state_text.text = f"state: {state_name}"
-        self._state_text.draw()
-        self._hint.draw()
+        # Foundation overlay (dev-only; see MEGITECH_DEBUG in __init__).
+        if self._debug_overlay:
+            self._banner.draw()
+            state_name = self._state_name(self.game.current_state)
+            self._state_text.text = f"state: {state_name}"
+            self._state_text.draw()
+            self._hint.draw()
 
     def _state_name(self, value):
         for name in dir(self.GameState):
@@ -235,6 +246,22 @@ class MagitechWindow(arcade.Window):
             arcade.exit()
         except Exception:
             pass
+        # Hard exit RIGHT HERE. Progression is already saved above, so there is
+        # nothing left to flush. Relying on arcade.run() returning so main() can
+        # call os._exit() was not enough: on some setups the pyglet loop does
+        # not hand control back after the window closes (lingering non-daemon
+        # audio/SDL threads), so the process stayed alive after Quit. Exiting
+        # from the shutdown path itself guarantees Quit / Escape / window-close
+        # all fully terminate Python. Factored into _hard_exit() so tests can
+        # patch it (otherwise calling _shutdown() would kill the test runner).
+        self._hard_exit()
+
+    def _hard_exit(self):
+        # os._exit skips atexit/GC, which is fine here since the OS reclaims the
+        # window, GL context, and any lingering threads on process death. This
+        # is the single guaranteed "the process is gone now" call for every exit
+        # route (Quit menu item, Escape, window close button).
+        os._exit(0)
 
 
 def main():

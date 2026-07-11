@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 42 Ruff findings surfaced by the linter (unused imports, unused variables, unused loop vars, placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/10/2026 - v2.3.3
+### 🧩 Fix overlapping in-game menus (roadmap P5 #34)
+**Combat, spell, item, and store sub-menus no longer overlap the panels beneath them.** Each menu was drawn at a fixed y-coordinate sized for a shorter list, so a full list ran under the combat log, the control-instruction bar, or (in Arcade) the leftover migration dev overlay.
+- **Combat log** (`Code/enhanced_combat_system.py`) — moved the log background + text down from y=390/400 to y=455/463, freeing the upper area so the action / spell / item sub-menus above it have room to grow.
+- **Spell menu** — moved the dynamically-sized spell box from y=210 to y=190. An aspect exposes at most 3 spells (levels 1/3/5) → worst case 3×45+80 = 215px tall, so the box (bottom ~y=405) and its instruction bar now clear the log at y=455.
+- **Item menu** — started the potion list at y=190 and introduced an explicit 30px `row_pitch` (was a hardcoded 35px that overran on long potion lists), tightening the selection highlight to 26px so even a 7+ potion inventory stays above the combat log.
+- **Store** (`Code/inventory_system.py`) — capped `EnhancedStoreManager.items_per_page` from 12 → 9. Rows list from y=150 at a 30px pitch with a name + description line each; 12 rows ran to ~y=510 and collided with the control instructions (~y=470). Nine rows end ~y=420; PgUp/PgDn scroll the remainder.
+- **Arcade dev overlay** (`arcade_app.py`) — the migration-era banner / state-readout / footer-hint drew on top of the live combat HUD (e.g. the "ESC: Forfeit" line and combat log) now that the pygame→Arcade migration is complete (v2.2.5). It is now OFF by default and only rendered when `MEGITECH_DEBUG` is set to a truthy value.
+- **Verification**: `py_compile` clean; full suite **144/144** green (6 skipped when arcade/display absent).
+- **Result**: roadmap **P5 #34 (fix menu items overlapping) is done.**
+
 ## 07/10/2026 - v2.3.2
 ### 🚪 Window close & Quit now fully end the app (roadmap P5 #24)
 **Every exit route — the window "X" button, the Quit menu item, and Escape — now cleanly terminates the whole program.** Under the Arcade entry point (`arcade_app.py`) exit handling was inconsistent: `on_close()` called `_shutdown()` and then `super().on_close()`, which closed the already-closed window a second time (raising on the dead window), and `_shutdown()` used `arcade.close_window()` with no re-entry guard — so a stray second `on_close` from pyglet during teardown could save progression twice or error, and on some setups a lingering background (audio) thread kept the interpreter alive after the window vanished, leaving the app "not really closed."

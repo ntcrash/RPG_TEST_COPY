@@ -380,9 +380,14 @@ class EnhancedStoreManager:
         self.mode = "buy"  # "buy" or "sell"
         self.sellable_items = []
 
-        # Scrolling and pagination
+        # Scrolling and pagination.
+        # The store panel lists items from y=150 at a 30px pitch, with each row
+        # carrying a name + a description line, and the control instructions sit
+        # at the bottom of the panel (~y=470). Twelve rows ran to y=510 and
+        # collided with those instructions, so cap at 9 visible rows (list ends
+        # ~y=420) and let PgUp/PgDn scroll the rest.
         self.scroll_offset = 0
-        self.items_per_page = 12
+        self.items_per_page = 9
 
         # UI fonts
         self.font = pygame.font.Font(None, 24)
@@ -612,6 +617,16 @@ class EnhancedStoreManager:
         # Items list
         items_y_start = panel_y + 100
         visible_items = current_items[self.scroll_offset:self.scroll_offset + self.items_per_page]
+
+        # "More items" markers so the player knows the list scrolls (UP/DOWN
+        # past the visible window auto-scrolls) rather than assuming these are
+        # all the items in stock.
+        if self.scroll_offset > 0:
+            more_above = self.small_font.render("▲ more items above", True, LIGHT_BLUE)
+            screen.blit(more_above, (panel_x + panel_width - 190, items_y_start - 20))
+        if self.scroll_offset + self.items_per_page < len(current_items):
+            more_below = self.small_font.render("▼ more items below", True, LIGHT_BLUE)
+            screen.blit(more_below, (panel_x + panel_width - 190, items_y_start + self.items_per_page * 30 + 2))
 
         for i, item in enumerate(visible_items):
             actual_index = i + self.scroll_offset

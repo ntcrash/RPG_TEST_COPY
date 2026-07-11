@@ -6,8 +6,13 @@ end the WHOLE program via one idempotent shutdown routine in arcade_app.py:
   * on_close() delegates to _shutdown() (and does NOT double-close via super()).
   * _shutdown() is idempotent (re-entry is a no-op) so a stray second on_close
     from pyglet during teardown can't crash or save progression twice.
-  * _shutdown() saves progression once, closes the window, and calls
-    arcade.exit() so arcade.run() returns and main() can end the process.
+  * _shutdown() saves progression once, closes the window, calls arcade.exit()
+    to stop the pyglet loop, and then hard-exits the process via _hard_exit()
+    (os._exit) so Quit / Escape / window-close reliably terminate Python even
+    when the pyglet loop would otherwise not hand control back to main().
+
+_hard_exit() is patched out in these tests (it would otherwise kill the test
+runner); the tests assert it is invoked exactly once per shutdown.
 
 GPU-free: we bypass arcade.Window.__init__ with object.__new__ so no display /
 GL context is ever created; the arcade module itself only needs to be importable.
@@ -37,6 +42,9 @@ class WindowShutdownTests(unittest.TestCase):
         win.game = mock.Mock()
         win.game.level_manager = mock.Mock()
         win.close = mock.Mock()  # stand in for arcade.Window.close
+        # Neutralize the real process-killing os._exit so _shutdown() can be
+        # called in-process; tests assert it fires via this mock.
+        win._hard_exit = mock.Mock()
         return win, arcade_app
 
     def test_shutdown_saves_closes_and_exits(self):
@@ -47,6 +55,7 @@ class WindowShutdownTests(unittest.TestCase):
         win.game.level_manager.save_progression.assert_called_once()
         win.close.assert_called_once()
         exit_mock.assert_called_once()
+        win._hard_exit.assert_called_once()
 
     def test_shutdown_is_idempotent(self):
         win, arcade_app = self._make_window()
@@ -54,10 +63,11 @@ class WindowShutdownTests(unittest.TestCase):
             win._shutdown()
             win._shutdown()
             win._shutdown()
-        # Second and third calls must be no-ops: save/close/exit happen once.
+        # Second and third calls must be no-ops: save/close/exit/hard-exit once.
         win.game.level_manager.save_progression.assert_called_once()
         win.close.assert_called_once()
         exit_mock.assert_called_once()
+        win._hard_exit.assert_called_once()
 
     def test_on_close_routes_through_shutdown(self):
         win, _ = self._make_window()
