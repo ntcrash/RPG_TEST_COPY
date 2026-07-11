@@ -84,6 +84,8 @@ class LoadMapDeclutterTests(unittest.TestCase):
     def test_no_flower_distinct_tile_in_grid(self):
         # Every cell of a flower-laden line must resolve to one of the grass
         # tile rects (G / g / d) — no non-grass tile sneaks in via a flower.
+        # (Structured Paths / P5 #31 only routes full-size overworld maps, so
+        # this small probe line is unaffected by path carving.)
         grass_rects = {
             self.tm.load_map_from_data([ch])[0][0] for ch in "Ggd"
         }

@@ -23,6 +23,93 @@ class EnhancedTileMap(pygame.sprite.Sprite):
     # still being plain grass (no flowers).
     GRASS_VARIANTS = ("G", "g", "d")
 
+    # --- Structured Paths (roadmap P5 #31) -------------------------------
+    # The overworld's key interactables (boss dungeon, shop, rest area) sit at
+    # fixed spots but nothing on the ground led the player toward them, so the
+    # world read as a trackless field. ``carve_landmark_paths`` lays clear dirt
+    # routes from the central hub out to each important area so the player
+    # always has an obvious walking route to follow.
+    TILE_PX = 24
+    # Player spawn tile, mirrors EnhancedGameManager.PLAYER_START (480, 480).
+    PLAYER_START_PX = (480, 480)
+    # Characters already treated as walkable path/road tiles; painting over one
+    # of these turns it into an intersection ('+') instead of a plain segment.
+    PATH_CHARS = frozenset("p=|+ro")
+
+    @classmethod
+    def landmark_tiles(cls, cols, rows):
+        """Return the (col, row) tile of each important area for a cols×rows map.
+
+        Positions mirror where ``EnhancedGameManager`` actually places things:
+        the boss dungeon at world centre (the hub), the shop in the top-right,
+        the rest area in the bottom-right, and the player spawn. Derived from
+        the grid size in the same pixel terms as the game so the routes always
+        land on the real landmarks. Pure/deterministic — safe to unit-test.
+        """
+        world_w, world_h = cols * cls.TILE_PX, rows * cls.TILE_PX
+
+        def to_tile(px, py):
+            col = min(max(px // cls.TILE_PX, 0), max(cols - 1, 0))
+            row = min(max(py // cls.TILE_PX, 0), max(rows - 1, 0))
+            return col, row
+
+        return {
+            "hub": to_tile(world_w // 2, world_h // 2),      # boss dungeon centre
+            "spawn": to_tile(*cls.PLAYER_START_PX),          # player spawn
+            "shop": to_tile(world_w - 80, 20),               # top-right shop
+            "rest": to_tile(world_w - 60, world_h - 60),     # bottom-right rest area
+        }
+
+    @classmethod
+    def carve_landmark_paths(cls, lines):
+        """Carve clear dirt routes from the central hub to each important area.
+
+        Draws an L-shaped (Manhattan) path of dirt-path tiles from the world
+        centre out to the player spawn, the shop, and the rest area, so every
+        key destination has an obvious walking route. Where a route crosses an
+        existing path (or another route) the cell becomes an intersection
+        ('+'). Non-path terrain (grass, trees, water) is overwritten by the
+        route only along its line. Pure/deterministic and length-preserving, so
+        it is safe to unit-test without a display.
+        """
+        if not lines:
+            return lines
+
+        grid = [list(line) for line in lines]
+        rows = len(grid)
+        cols = max(len(r) for r in grid)
+        # Normalise to a rectangular grid so column math is always in-bounds.
+        for r in grid:
+            if len(r) < cols:
+                r.extend([cls.GRASS_VARIANTS[0]] * (cols - len(r)))
+
+        # Only route on a full-size overworld: if the map is too small to even
+        # contain the player spawn point, the landmarks all collapse onto one
+        # tile and there is no meaningful route to draw, so leave it untouched
+        # (this also keeps tiny probe/test maps from sprouting spurious paths).
+        world_w, world_h = cols * cls.TILE_PX, rows * cls.TILE_PX
+        spawn_px, spawn_py = cls.PLAYER_START_PX
+        if spawn_px < world_w and spawn_py < world_h:
+            marks = cls.landmark_tiles(cols, rows)
+
+            def paint(col, row):
+                ch = grid[row][col]
+                grid[row][col] = "+" if ch in cls.PATH_CHARS else "p"
+
+            def carve_l(a, b):
+                (c0, r0), (c1, r1) = a, b
+                # Horizontal leg along the hub's row, then vertical leg to target.
+                for col in range(min(c0, c1), max(c0, c1) + 1):
+                    paint(col, r0)
+                for row in range(min(r0, r1), max(r0, r1) + 1):
+                    paint(c1, row)
+
+            hub = marks["hub"]
+            for key in ("spawn", "shop", "rest"):
+                carve_l(hub, marks[key])
+
+        return ["".join(r) for r in grid]
+
     @classmethod
     def declutter_flowers(cls, line, row=0):
         """Replace decorative flower markers in a map line with grass variants.
@@ -123,6 +210,10 @@ class EnhancedTileMap(pygame.sprite.Sprite):
         # Strip decorative flower clutter to clean grass before mapping tiles
         # (World Aesthetics, roadmap P5 #30).
         map_lines = [self.declutter_flowers(line, row) for row, line in enumerate(map_lines)]
+        # Lay clear dirt routes from the central hub to the key interactables
+        # (Structured Paths, roadmap P5 #31) so the player always has an obvious
+        # walking route toward the boss dungeon, shop, and rest area.
+        map_lines = self.carve_landmark_paths(map_lines)
 
         tile_map = []
 
