@@ -26,6 +26,43 @@ class GameState:
     HELP = 9
 
 
+# --- Victory-banner formatting (roadmap P5 #29) -----------------------------
+# Boss defeats get a full trophy banner, normal wins a compact one. The
+# decorative glyphs below are all in the Basic Multilingual Plane (<= U+FFFF)
+# so they survive the Code.gfx text renderer, which strips astral-plane emoji
+# (🏆/🎉/⭐ are all > U+FFFF and were silently dropped on-screen before). The
+# 🏆 emoji is still embedded in the boss line so it shows under the real-pygame
+# backend / in logs; under the Arcade shim it's stripped and the ★ stars remain.
+VICTORY_STAR = "★"          # ★
+VICTORY_SPARK = "✦"         # ✦
+VICTORY_RULE = "═" * 13     # ═════════════
+
+
+def build_victory_messages(is_boss, xp_gained, credits_gained, leveled_up):
+    """Build the formatted victory combat-log lines as (text, color) tuples.
+
+    Pure and deterministic for a given set of arguments so it can be unit
+    tested headlessly (no GPU / no combat state). Boss kills return a
+    five-line trophy banner; ordinary wins a compact two-line one; a level-up
+    appends a highlighted "LEVEL UP!" line in either case.
+    """
+    reward = f"+{xp_gained} XP   +{credits_gained} Credits"
+    lines = []
+    if is_boss:
+        border = f"{VICTORY_STAR} {VICTORY_RULE} {VICTORY_STAR}"
+        lines.append((border, GOLD))
+        lines.append((f"{VICTORY_STAR} \U0001F3C6 BOSS DEFEATED! \U0001F3C6 {VICTORY_STAR}", GOLD))
+        lines.append(("Level Complete!", YELLOW))
+        lines.append((reward, GREEN))
+        lines.append((border, GOLD))
+    else:
+        lines.append((f"{VICTORY_SPARK} Victory! {VICTORY_SPARK}", GOLD))
+        lines.append((reward, GREEN))
+    if leveled_up:
+        lines.append((f"{VICTORY_STAR} LEVEL UP! {VICTORY_STAR}", YELLOW))
+    return lines
+
+
 class EnhancedCombatIntegration:
     """Handles integration between main game and enhanced combat system"""
 
@@ -159,20 +196,20 @@ class EnhancedCombatIntegration:
 
         # Check if this was a boss fight - complete level if so
         enemy_tier = self.combat_manager.current_enemy.get("Tier", "")
-        if enemy_tier == "boss" or "BOSS" in enemy_name:
+        is_boss = enemy_tier == "boss" or "BOSS" in enemy_name
+        if is_boss:
             # This was a boss fight - complete the level!
             self.game_manager.complete_level_after_boss()
-            victory_msg = f"🏆 BOSS DEFEATED! Level Complete! Gained {xp_gained} XP and {credits_gained} credits!"
-        else:
-            # Enhanced victory message with sound
-            victory_msg = f"🎉 Victory! Gained {xp_gained} XP and {credits_gained} credits!"
 
         if leveled_up:
-            victory_msg += " ⭐ LEVEL UP! ⭐"
             # Play level up sound
             self.sound_manager.play_sound("victory")
 
-        self.combat_manager.add_combat_log(victory_msg, GOLD)
+        # Special victory messages: a trophy banner for boss defeats, a compact
+        # one for normal wins (roadmap P5 #29). Each line is logged separately
+        # so the combat log renders the banner across multiple rows.
+        for line, color in build_victory_messages(is_boss, xp_gained, credits_gained, leveled_up):
+            self.combat_manager.add_combat_log(line, color)
 
         # Save character progress
         self.game_manager.character_manager.save_character()
