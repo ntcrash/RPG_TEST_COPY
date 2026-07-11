@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 42 Ruff findings surfaced by the linter (unused imports, unused variables, unused loop vars, placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/11/2026 - v2.7.0
+### ✨ Golden glowing "BOSS DUNGEON" label — radiant, shimmering mystical signage (roadmap P5 #28)
+**The dungeon-entrance label now glows.** The `Dungeon.draw` title (`Code/ui_components.py`) previously painted the gold **"BOSS DUNGEON"** text with a single static 4-corner dark drop-shadow — flat and lifeless. It now renders as enchanted signage: a pulsing golden aura that breathes, a gentle hover, and a live shimmer, so the boss entrance reads as genuinely magical. The post-boss **level portal** gets the same treatment in its cool teal, keeping the two visually distinct (per v2.6.0).
+- **Radiant multi-ring aura** — new `label_glow_offsets(animation_timer)` fans the label text out in 8 compass directions across 3 concentric rings; each ring blends from the dark themed `label_glow` (outer, dim) toward the bright `label_color` (inner) via `_lerp_color`, and the aura radius breathes with the animation timer. Rings paint outermost-first so the crisp bright text lands on top — a glowing halo without needing per-pixel alpha.
+- **Shimmer + float** — `label_shimmer()` (0.55..1.0, a slow sine with a faster low-amplitude flicker layered on) modulates both the main text brightness and the aura intensity so the gold pulses like it's lit from within; `label_bob()` adds a ±2px vertical hover so the title floats above the portal.
+- **Themed, not hardcoded** — all effects run off the existing `portal_theme()` palette, so "BOSS DUNGEON" glows gold and "LEVEL PORTAL" glows teal from the same code path.
+- **Tests** — extended `tests/test_dungeon_portal.py` (+7 tests, `LabelGlowTests`): `label_shimmer` range/oscillation/determinism, `label_bob` bounded small-int hover, and `label_glow_offsets` ring/direction count, inner-brighter-than-outer ordering, and outer-offsets-farther geometry. All helpers are pure and deterministic in `animation_timer` (headless, no GPU).
+- **Verification**: `py_compile` clean; Ruff clean on `Code/ui_components.py` + the test; full suite **187 → 194** green (6 skipped when arcade/display absent).
+- **Result**: roadmap **P5 #28 (BOSS DUNGEON golden glow) is done.**
+
 ## 07/11/2026 - v2.6.0
 ### 🌀 Mystical dungeon entrances — animated portals with glow, vortex & rising motes (roadmap P5 #27)
 **Boss-dungeon entrances and the level portals left behind after a boss now render as fully animated mystical gateways**, replacing the old three flat circles + a static particle ring. `Dungeon.draw` (`Code/ui_components.py`) was rebuilt around a set of deterministic, unit-testable helpers so a given `animation_timer` frame always paints identically.

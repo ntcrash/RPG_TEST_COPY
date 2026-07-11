@@ -818,6 +818,46 @@ class Dungeon:
                 int(center_y + radius * 0.6 * math.sin(angle)))
 
     @staticmethod
+    def label_shimmer(animation_timer):
+        """0.55..1.0 breathing brightness for the entrance label.
+
+        The label text and its radiant aura pulse with this factor so the
+        golden "BOSS DUNGEON" (or teal "LEVEL PORTAL") title glows and dims
+        like enchanted signage rather than sitting flat.
+        """
+        slow = 0.5 + 0.5 * math.sin(animation_timer * 0.09)
+        # A faster, lower-amplitude flicker layered on top for a magic shimmer.
+        flicker = 0.5 + 0.5 * math.sin(animation_timer * 0.31 + 1.3)
+        return 0.55 + 0.4 * slow + 0.05 * flicker
+
+    @staticmethod
+    def label_bob(animation_timer):
+        """Gentle vertical float (px) so the label hovers mystically."""
+        return int(round(2 * math.sin(animation_timer * 0.05)))
+
+    @staticmethod
+    def label_glow_offsets(animation_timer, rings=3):
+        """Concentric ring offsets driving the label's radiant aura.
+
+        Returns a list of ``(dx, dy, t)`` where ``t`` in 0..1 is the blend
+        from the themed dark glow colour (outer, t->0) toward the bright
+        label colour (inner, t->1). The aura radius breathes with
+        ``animation_timer`` so the halo pulses. Rings are emitted
+        outermost-first so brighter inner copies paint on top.
+        """
+        pulse = 0.5 + 0.5 * math.sin(animation_timer * 0.09)
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1),
+                      (-1, -1), (1, -1), (-1, 1), (1, 1)]
+        offsets = []
+        for ring in range(rings, 0, -1):
+            radius = ring + pulse * 1.5          # outer rings breathe more
+            t = 1.0 - ring / (rings + 1)         # inner rings brighter
+            for dx, dy in directions:
+                offsets.append((int(round(dx * radius)),
+                                int(round(dy * radius)), t))
+        return offsets
+
+    @staticmethod
     def particle_state(animation_timer, i, count=6, rise_span=46):
         """Rising-particle position offset + twinkle size for particle ``i``.
 
@@ -904,13 +944,27 @@ class Dungeon:
                                (portal_center_x + dx, portal_center_y + dy),
                                max(1, size))
 
-        # Themed label above with a mystical drop-glow.
+        # Themed label above with an animated radiant glow. The boss dungeon's
+        # golden "BOSS DUNGEON" title breathes with a pulsing aura and floats
+        # gently; the level portal gets the same treatment in its cool teal.
         font = pygame.font.Font(None, 20)
         label = theme["label"]
-        text = font.render(label, True, clamp_color(theme["label_color"]))
-        text_rect = text.get_rect(center=(portal_center_x, screen_y - 15))
-        glow_surface = font.render(label, True, clamp_color(theme["label_glow"]))
-        for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
+        shimmer = self.label_shimmer(animation_timer)
+        label_y = screen_y - 15 + self.label_bob(animation_timer)
+
+        # Bright, shimmering main text colour.
+        main_color = clamp_color(
+            self._lerp_color(theme["label_glow"], theme["label_color"], shimmer))
+        text = font.render(label, True, main_color)
+        text_rect = text.get_rect(center=(portal_center_x, label_y))
+
+        # Radiant multi-ring aura: dim themed-glow copies fanned outward, each
+        # ring brighter toward the centre, all modulated by the shimmer pulse.
+        for dx, dy, t in self.label_glow_offsets(animation_timer):
+            glow_color = clamp_color(
+                self._lerp_color(theme["label_glow"], theme["label_color"],
+                                 t * shimmer))
+            glow_surface = font.render(label, True, glow_color)
             screen.blit(glow_surface, (text_rect.x + dx, text_rect.y + dy))
         screen.blit(text, text_rect)
 

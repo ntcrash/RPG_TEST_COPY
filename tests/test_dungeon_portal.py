@@ -134,6 +134,50 @@ class ParticleStateTests(unittest.TestCase):
         self.assertGreater(len(ys), 1)
 
 
+class LabelGlowTests(unittest.TestCase):
+    """Golden radiant-glow label helpers added in v2.7.0 (roadmap P5 #28)."""
+
+    def test_shimmer_stays_in_range(self):
+        for t in range(0, 400, 5):
+            s = Dungeon.label_shimmer(t)
+            self.assertGreaterEqual(s, 0.0)
+            self.assertLessEqual(s, 1.0)
+
+    def test_shimmer_oscillates(self):
+        vals = {round(Dungeon.label_shimmer(t), 4) for t in range(0, 120)}
+        self.assertGreater(len(vals), 5)
+
+    def test_shimmer_deterministic(self):
+        self.assertEqual(Dungeon.label_shimmer(73), Dungeon.label_shimmer(73))
+
+    def test_bob_is_small_int(self):
+        for t in range(0, 200, 3):
+            b = Dungeon.label_bob(t)
+            self.assertIsInstance(b, int)
+            self.assertLessEqual(abs(b), 2)
+
+    def test_glow_offsets_emit_ring_directions(self):
+        offs = Dungeon.label_glow_offsets(0, rings=3)
+        # 3 rings * 8 compass directions.
+        self.assertEqual(len(offs), 24)
+        for dx, dy, t in offs:
+            self.assertIsInstance(dx, int)
+            self.assertIsInstance(dy, int)
+            self.assertGreaterEqual(t, 0.0)
+            self.assertLessEqual(t, 1.0)
+
+    def test_glow_inner_rings_brighter_than_outer(self):
+        offs = Dungeon.label_glow_offsets(0, rings=3)
+        # Outermost ring emitted first (t smallest), innermost last (t largest).
+        self.assertLess(offs[0][2], offs[-1][2])
+
+    def test_glow_outer_offsets_farther(self):
+        offs = Dungeon.label_glow_offsets(0, rings=3)
+        outer = max(abs(offs[0][0]), abs(offs[0][1]))
+        inner = max(abs(offs[-1][0]), abs(offs[-1][1]))
+        self.assertGreater(outer, inner)
+
+
 class DrawSmokeTests(unittest.TestCase):
     def _draw(self, is_portal, camera):
         surface = pygame.Surface((200, 200))
