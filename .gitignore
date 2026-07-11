@@ -27,8 +27,10 @@ dist/
 # in the repo via .gitkeep and repopulated by character creation at runtime.
 Characters/*.json
 SaveProgression/*.json
+Accounts/*.json
 !Characters/.gitkeep
 !SaveProgression/.gitkeep
+!Accounts/.gitkeep
 
 # Stray scratch/lock artifacts
 _t2

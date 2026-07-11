@@ -29,6 +29,7 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, Optional
 
+from Code.account_system import AccountError, AccountManager, authenticate_or_create
 from Code.network_client import NetworkClient
 from Code.network_protocol import DEFAULT_HOST, DEFAULT_PORT
 
@@ -41,10 +42,14 @@ class MultiplayerSession:
         host: str = DEFAULT_HOST,
         port: int = DEFAULT_PORT,
         name: str = "Adventurer",
+        account: Optional[Dict[str, Any]] = None,
     ) -> None:
         self.host = host
         self.port = port
         self.name = name
+        # Optional public account view (username + linked characters) for the
+        # player behind this session; ``None`` in accountless (guest) play.
+        self.account = account
         self._client: Optional[NetworkClient] = None
         self.active = False
         self.last_error: Optional[str] = None
@@ -127,5 +132,42 @@ def session_from_env(env: Optional[Dict[str, str]] = None) -> Optional[Multiplay
     if flag not in ("1", "true", "yes", "on"):
         return None
     host, port = parse_server_address(src.get("MEGITECH_SERVER", ""))
-    name = str(src.get("MEGITECH_PLAYER_NAME", "Adventurer")).strip() or "Adventurer"
-    return MultiplayerSession(host=host, port=port, name=name)
+
+    # Optional account: when MEGITECH_ACCOUNT (+ password) is set, log the
+    # player in (creating the account on first use) and attach the public
+    # account view to the session. Accountless play stays fully supported.
+    account = account_from_env(src)
+
+    # Player display name precedence: explicit MEGITECH_PLAYER_NAME wins;
+    # otherwise fall back to the account username, then "Adventurer".
+    name = str(src.get("MEGITECH_PLAYER_NAME", "")).strip()
+    if not name and account:
+        name = str(account.get("username", "")).strip()
+    name = name or "Adventurer"
+    return MultiplayerSession(host=host, port=port, name=name, account=account)
+
+
+def account_from_env(
+    env: Optional[Dict[str, str]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Resolve a player account from environment variables, or ``None``.
+
+    Reads ``MEGITECH_ACCOUNT`` / ``MEGITECH_ACCOUNT_PASSWORD`` (and optional
+    ``MEGITECH_ACCOUNTS_DIR``). If both credentials are present, logs the player
+    in — creating the account on first use via
+    :func:`Code.account_system.authenticate_or_create` — and returns the public
+    (secret-free) account view. Returns ``None`` when no account is configured
+    or when authentication fails, so a bad/absent account degrades gracefully to
+    accountless (guest) multiplayer rather than crashing the join.
+    """
+    src = os.environ if env is None else env
+    username = str(src.get("MEGITECH_ACCOUNT", "")).strip()
+    password = str(src.get("MEGITECH_ACCOUNT_PASSWORD", ""))
+    if not username or not password:
+        return None
+    accounts_dir = str(src.get("MEGITECH_ACCOUNTS_DIR", "")).strip() or "Accounts"
+    try:
+        manager = AccountManager(accounts_dir)
+        return authenticate_or_create(manager, username, password)
+    except AccountError:
+        return None
