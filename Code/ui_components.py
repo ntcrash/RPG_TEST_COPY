@@ -239,6 +239,16 @@ class Tree:
             self.trunk_width = 10
             self.leaf_radius = 20
 
+        # Lighter canopy tint used to paint a sun-catch highlight blob.
+        self.leaf_highlight = tuple(min(255, c + 45) for c in self.leaf_color)
+        # Withered/depleted canopy colour (dull grey-brown) shown right after a
+        # harvest; the canopy tweens back toward leaf_color as it regrows.
+        self.leaf_withered = (92, 78, 58)
+        # Per-tree animation seed so a forest doesn't sway in lock-step: a stable
+        # phase (from the world x) plus a mild per-tree amplitude variation.
+        self.sway_phase = (self.x * 0.013) % (2 * math.pi)
+        self.sway_strength = 1.0 + ((int(self.x + self.y) % 5) * 0.12)
+
     def get_rect(self):
         """Get collision rectangle (just the trunk for gameplay)"""
         return self.collision_rect
@@ -266,6 +276,23 @@ class Tree:
             if self.respawn_timer <= 0:
                 self.harvestable = True
 
+    def regrow_fraction(self):
+        """How grown the canopy is, 0.0 (just harvested) .. 1.0 (full).
+
+        Drives the depleted->healthy colour tween and canopy size so the tree
+        visibly regrows as its respawn timer counts down.
+        """
+        if self.harvestable or self.max_respawn_time <= 0:
+            return 1.0
+        grown = 1.0 - (self.respawn_timer / self.max_respawn_time)
+        return max(0.0, min(1.0, grown))
+
+    @staticmethod
+    def _lerp_color(c0, c1, t):
+        """Linear-interpolate between two RGB colours (t in 0..1)."""
+        t = max(0.0, min(1.0, t))
+        return tuple(int(a + (b - a) * t) for a, b in zip(c0, c1))
+
     def draw(self, screen, camera, animation_timer=0):
         """Draw the tree with camera offset"""
         if not self.active:
@@ -275,41 +302,65 @@ class Tree:
 
         # Only draw if visible on screen
         if camera.is_visible(self.x, self.y, self.width, self.height):
-            # Draw trunk
+            grown = self.regrow_fraction()
+
+            # Draw trunk (rooted; does not sway)
             trunk_x = screen_x + (self.width - self.trunk_width) // 2
             trunk_y = screen_y + self.height - 25
             pygame.draw.rect(screen, self.trunk_color,
                              (trunk_x, trunk_y, self.trunk_width, 20))
 
-            # Draw leaves (circle for canopy)
+            # Canopy anchor
             leaf_center_x = screen_x + self.width // 2
             leaf_center_y = screen_y + 20
 
-            # Add slight swaying animation
-            sway = int(2 * math.sin(animation_timer * 0.05 + self.x * 0.01))
-            leaf_center_x += sway
+            # Swaying animation: primary breeze + slower gust, phase-offset per
+            # tree, plus a gentle vertical bob. Amplitude grows with the canopy
+            # so a fresh sapling barely stirs while a full tree sways widely.
+            t = animation_timer * 0.05 + self.sway_phase
+            sway = (2.6 * self.sway_strength * math.sin(t)
+                    + 1.1 * math.sin(t * 0.37 + 1.3)) * grown
+            bob = 1.2 * grown * math.sin(t * 0.6 + self.sway_phase)
+            leaf_center_x += int(sway)
+            leaf_center_y += int(bob)
 
-            # Change color based on harvestable status
-            current_leaf_color = self.leaf_color if self.harvestable else (50, 50, 50)
+            # Colour + size respond to harvestable status: a depleted tree starts
+            # withered grey-brown and small, then tweens back to healthy green and
+            # full size as it regrows.
+            current_leaf_color = self._lerp_color(self.leaf_withered, self.leaf_color, grown)
+            highlight_color = self._lerp_color(self.leaf_withered, self.leaf_highlight, grown)
+            radius = max(4, int(self.leaf_radius * (0.35 + 0.65 * grown)))
 
-            pygame.draw.circle(screen, current_leaf_color,
-                               (leaf_center_x, leaf_center_y), self.leaf_radius)
-            pygame.draw.circle(screen, BLACK,
-                               (leaf_center_x, leaf_center_y), self.leaf_radius, 2)
-
-            # Add some detail to make it look more tree-like
             if self.tree_type == "pine":
-                # Draw pine tree shape (triangle layers)
+                # Layered triangle canopy that leans with the sway.
                 for i in range(3):
                     layer_y = leaf_center_y + i * 8
-                    layer_size = self.leaf_radius - i * 3
+                    layer_size = max(3, int((self.leaf_radius - i * 3) * (0.4 + 0.6 * grown)))
+                    lean = int(sway * (1.0 - i * 0.25))
+                    tip_x = leaf_center_x + lean
                     points = [
-                        (leaf_center_x, layer_y - layer_size),
+                        (tip_x, layer_y - layer_size),
                         (leaf_center_x - layer_size, layer_y + layer_size // 2),
                         (leaf_center_x + layer_size, layer_y + layer_size // 2)
                     ]
-                    pygame.draw.polygon(screen, self.leaf_color, points)
+                    pygame.draw.polygon(screen, current_leaf_color, points)
                     pygame.draw.polygon(screen, BLACK, points, 1)
+            else:
+                # Fuller rounded canopy built from overlapping blobs for a
+                # leafier look than a single flat circle.
+                blobs = [
+                    (leaf_center_x, leaf_center_y, radius),
+                    (leaf_center_x - radius // 2, leaf_center_y + radius // 3, int(radius * 0.7)),
+                    (leaf_center_x + radius // 2, leaf_center_y + radius // 3, int(radius * 0.7)),
+                    (leaf_center_x, leaf_center_y - radius // 3, int(radius * 0.8)),
+                ]
+                for bx, by, br in blobs:
+                    pygame.draw.circle(screen, current_leaf_color, (bx, by), max(3, br))
+                # Outline the main canopy and add a sun-catch highlight.
+                pygame.draw.circle(screen, BLACK, (leaf_center_x, leaf_center_y), radius, 2)
+                pygame.draw.circle(screen, highlight_color,
+                                   (leaf_center_x - radius // 3, leaf_center_y - radius // 3),
+                                   max(2, radius // 4))
 
     def draw_shadow(self, screen, camera):
         """Draw a subtle shadow beneath the tree"""

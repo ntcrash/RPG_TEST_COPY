@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 42 Ruff findings surfaced by the linter (unused imports, unused variables, unused loop vars, placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/10/2026 - v2.4.0
+### 🌳 Animated trees — swaying canopies + harvest-state colour (roadmap P5 #25)
+**Trees now sway naturally and visibly wither and regrow with their harvest state**, replacing the old flat single-circle canopy that just turned solid grey when depleted.
+- **Swaying animation** (`Code/ui_components.py` `Tree.draw`) — the canopy now sways with a primary breeze plus a slower gust term and a gentle vertical bob, while the trunk stays rooted. Each tree gets a stable per-tree `sway_phase` (seeded from its world x) and a mild `sway_strength` variation so a forest no longer sways in lock-step. Pine layers lean with the wind (upper layers lean more); leafy trees use a fuller multi-blob canopy with a black outline and a sun-catch highlight blob instead of one flat circle.
+- **Colour + size by harvestable status** — added `regrow_fraction()` (0.0 just-harvested → 1.0 full, mapped over the respawn timer) and a `_lerp_color` helper. A depleted tree now starts small and withered grey-brown (`leaf_withered`) and **tweens back** to healthy green (`leaf_color`/`leaf_highlight`) and full size as its respawn timer counts down — so the player can read a tree's harvest state and regrowth progress at a glance. Sway amplitude also scales with growth, so a fresh sapling barely stirs while a full tree sways widely.
+- **Tests** — added `tests/test_tree_animation.py` (11 tests): regrow-fraction mapping + clamping, canopy colour interpolation endpoints/midpoint, distinct per-tree sway phase, sway varying across frames, and a headless draw pass across all three tree types in both healthy and mid-regrow states (rendered through the `Code.gfx` shim, no GPU).
+- **Verification**: `py_compile` clean; full suite **144 → 155** green (6 skipped when arcade/display absent).
+- **Result**: roadmap **P5 #25 (animated trees) is done.**
+
 ## 07/10/2026 - v2.3.6
 ### 🔑 Define K_F1 in the shim — fix keypress crash on the pygame-free venv
 **A keypress in combat no longer crashes the game with `AttributeError: module 'Code.gfx' has no attribute 'K_F1'`.** `main.py`'s key handler compares against `pygame.K_F1` (the instruction-toggle key), but `Code/gfx.py` never defined `K_F1`, so the lookup fell through the shim's `__getattr__` to real pygame. That only *appeared* to work because the old external venv happened to have pygame installed as a fallback; on the new pygame-free Arcade venv (Python 3.12 + arcade 3.3), the fallback found nothing and raised on **every** keypress that reached the F1 check.
