@@ -206,6 +206,58 @@ class RestArea:
             screen.blit(text, text_rect)
 
 
+class HarvestableNode:
+    """Shared harvest/depleted visual-feedback helpers for resource nodes.
+
+    Rock, Metal, Stream, and Brush share the same harvest lifecycle: a
+    ``harvestable`` flag plus a ``respawn_timer`` counting down from
+    ``max_respawn_time`` after being gathered. This mixin centralises the
+    regrowth math and the "ready to harvest" pulse so every node gives the
+    player consistent, legible feedback about whether it can be gathered right
+    now (bright, full-colour, pulsing sparkle) versus depleted and still
+    regrowing (dimmed, shrunken, no sparkle). Roadmap P5 #26.
+    """
+
+    def regrow_fraction(self):
+        """How regrown the node is: 0.0 just-harvested (depleted) .. 1.0 ready.
+
+        Mirrors ``Tree.regrow_fraction`` so all resource nodes share one
+        depleted->ready progression the visuals can key off.
+        """
+        if getattr(self, "harvestable", True) or self.max_respawn_time <= 0:
+            return 1.0
+        grown = 1.0 - (self.respawn_timer / self.max_respawn_time)
+        return max(0.0, min(1.0, grown))
+
+    @staticmethod
+    def _lerp_color(c0, c1, t):
+        """Linear-interpolate between two RGB colours (t in 0..1)."""
+        t = max(0.0, min(1.0, t))
+        return tuple(int(a + (b - a) * t) for a, b in zip(c0, c1))
+
+    @staticmethod
+    def harvest_pulse(animation_timer):
+        """A 0.0..1.0 sine pulse driving the 'ready to harvest' glow."""
+        return 0.5 + 0.5 * math.sin(animation_timer * 0.15)
+
+    def draw_ready_marker(self, screen, center_x, top_y, animation_timer,
+                          color=(255, 255, 150)):
+        """Draw a pulsing sparkle above a harvestable node.
+
+        Gives an at-a-glance "this can be gathered" cue that a depleted node
+        (still regrowing) never shows, so players can tell ready nodes from
+        spent ones without walking up to each one.
+        """
+        if not getattr(self, "harvestable", False):
+            return
+        pulse = self.harvest_pulse(animation_timer)
+        radius = 2 + int(2 * pulse)
+        marker_y = top_y - 6 - int(2 * pulse)
+        glow = self._lerp_color((120, 120, 60), color, pulse)
+        pygame.draw.circle(screen, glow, (center_x, marker_y), radius)
+        pygame.draw.circle(screen, (255, 255, 255), (center_x, marker_y), max(1, radius - 2))
+
+
 class Tree:
     """Tree object for environmental decoration and possible interaction"""
 
@@ -367,7 +419,7 @@ class Tree:
         screen_x, screen_y = camera.world_to_screen(self.x, self.y)
 
 
-class Rock:
+class Rock(HarvestableNode):
     """Rock object - impassable, interactive for mining materials"""
 
     def __init__(self, x, y, rock_type="stone"):
@@ -431,23 +483,27 @@ class Rock:
         screen_x, screen_y = camera.world_to_screen(self.x, self.y)
 
         if camera.is_visible(self.x, self.y, self.width, self.height):
-            # Draw rock shape
-            rock_rect = pygame.Rect(screen_x, screen_y, self.width, self.height)
-            color = self.color if self.harvestable else (50, 50, 50)
+            # Depleted rock refills its ore colour as it regrows; a mined rock
+            # also shrinks slightly so a spent node reads as spent at a glance.
+            grown = self.regrow_fraction()
+            color = self._lerp_color((50, 50, 50), self.color, grown)
+            inset = int((1.0 - grown) * 6)
+            rock_rect = pygame.Rect(screen_x + inset, screen_y + inset,
+                                    self.width - inset * 2, self.height - inset * 2)
             pygame.draw.ellipse(screen, color, rock_rect)
             pygame.draw.ellipse(screen, BLACK, rock_rect, 2)
 
-            # Add some texture
+            # Ore-fleck texture + pulsing "ready" sparkle only when harvestable.
             if self.harvestable:
                 for i in range(3):
                     dot_x = screen_x + 10 + i * 8
                     dot_y = screen_y + 15
-                    # Clamp color values to valid range
-                    texture_color = (min(255, color[0] + 20), min(255, color[1] + 20), min(255, color[2] + 20))
+                    texture_color = clamp_color((color[0] + 20, color[1] + 20, color[2] + 20))
                     pygame.draw.circle(screen, texture_color, (dot_x, dot_y), 2)
+                self.draw_ready_marker(screen, screen_x + self.width // 2, screen_y, animation_timer)
 
 
-class Metal:
+class Metal(HarvestableNode):
     """Metal vein object - impassable, interactive for rare metals"""
 
     def __init__(self, x, y, metal_type="iron"):
@@ -502,7 +558,10 @@ class Metal:
         screen_x, screen_y = camera.world_to_screen(self.x, self.y)
 
         if camera.is_visible(self.x, self.y, self.width, self.height):
-            color = self.color if self.harvestable else (30, 30, 30)
+            # Depleted vein fades to near-black, then regains its metal colour
+            # as it regrows toward ready.
+            grown = self.regrow_fraction()
+            color = self._lerp_color((30, 30, 30), self.color, grown)
 
             # Draw metal vein as a jagged rectangle
             points = [
@@ -515,9 +574,9 @@ class Metal:
             pygame.draw.polygon(screen, color, points)
             pygame.draw.polygon(screen, BLACK, points, 2)
 
-            # Add metallic shine effect
+            # Metallic shine + pulsing "ready" sparkle only when harvestable.
             if self.harvestable:
-                shine_color = (min(255, color[0] + 50), min(255, color[1] + 50), min(255, color[2] + 50))
+                shine_color = clamp_color((color[0] + 50, color[1] + 50, color[2] + 50))
                 shine_points = [
                     (screen_x + 8, screen_y + 5),
                     (screen_x + 15, screen_y + 3),
@@ -525,9 +584,10 @@ class Metal:
                     (screen_x + 12, screen_y + 12)
                 ]
                 pygame.draw.polygon(screen, shine_color, shine_points)
+                self.draw_ready_marker(screen, screen_x + self.width // 2, screen_y, animation_timer)
 
 
-class Stream:
+class Stream(HarvestableNode):
     """Stream object - impassable water, provides water-based materials"""
 
     def __init__(self, x, y):
@@ -572,10 +632,11 @@ class Stream:
         screen_x, screen_y = camera.world_to_screen(self.x, self.y)
 
         if camera.is_visible(self.x, self.y, self.width, self.height):
-            # Animate water flow
-            flow = int(3 * math.sin((animation_timer + self.flow_offset) * 0.1))
-
-            base_color = (64, 164, 223) if self.harvestable else (30, 60, 90)
+            # A depleted (recently harvested) stream runs dark and murky, then
+            # brightens back to clear blue as its crystals regrow.
+            grown = self.regrow_fraction()
+            base_color = self._lerp_color((30, 60, 90), (64, 164, 223), grown)
+            wave_color = self._lerp_color((60, 110, 140), (100, 200, 255), grown)
 
             # Draw stream as wavy rectangle
             stream_rect = pygame.Rect(screen_x, screen_y, self.width, self.height)
@@ -591,13 +652,18 @@ class Stream:
                     wave_points.append((wave_x, wave_y + wave_offset))
 
                 if len(wave_points) > 1:
-                    pygame.draw.lines(screen, (100, 200, 255), False, wave_points, 2)
+                    pygame.draw.lines(screen, wave_color, False, wave_points, 2)
 
             # Draw border
             pygame.draw.rect(screen, BLACK, stream_rect, 2)
 
+            # Pulsing "ready" sparkle above the water when crystals are ready.
+            if self.harvestable:
+                self.draw_ready_marker(screen, screen_x + self.width // 2, screen_y, animation_timer,
+                                       color=(180, 240, 255))
 
-class Brush:
+
+class Brush(HarvestableNode):
     """Brush object - impassable vegetation, provides random materials"""
 
     def __init__(self, x, y):
@@ -641,24 +707,29 @@ class Brush:
         screen_x, screen_y = camera.world_to_screen(self.x, self.y)
 
         if camera.is_visible(self.x, self.y, self.width, self.height):
-            # Draw bush/brush
-            base_color = (34, 139, 34) if self.harvestable else (20, 70, 20)
+            # A picked bush is sparse and drab, then greens up and fills back out
+            # as it regrows toward ready.
+            grown = self.regrow_fraction()
+            base_color = self._lerp_color((20, 70, 20), (34, 139, 34), grown)
 
-            # Draw multiple circles for bushy appearance
+            # Draw multiple circles for bushy appearance; foliage shrinks while
+            # depleted so a spent bush looks thinned out.
             for i in range(4):
                 circle_x = screen_x + 8 + (i % 2) * 16
                 circle_y = screen_y + 8 + (i // 2) * 16
-                radius = 8 + int(2 * math.sin(animation_timer * 0.05 + i))
+                radius = max(3, int((8 + int(2 * math.sin(animation_timer * 0.05 + i))) * (0.55 + 0.45 * grown)))
 
                 pygame.draw.circle(screen, base_color, (circle_x, circle_y), radius)
                 pygame.draw.circle(screen, BLACK, (circle_x, circle_y), radius, 1)
 
-            # Add some berries or details if harvestable
+            # Ripe berries + pulsing "ready" sparkle only when harvestable.
             if self.harvestable:
                 for i in range(2):
                     berry_x = screen_x + 12 + i * 8
                     berry_y = screen_y + 10 + i * 12
                     pygame.draw.circle(screen, RED, (berry_x, berry_y), 2)
+                self.draw_ready_marker(screen, screen_x + self.width // 2, screen_y, animation_timer,
+                                       color=(180, 255, 120))
 
 
 class Dungeon:

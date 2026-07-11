@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 42 Ruff findings surfaced by the linter (unused imports, unused variables, unused loop vars, placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/10/2026 - v2.5.0
+### ⛏️ Resource-node harvest feedback — ready vs. depleted at a glance (roadmap P5 #26)
+**Rocks, metal veins, streams, and brush now clearly show whether they can be harvested right now or are still regrowing**, extending the harvest-state feedback that trees got in v2.4.0 to every gathering node. Previously these nodes only did a crude binary colour swap (full colour vs. one dark shade) with no regrowth cue and no "you can gather this" indicator, so a depleted node and a ready one were easy to confuse from a distance.
+- **Shared `HarvestableNode` mixin** (`Code/ui_components.py`) — Rock, Metal, Stream, and Brush now inherit one place for the harvest-feedback math: `regrow_fraction()` (0.0 just-harvested → 1.0 ready, mapped over the respawn timer, mirroring `Tree`), a `_lerp_color` helper, a `harvest_pulse()` sine used for the ready glow, and `draw_ready_marker()` which paints a **pulsing sparkle above any harvestable node** (and nothing on a depleted one).
+- **Depleted → ready tween per node** — instead of snapping between two colours, each node now interpolates from a dark "spent" appearance back to its full colour as it regrows: rock/metal refill their ore colour (and rock shrinks slightly while spent), a stream runs dark and murky then brightens back to clear blue, and brush greens up and fills back out (foliage radius scales with regrowth). The pulsing ready-sparkle only appears once a node is fully harvestable, so players can tell ready nodes from regrowing ones without walking up to each one.
+- **Tests** — added `tests/test_resource_node_feedback.py` (13 tests): regrow-fraction mapping + clamping across all four node types, colour-lerp endpoints/midpoint/clamp, `harvest_pulse` range and oscillation, and a headless draw pass in both the ready and depleted states plus that the ready-marker is drawn only when harvestable (rendered through the `Code.gfx` shim, no GPU).
+- **Also** — removed a pre-existing dead `flow` local in `Stream.draw` (one of the deferred Ruff findings) while editing that block; `Code/ui_components.py` + the new test are Ruff-clean.
+- **Verification**: `py_compile` clean; Ruff clean on the touched files; full suite **155 → 168** green (6 skipped when arcade/display absent).
+- **Result**: roadmap **P5 #26 (resource-node visual feedback) is done.**
+
 ## 07/10/2026 - v2.4.0
 ### 🌳 Animated trees — swaying canopies + harvest-state colour (roadmap P5 #25)
 **Trees now sway naturally and visibly wither and regrow with their harvest state**, replacing the old flat single-circle canopy that just turned solid grey when depleted.
