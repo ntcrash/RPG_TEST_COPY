@@ -1249,8 +1249,12 @@ class EnhancedCombatManager:
     def draw_enhanced_action_interface(self, screen):
         """Draw enhanced action selection interface"""
         if self.combat_phase == "select_action":
-            # Draw action menu with background
-            menu_bg = pygame.Rect(40, 210, 300, 150)
+            # Draw action menu with background. Row pitch (30) must exceed the
+            # 24px font height so the selection highlight fully wraps a row's
+            # text without its border slicing through the glyphs; panel is tall
+            # enough (175) to contain the title + 4 rows and still clear the log.
+            row_pitch = 30
+            menu_bg = pygame.Rect(40, 210, 300, 175)
             pygame.draw.rect(screen, (30, 15, 15, 200), menu_bg)
             pygame.draw.rect(screen, (150, 100, 100), menu_bg, 2)
 
@@ -1264,16 +1268,18 @@ class EnhancedCombatManager:
 
             for i, (action, icon) in enumerate(zip(self.actions, action_icons)):
                 color = MENU_SELECTED if i == self.selected_action else WHITE
+                row_y = action_y + i * row_pitch
 
-                # Add selection highlight
+                # Selection highlight: 28px tall, starting 3px above the text so
+                # the 24px glyphs sit fully inside it (no border through text).
                 if i == self.selected_action:
-                    highlight_rect = pygame.Rect(65, action_y + i * 25 - 2, 250, 20)
+                    highlight_rect = pygame.Rect(65, row_y - 3, 250, 28)
                     pygame.draw.rect(screen, (50, 30, 30), highlight_rect)
                     pygame.draw.rect(screen, color, highlight_rect, 1)
 
                 action_text = f"{icon} {action}"
                 text_surface = self.font.render(action_text, True, color)
-                screen.blit(text_surface, (70, action_y + i * 25))
+                screen.blit(text_surface, (70, row_y))
 
         elif self.combat_phase == "select_spell":
             # Draw spell selection menu with mana costs
@@ -1412,9 +1418,10 @@ class EnhancedCombatManager:
                 for i, item_name in enumerate(usable_items):
                     quantity = inventory[item_name]
 
-                    # Selection highlight
+                    # Selection highlight: 28px tall, 3px above the text so the
+                    # 24px glyphs sit fully inside (border never crosses text).
                     if i == self.selected_item:
-                        highlight_rect = pygame.Rect(65, item_y + i * row_pitch - 2, 300, 26)
+                        highlight_rect = pygame.Rect(65, item_y + i * row_pitch - 3, 300, 28)
                         pygame.draw.rect(screen, (20, 40, 20), highlight_rect)
                         pygame.draw.rect(screen, MENU_SELECTED, highlight_rect, 2)
                         color = MENU_SELECTED

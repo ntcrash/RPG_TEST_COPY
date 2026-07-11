@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 42 Ruff findings surfaced by the linter (unused imports, unused variables, unused loop vars, placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/10/2026 - v2.3.5
+### 🎯 Selection highlight no longer slices through the menu text
+**The combat action and item menu selection boxes now fully wrap the highlighted row's text.** The highlight rectangle was 20px tall around a 24px font, drawn as a 1–2px outline, so its bottom border ran straight through the lower half of the selected line's glyphs — reading like a strikethrough (most visible on "Cast Spell" in the action menu). Rows were also pitched at only 25px, nearly touching.
+- **Action menu** (`Code/enhanced_combat_system.py`) — row pitch 25→30px and highlight box 20→28px, positioned 3px above the text so the 24px glyphs sit fully inside the border. Panel grown 150→175px to hold the taller rows and still clear the combat log at y=455.
+- **Item menu** — highlight box 26→28px at a -3px offset (was -2) for the same full-wrap; row pitch already 30px from v2.3.3.
+- **Store** (`Code/inventory_system.py`) — unchanged: its highlight is a *filled* bar with text drawn on top, so no border ever crossed the glyphs.
+- **Verification**: re-rendered the action/item menus headlessly (selected row = "Cast Spell" / "Greater Health Potion") and confirmed the highlight cleanly encloses the text; full suite **144/144** green.
+
 ## 07/10/2026 - v2.3.4
 ### 🐌 Stop real pygame from loading on every launch (startup / repo hygiene)
 **The Arcade backend no longer imports real `pygame` at all during a normal play session.** `Code/gfx.py` — the Arcade-native drawing/audio/timing shim — was importing real pygame *eagerly* at module load (`import pygame as _pygame`) purely to back a handful of never-exercised `__getattr__` fallbacks (`locals`, `Color`, `Vector2`, `mouse`, …). Since v2.2.5 the game drives everything through the shim, so that eager import bought nothing but pygame's SDL load cost and its support-prompt banner on every startup — which is exactly why "why is pygame launching under the Arcade backend?" kept showing up. (`pygame` is no longer even a declared dependency as of v2.2.5, so on a clean install the eager `try/except` was also silently swallowing an `ImportError` on every launch.)
