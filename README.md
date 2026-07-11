@@ -6,6 +6,8 @@ Magitech RPG is a single-player turn-based role-playing game built with Python a
 
 ## Recent Changes
 
+**2026-07-11 (v3.0.1)**: **Multiplayer — client/server networking foundation** (roadmap P6 #40). Adds the server component and a client networking layer so several players can share a world, while **single-player is completely unchanged** (purely additive — no single-player module imports any of it, and the default `python main.py` never opens a socket). The layer is **standard-library only** (`socket`/`threading`/`socketserver`/`json`/`struct`), so the server runs headless and the code tests without a display. New modules: `Code/network_protocol.py` (message vocabulary + length-prefixed JSON framing with a `FrameDecoder` stream-reassembly state machine), `Code/game_server.py` (`GameServer`, a threaded presence/relay server that assigns player ids and broadcasts join/state/leave/chat — relay only, combat/world logic stays client-side), `Code/network_client.py` (`NetworkClient` with a background receive thread + thread-safe mirror of other players), `Code/multiplayer.py` (opt-in `MultiplayerSession`, enabled only via `MEGITECH_MULTIPLAYER=1`), and `server_app.py` (standalone `python server_app.py` launcher). Run a session: start `python server_app.py` on the host, then join clients with `MEGITECH_MULTIPLAYER=1 MEGITECH_SERVER=<host>:<port> python main.py`. +26 headless loopback tests (`tests/test_network.py`); full suite **287 → 313** green. In-game rendering of remote players on the board is the next follow-up. See CHANGELOG.md.
+
 **2026-07-11 (v2.12.0)**: **Helper pets** (roadmap P5 #32). Players can now recruit a combat companion — earned as loot for defeating a boss, or bought from the shop. New pure module `Code/pet_system.py` defines a five-pet catalog (Dire Wolf, Healing Sprite, Ember Drake, Phoenix, and the boss-only Void Shade), each with a per-turn assist (`attack` damages the enemy, `heal` restores the player, `leech` does both) scaled by player level. The active pet assists every round via `EnhancedCombatManager.pet_assist_turn()`; boss victories roll a 35% drop (`roll_boss_pet_drop`); the shop lists buyable pets and purchases them through `PetManager`. Ownership persists on the save (`Pets` list + `Active_Pet`), backfilled by a `SAVE_SCHEMA_VERSION` 1→2 migration. +45 tests (`tests/test_pet_system.py`); full suite **242 → 287** green. Closes the P5 backlog. See CHANGELOG.md.
 
 **2026-07-11 (v2.11.0)**: **More spells** (roadmap P5 #33). Every magic aspect gained two new level-gated tiers — a master spell (unlocks at level 8) and an ultimate (level 12) — extending casting progression into the late game. A data-driven `SPELL_UNLOCK_LEVELS = (1, 3, 5, 8, 12)` replaced the hard-coded 3-spell ladder, and the combat spell menu's row pitch is now adaptive so a full 5-spell list clears the combat log. +15 tests (`tests/test_more_spells.py`); full suite **227 → 242** green. See CHANGELOG.md.
@@ -157,6 +159,7 @@ Magitech RPG is a single-player turn-based role-playing game built with Python a
 /
 ├── main.py                     # Game engine + entry point (v2.2.1: unconditionally launches the Arcade window) — EnhancedGameManager
 ├── arcade_app.py               # Arcade window entry point (sets MEGITECH_BACKEND=arcade, drives the state machine)
+├── server_app.py               # Standalone multiplayer server launcher (v3.0.1) — python server_app.py
 ├── requirements.txt            # Runtime deps (arcade only; pygame dropped in v2.2.5)
 ├── requirements-dev.txt        # Dev-only deps (ruff)
 ├── pyproject.toml              # Ruff linter config
@@ -183,6 +186,10 @@ Magitech RPG is a single-player turn-based role-playing game built with Python a
 │   ├── inventory_system.py     # Inventory and equipment
 │   ├── settings_system.py      # Game configuration
 │   ├── crafting_system.py      # Crafting workshops and recipes
+│   ├── network_protocol.py     # Multiplayer wire protocol — framing + message types (v3.0.1)
+│   ├── game_server.py          # Multiplayer presence/relay server (v3.0.1)
+│   ├── network_client.py       # Multiplayer client connector (v3.0.1)
+│   ├── multiplayer.py          # Opt-in high-level multiplayer session (v3.0.1)
 │   └── debug.py                # Gated debug output (MEGITECH_DEBUG)
 ├── tests/                      # Headless unittest suite
 ├── Characters/                 # Character save files (gitignored, runtime)
