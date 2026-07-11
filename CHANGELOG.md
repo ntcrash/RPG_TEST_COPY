@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 ## - ToDo
 - Fix the 42 Ruff findings surfaced by the linter (unused imports, unused variables, unused loop vars, placeholder-less f-strings, 1 redefinition) — deferred from v2.1.2 to keep that change config-only. Once fixed, make the CI `ruff check` step blocking (remove `continue-on-error` in `.github/workflows/ci.yml`).
 
+## 07/11/2026 - v2.9.0
+### 🌿 Cleaner grass terrain — flower clutter removed (roadmap P5 #30)
+**The overworld is now clean, natural grass instead of a field of scattered flowers.** `assets/map.txt` had been sprinkled with 40 decorative flower tiles (`F`/`f` flower patches, plus `R`/`r` blooms handled elsewhere) that broke up the grass and competed with paths and landmarks for attention. World Aesthetics replaces that clutter with tidy grass so the terrain reads clearly.
+- **New declutter helper** — added `EnhancedTileMap.declutter_flowers(line, row)` (`Code/tile_map.py`): a pure, deterministic classmethod that swaps every flower marker (`FLOWER_CHARS = "FfRr"`) for a grass variant chosen by `(row + col) % 3` from `GRASS_VARIANTS = ("G", "g", "d")`. Mixing the three grass tiles keeps the ground from looking like one flat monotone block while staying flower-free. Non-flower characters (trees, paths, water, intersections) pass through untouched.
+- **Wired into map loading** — `load_map_from_data` now runs each line through `declutter_flowers` before mapping tile rects, so **no flower tile survives to the rendered tile map** regardless of what's on disk — old saved maps, future edits, and the bundled map all render clean.
+- **Cleaned the source map** — rewrote `assets/map.txt` with the same deterministic mapping, converting all 40 flower tiles to grass variants (0 flower characters remain).
+- **Fallback tileset** — removed the flower-circle detail that the procedural fallback tileset painted on tiles 12/13 (used when the `overworldSmall2.png` sheet is absent); those two cells are now plain grass variants, so no flowers are baked into either rendering path.
+- **Tests** — added `tests/test_world_aesthetics.py` (9 tests, headless via the `Code.gfx` shim): flower→grass replacement, non-flower chars untouched, length preserved, all four flower variants covered, determinism, position-varied replacement (all three grass variants appear), empty line, and two end-to-end `load_map_from_data` checks proving flower tiles resolve to grass rects.
+- **Verification**: `py_compile` clean; Ruff clean on the new helper + test (the two pre-existing `tile_map.py` findings — unused `random` import, `B007` loop var — were already present before this change and remain tracked in the ToDo); full suite **204 → 213** green (6 skipped when arcade/display absent).
+- **Result**: roadmap **P5 #30 (World Aesthetics — cleaner grass terrain) is done.**
+
 ## 07/11/2026 - v2.8.0
 ### 🏆 Special victory messages — a trophy banner for boss defeats (roadmap P5 #29)
 **Winning a fight now shows a proper formatted victory banner instead of a single flat line**, with a full trophy banner for boss kills and a compact one for ordinary wins. `Code/enhanced_combat_integration.py`'s `handle_victory` previously logged one string that packed the reward and (for bosses) a 🏆 into a single combat-log row.

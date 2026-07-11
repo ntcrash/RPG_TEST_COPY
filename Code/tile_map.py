@@ -13,6 +13,35 @@ map_file = assets_dir / 'map.txt'
 class EnhancedTileMap(pygame.sprite.Sprite):
     """Enhanced TileMap class from RPG2 demo with Zelda-style world"""
 
+    # Legacy maps sprinkled decorative flower tiles ('F'/'f' = flower patches,
+    # 'R'/'r' = single blooms) across the grass, producing a cluttered, busy
+    # field. World Aesthetics (roadmap P5 #30) replaces that clutter with clean,
+    # natural grass so paths and landmarks read clearly.
+    FLOWER_CHARS = frozenset("FfRr")
+    # Grass tile variants used to backfill decluttered flower tiles. Mixing the
+    # three keeps the terrain from looking like one flat monotone block while
+    # still being plain grass (no flowers).
+    GRASS_VARIANTS = ("G", "g", "d")
+
+    @classmethod
+    def declutter_flowers(cls, line, row=0):
+        """Replace decorative flower markers in a map line with grass variants.
+
+        Each flower character (see ``FLOWER_CHARS``) is swapped for a grass tile
+        chosen deterministically from ``GRASS_VARIANTS`` by its (row, column)
+        position, so the terrain reads as clean, varied grass instead of a field
+        of scattered flowers. Non-flower characters are left untouched. Pure and
+        deterministic, so it is safe to unit-test without a display.
+        """
+        variants = cls.GRASS_VARIANTS
+        out = []
+        for col, ch in enumerate(line):
+            if ch in cls.FLOWER_CHARS:
+                out.append(variants[(row + col) % len(variants)])
+            else:
+                out.append(ch)
+        return "".join(out)
+
     def __init__(self, sprite_sheet_path="overworldSmall2.png", map_data=None):
         super().__init__()
         self.map_data = map_data
@@ -41,9 +70,9 @@ class EnhancedTileMap(pygame.sprite.Sprite):
                 (50, 205, 50),  # Light grass
                 (85, 107, 47),  # Olive (bush)
 
-                # Row 3 - Decorative elements
-                (255, 255, 255),  # White (flowers)
-                (255, 20, 147),  # Deep pink (flowers)
+                # Row 3 - Grass variations (flowers removed for cleaner terrain)
+                (46, 160, 46),  # Grass variant
+                (40, 120, 40),  # Grass variant
                 (34, 139, 34),  # Grass base
                 (0, 100, 0),  # Dark grass
                 (139, 69, 19),  # Tree trunk
@@ -79,10 +108,7 @@ class EnhancedTileMap(pygame.sprite.Sprite):
                 y = (i // 6) * 24
                 pygame.draw.rect(self.tiles, color, (x, y, 24, 24))
                 # Add some texture/detail
-                if i == 12 or i == 13:  # Flower tiles
-                    pygame.draw.circle(self.tiles, (255, 255, 255), (x + 12, y + 12), 3)
-                    pygame.draw.circle(self.tiles, (255, 255, 0), (x + 12, y + 12), 1)
-                elif i == 16 or i == 17:  # Tree tiles
+                if i == 16 or i == 17:  # Tree tiles
                     pygame.draw.circle(self.tiles, (0, 128, 0), (x + 12, y + 8), 8)
                     pygame.draw.rect(self.tiles, (139, 69, 19), (x + 10, y + 16, 4, 8))
                 # Add border to all tiles
@@ -94,6 +120,10 @@ class EnhancedTileMap(pygame.sprite.Sprite):
 
     def load_map_from_data(self, map_lines):
         """Load map from string data - Zelda-style mapping system"""
+        # Strip decorative flower clutter to clean grass before mapping tiles
+        # (World Aesthetics, roadmap P5 #30).
+        map_lines = [self.declutter_flowers(line, row) for row, line in enumerate(map_lines)]
+
         tile_map = []
 
         # Tile coordinate mappings for Zelda-style world
