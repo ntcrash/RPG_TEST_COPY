@@ -2,7 +2,13 @@
 All notable changes to this project will be documented in this file.
 
 ## - ToDo
-- _(empty — the whole ROADMAP.md P0–P6 backlog and this ToDo list are cleared as of v3.2.0)_
+- _(empty — the whole ROADMAP.md P0–P6 backlog and this ToDo list are cleared as of v3.2.1)_
+
+## 07/13/2026 - v3.2.1
+### ✅ Close the completed Arcade migration roadmap item
+The roadmap’s stale **In Progress** entry for the pygame → Arcade GUI migration is now moved to **Done**. The migration was already fully delivered in **v2.2.5** (`053d07b`), including Arcade as the default backend and removal of pygame from the runtime dependencies.
+- **Roadmap status** — P0–P6 and the migration work are all explicitly complete; no new feature was invented for this maintenance run.
+- **Verification** — version metadata is now `3.2.1`; the existing v2.2.5 verification remains the authoritative implementation check (20/20 module import sweep, 109/109 tests, and clean `py_compile` with pygame absent).
 
 ## 07/11/2026 - v3.2.0
 ### 🧹 Ruff cleanup — codebase is now lint-clean and CI lint is a hard gate
@@ -1170,4 +1176,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 - Describe any security vulnerabilities addressed.
-
