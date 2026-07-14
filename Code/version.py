@@ -6,7 +6,7 @@ hardcoding version strings throughout the codebase.
     from Code.version import __version__, CAPTION
 """
 
-__version__ = "3.2.1"
+__version__ = "3.2.2"
 
 # Human-facing title used for the window caption / title bar.
 TITLE = "Magitech RPG - Multi-Level Edition"
